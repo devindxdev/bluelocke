@@ -114,7 +114,7 @@ const icons: Record<string, icon> = {
     color: Color.dynamic(Color.black(), Color.white()),
   },
   'twelve-volt': {
-    iconName: parseFloat(Device.systemVersion()) >= 16 ? 'battery.100.bolt' : 'minus.plus.batteryblock',
+    iconName: parseFloat(Device.systemVersion()) >= 16 ? 'minus.plus.batteryblock.fill' : 'minus.plus.batteryblock',
     color: Color.dynamic(Color.black(), Color.white()),
   },
   'charge-limit': {

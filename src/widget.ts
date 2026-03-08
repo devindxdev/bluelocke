@@ -2,7 +2,6 @@ import {
   getIconName,
   getTintedIconAsync,
   getBatteryPercentColor,
-  calculateBatteryIcon,
   getChargingIcon,
   dateStringOptions,
   getChargeCompletionString,
@@ -358,18 +357,6 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   batteryInfoStack.size = new Size(125, 100)
   batteryInfoStack.addSpacer(10)
 
-  // Range
-  const rangeStack = batteryInfoStack.addStack()
-  rangeStack.addSpacer()
-  const rangeText = `~${status.status.range} ${bl.getDistanceUnit()}`
-  const rangeElement = rangeStack.addText(rangeText)
-  rangeElement.font = Font.semiboldSystemFont(15)
-  rangeElement.textColor = primaryText
-  rangeElement.minimumScaleFactor = 0.7
-  rangeElement.lineLimit = 1
-  rangeElement.rightAlignText()
-  batteryInfoStack.addSpacer(2)
-
   // set status from BL status response
   const isCharging = status.status.isCharging
   const isPluggedIn = status.status.isPluggedIn
@@ -384,39 +371,63 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
         : status.car.odometer
   const lastSeen = new Date(status.status.lastRemoteStatusCheck)
   const twelveSoc = status.status.twelveSoc
+  const rangeText = `~${status.status.range} ${bl.getDistanceUnit()}`
+
+  // Top row: EV/PHEV -> range, ICE/HEV -> fuel + icon
+  const topInfoStack = batteryInfoStack.addStack()
+  topInfoStack.layoutHorizontally()
+  topInfoStack.centerAlignContent()
+  topInfoStack.addSpacer()
+  if (supportsCharging) {
+    const topRangeText = topInfoStack.addText(rangeText)
+    topRangeText.font = Font.semiboldSystemFont(15)
+    topRangeText.textColor = primaryText
+    topRangeText.minimumScaleFactor = 0.7
+    topRangeText.lineLimit = 1
+    topRangeText.rightAlignText()
+  } else {
+    const topFuelIcon = topInfoStack.addImage(await getWidgetIcon('fuel', primaryText))
+    topFuelIcon.imageSize = new Size(28, 28)
+    topInfoStack.addSpacer(5)
+    const topFuelText = topInfoStack.addText(getEnergyText(status, bl))
+    topFuelText.font = Font.semiboldSystemFont(15)
+    topFuelText.textColor = primaryText
+    topFuelText.minimumScaleFactor = 0.65
+    topFuelText.lineLimit = 1
+    topFuelText.rightAlignText()
+  }
+  batteryInfoStack.addSpacer(2)
 
   // Battery Percent Value
   const batteryPercentStack = batteryInfoStack.addStack()
+  batteryPercentStack.layoutHorizontally()
   batteryPercentStack.addSpacer()
   batteryPercentStack.centerAlignContent()
   if (supportsCharging) {
-    const image = await getTintedIconAsync(calculateBatteryIcon(batteryPercent))
-    const batterySymbolElement = batteryPercentStack.addImage(image)
-    batterySymbolElement.imageSize = new Size(40, 40)
+    const batteryIconColor = batteryPercent > 70 ? Color.green() : Color.red()
+    const batterySymbolElement = batteryPercentStack.addImage(await getWidgetIcon('twelve-volt', batteryIconColor))
+    batterySymbolElement.imageSize = new Size(32, 24)
+    const chargingIcon = getChargingIcon(isCharging, isPluggedIn, true)
+    if (chargingIcon) {
+      const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
+      chargingElement.imageSize = new Size(28, 28)
+    }
+
+    batteryPercentStack.addSpacer(5)
+
+    const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
+    batteryPercentText.textColor =
+      supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
+    batteryPercentText.font = Font.semiboldSystemFont(15)
+    batteryPercentText.minimumScaleFactor = 0.65
+    batteryPercentText.lineLimit = 1
   } else {
-    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', primaryText))
-    fuelElement.imageSize = new Size(24, 24)
-  }
-  const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
-  if (chargingIcon) {
-    const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
-    chargingElement.imageSize = new Size(25, 25)
-  }
-
-  batteryPercentStack.addSpacer(5)
-
-  const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
-  batteryPercentText.textColor =
-    supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
-  batteryPercentText.font = Font.semiboldSystemFont(15)
-  batteryPercentText.minimumScaleFactor = 0.65
-  batteryPercentText.lineLimit = 1
-
-  // For non-charging vehicles, show "Fuel %" first and "~range" second.
-  if (!supportsCharging) {
-    const fuelText = batteryPercentText.text
-    batteryPercentText.text = rangeText
-    rangeElement.text = fuelText
+    const rangeBottomText = batteryPercentStack.addText(rangeText)
+    rangeBottomText.textColor = primaryText
+    rangeBottomText.font = Font.semiboldSystemFont(15)
+    rangeBottomText.minimumScaleFactor = 0.7
+    rangeBottomText.lineLimit = 1
+    rangeBottomText.rightAlignText()
   }
 
   if (supportsCharging && isCharging) {
@@ -436,7 +447,7 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     const chargingTimeIconElement = batteryChargingTimeStack.addImage(
       await getTintedIconAsync('charging-complete-widget'),
     )
-    chargingTimeIconElement.imageSize = new Size(15, 15)
+    chargingTimeIconElement.imageSize = new Size(17, 17)
     batteryChargingTimeStack.addSpacer(3)
 
     const chargingTimeElement = batteryChargingTimeStack.addText(`${chargeComplete}`)
@@ -463,14 +474,21 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     cell.centerAlignContent()
     if (align === 'right') cell.addSpacer()
 
-    const iconColor = icon === 'odometer' ? new Color('#0A84FF') : icon === 'twelve-volt' ? Color.green() : primaryText
+    const iconColor =
+      icon === 'odometer'
+        ? new Color('#0A84FF')
+        : icon === 'twelve-volt'
+          ? twelveSoc > 70
+            ? Color.green()
+            : Color.red()
+          : primaryText
     const img = cell.addImage(await getWidgetIcon(icon, iconColor))
-    img.imageSize = new Size(13, 13)
+    img.imageSize = new Size(18, 18)
     img.imageOpacity = 0.85
-    cell.addSpacer(4)
+    cell.addSpacer(5)
 
     const label = cell.addText(text)
-    label.font = Font.mediumSystemFont(11)
+    label.font = Font.mediumSystemFont(12)
     label.textColor = primaryText
     label.textOpacity = 0.85
     label.minimumScaleFactor = 0.8
@@ -484,13 +502,13 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
 
   summaryRow.addSpacer()
   const leftCell = summaryRow.addStack()
-  leftCell.size = new Size(86, 20)
+  leftCell.size = new Size(88, 24)
   summaryRow.addSpacer()
   const centerCell = summaryRow.addStack()
-  centerCell.size = new Size(86, 20)
+  centerCell.size = new Size(88, 24)
   summaryRow.addSpacer()
   const rightCell = summaryRow.addStack()
-  rightCell.size = new Size(86, 20)
+  rightCell.size = new Size(88, 24)
   summaryRow.addSpacer()
 
   await addSummaryCell(leftCell, 'odometer', odometerText, 'left')
@@ -558,17 +576,17 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
   batteryPercentStack.addSpacer()
   batteryPercentStack.centerAlignContent()
   if (supportsCharging) {
-    const image = await getTintedIconAsync(calculateBatteryIcon(batteryPercent))
-    const batterySymbolElement = batteryPercentStack.addImage(image)
-    batterySymbolElement.imageSize = new Size(40, 40)
+    const batteryIconColor = batteryPercent > 70 ? Color.green() : Color.red()
+    const batterySymbolElement = batteryPercentStack.addImage(await getWidgetIcon('twelve-volt', batteryIconColor))
+    batterySymbolElement.imageSize = new Size(30, 22)
   } else {
     const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', primaryText))
-    fuelElement.imageSize = new Size(24, 24)
+    fuelElement.imageSize = new Size(28, 28)
   }
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
   if (chargingIcon) {
     const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
-    chargingElement.imageSize = new Size(25, 25)
+    chargingElement.imageSize = new Size(28, 28)
   }
 
   // batteryPercentStack.addSpacer(5)
@@ -595,7 +613,7 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
     const chargingTimeIconElement = batteryChargingTimeStack.addImage(
       await getTintedIconAsync('charging-complete-widget'),
     )
-    chargingTimeIconElement.imageSize = new Size(15, 15)
+    chargingTimeIconElement.imageSize = new Size(17, 17)
     batteryChargingTimeStack.addSpacer(3)
 
     const chargingTimeElement = batteryChargingTimeStack.addText(`${chargeComplete}`)
@@ -712,11 +730,11 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
   if (chargingIcon) {
     const chargingElement = batteryPercentStack.addImage(await getWidgetIcon(chargingIcon, new Color(primaryHex)))
-    chargingElement.imageSize = new Size(15, 15)
+    chargingElement.imageSize = new Size(17, 17)
     chargingElement.rightAlignImage()
   } else if (!supportsCharging) {
     const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', new Color(primaryHex)))
-    fuelElement.imageSize = new Size(15, 15)
+    fuelElement.imageSize = new Size(17, 17)
     fuelElement.rightAlignImage()
   }
 
@@ -737,7 +755,7 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
 
     const chargingTimeIconElement = batteryChargingTimeStack.addImage(SFSymbol.named('clock.fill').image)
     chargingTimeIconElement.tintColor = new Color(primaryHex)
-    chargingTimeIconElement.imageSize = new Size(14, 14)
+    chargingTimeIconElement.imageSize = new Size(16, 16)
     batteryChargingTimeStack.addSpacer(3)
 
     const chargingTimeElement = batteryChargingTimeStack.addText(`${chargeComplete}`)

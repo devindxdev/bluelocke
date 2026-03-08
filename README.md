@@ -1,36 +1,63 @@
 # Bluelocke
 
-## What is this?
+Bluelocke is a Scriptable app for iOS that lets you monitor and control Hyundai, Kia, and Genesis vehicles using Bluelink-compatible APIs.
 
-An alternative Bluelink app for Hyundai / Kia / Genesis vehicles. It is a [Scriptable app](https://scriptable.app/) for iOS that lets you control your car using the Bluelink API.
+## Project Origin
+
+This project is forked from Andy Fase's upstream work:
+
+- Upstream repo: [andyfase/egmp-bluelink-scriptable](https://github.com/andyfase/egmp-bluelink-scriptable)
+- Upstream docs: [bluelink.andyfase.com](https://bluelink.andyfase.com)
+
+Andy built the original foundation this project is based on. Credit to Andy for the core architecture, feature direction, and initial docs structure.
 
 ## Features
 
-* Auto-Updating Homescreen and Lockscreen Widgets
-* Fresh and more responsive app UI
-* Single click options for common commands (lock, warm, charge etc) in both app and in IOS Control Center
-* Siri voice support "Hey Siri, Warm the car"
-* Automations via IOS Shortcuts like walk-away lock
-* Unlimited Custom Climate configurations 
+- Home screen and lock screen widgets
+- In-app controls for lock, unlock, climate, and status refresh
+- Siri and Shortcuts support, including text-command workflows
+- Automation support (for example walk-away lock patterns)
+- Auto-update flow from GitHub releases
+- Vehicle image overrides by trim/color for supported Tucson variants
 
-## Docs
+## Documentation
 
-See [https://devindxdev.github.io/bluelocke/](https://devindxdev.github.io/bluelocke/) for documentation on features and setup.
+- Main docs: [devindxdev.github.io/bluelocke](https://devindxdev.github.io/bluelocke/)
+- Installation: [docs/installation](https://devindxdev.github.io/bluelocke/installation)
+- Features: [docs/app-features](https://devindxdev.github.io/bluelocke/app-features)
+- Widgets: [docs/widgets](https://devindxdev.github.io/bluelocke/widgets)
+- Siri/Shortcuts: [docs/shortcuts](https://devindxdev.github.io/bluelocke/shortcuts)
+- Auto-update and releases: [docs/auto-update](https://devindxdev.github.io/bluelocke/auto-update)
 
-## Dev Instructions
+## Quick Install
 
-### Repo Structure / Codebase
+1. Install [Scriptable](https://scriptable.app/) on iOS.
+2. Open releases: [github.com/devindxdev/bluelocke/releases](https://github.com/devindxdev/bluelocke/releases)
+3. Use the latest `bluelocke.js` release asset in your Scriptable script.
+4. Run the script once and complete setup (region, brand, credentials, PIN, preferences).
 
-The code is written in TypeScript and transpiled to JavaScript, which Scriptable requires.
+## Development
 
-`/src` is the main source code of the app  
-`/docs` is a Just the Docs (Jekyll) site published via GitHub Pages.  
-`/.github/workflows/docs.yml` deploys the docs site.  
-`/exampleData` is a set of sample API payloads.
+### Repo Structure
 
-### Building the code
+- `/src`: app source code (TypeScript)
+- `/build`: generated Scriptable output
+- `/docs`: documentation site (GitHub Pages / Just the Docs)
+- `/.github/workflows/docs.yml`: docs deploy workflow
+
+### Build
 
 ```bash
 npm install
 npm run build
 ```
+
+### Lint
+
+```bash
+npm run lint
+```
+
+## License
+
+This repository is licensed under the MIT License. See [LICENSE](./LICENSE).
