@@ -175,19 +175,6 @@ export class BluelinkCanada extends Bluelink {
       throw Error(error)
     }
 
-    // if multuple cars and we have no vin populate options and return undefined for user selection
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.result.vehicles.length > 1 && !vin) {
-      for (const vehicle of resp.json.result.vehicles) {
-        this.carOptions.push({
-          vin: vehicle.vin,
-          nickName: vehicle.nickName,
-          modelName: vehicle.modelName,
-          modelYear: vehicle.modelYear,
-        })
-      }
-      return undefined
-    }
-
     if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.result.vehicles.length > 0) {
       let vehicle = resp.json.result.vehicles[0]
       if (vin) {

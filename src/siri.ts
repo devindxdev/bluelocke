@@ -209,6 +209,22 @@ async function lock(bl: Bluelink): Promise<string> {
   )
 }
 
+async function autoLock(bl: Bluelink): Promise<string> {
+  const status = await bl.getStatus(false, true)
+  const carName = status.car.nickName || `your ${status.car.modelName}`
+
+  if (status.status.locked) {
+    return `Vehicle is already locked.`
+  }
+
+  // Across regions, climate/air control on is our most reliable running signal.
+  if (status.status.climate) {
+    return `Vehicle running.`
+  }
+
+  return await blRequest(bl, 'lock', `I've issued a request to lock ${carName}.`)
+}
+
 async function unlock(bl: Bluelink): Promise<string> {
   const status = bl.getCachedStatus()
   return await blRequest(
@@ -300,6 +316,10 @@ const commandMap: commandDetection[] = [
   {
     words: ['unlock'],
     function: unlock,
+  },
+  {
+    words: ['auto', 'lock'],
+    function: autoLock,
   },
   {
     words: ['lock'],

@@ -1,4 +1,4 @@
-import { getTable, Div, P, Img, Spacer, quickOptions, OK } from 'lib/scriptable-utils'
+import { getTable, Div, P, Spacer, quickOptions, OK } from 'lib/scriptable-utils'
 import { GithubRelease, Version } from 'lib/version'
 import { getAppLogger } from './lib/util'
 
@@ -38,7 +38,6 @@ async function doUpgrade(url: string, appFile = `${Script.name()}.js`) {
 const { present, connect, setState } = getTable<{
   release: GithubRelease | undefined
   currentVersion: string
-  coffeeImage: Image | undefined
 }>({
   name: 'About App',
 })
@@ -48,15 +47,10 @@ export async function loadAboutScreen() {
   const version = new Version('devindxdev', 'bluelocke')
   version.getRelease().then((release) => setState({ release: release }))
 
-  // load image async
-  const req = new Request('https://bluelink.andyfase.com/images/coffee.png')
-  req.loadImage().then((image) => setState({ coffeeImage: image }))
-
   return present({
     defaultState: {
       release: undefined,
       currentVersion: version.getCurrentVersion(),
-      coffeeImage: undefined,
     },
     render: () => [
       pageTitle(),
@@ -75,7 +69,7 @@ export async function loadAboutScreen() {
 
 const pageTitle = connect(() => {
   return Div([
-    P('e-GMP Bluelink app', {
+    P('Bluelocke', {
       font: (n) => Font.boldSystemFont(n),
       fontSize: 35,
       align: 'left',
@@ -86,7 +80,7 @@ const pageTitle = connect(() => {
 const appDescription = connect(() => {
   return Div(
     [
-      P('A scriptable app for IOS that allows you to control your Hyundai / Kia electric car using the Bluelink API.', {
+      P('A Scriptable app for iOS that lets you monitor and control your Hyundai / Kia / Genesis vehicle.', {
         font: (n) => Font.mediumRoundedSystemFont(n),
         fontSize: 20,
         align: 'left',
@@ -98,18 +92,17 @@ const appDescription = connect(() => {
   )
 })
 
-const author = connect(({ state: { coffeeImage } }) => {
-  const divArray = [
-    P('Author: Andy Fase', {
-      font: (n) => Font.mediumRoundedSystemFont(n),
-      fontSize: 20,
-      align: 'left',
-    }),
-  ]
-  if (coffeeImage) {
-    divArray.push(Img(coffeeImage, { align: 'right', width: '50%' }))
-  }
-  return Div(divArray, { height: 60, align: 'center', onTap: () => Safari.open('https://buymeacoffee.com/andyfase') })
+const author = connect(() => {
+  return Div(
+    [
+      P('Maintainer: devindxdev', {
+        font: (n) => Font.mediumRoundedSystemFont(n),
+        fontSize: 20,
+        align: 'left',
+      }),
+    ],
+    { height: 60, align: 'center' },
+  )
 })
 
 const currentVersion = connect(({ state: { currentVersion } }) => {
@@ -196,9 +189,10 @@ const upgradeNotes = connect(({ state: { currentVersion, release } }) => {
 })
 
 const appWebsite = connect(() => {
+  const projectUrl = 'https://devindxdev.github.io/bluelocke/'
   return Div(
     [
-      P('https://bluelink.andyfase.com', {
+      P(projectUrl, {
         font: (n) => Font.mediumRoundedSystemFont(n),
         fontSize: 20,
         color: Color.blue(),
@@ -207,7 +201,7 @@ const appWebsite = connect(() => {
     ],
     {
       onTap: async () => {
-        Safari.open('https://bluelink.andyfase.com')
+        Safari.open(projectUrl)
       },
     },
   )

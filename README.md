@@ -1,8 +1,8 @@
-# E-GMP Bluelink Scriptable
+# Bluelocke
 
 ## What is this?
 
-An alternative Bluelink app to use on Hyundai / Kia E-GMP Electric Cars. Its a [scriptable app](https://scriptable.app/) for IOS that allows you to control your Hyundai / Kia electric car using the Bluelink API. 
+An alternative Bluelink app for Hyundai / Kia / Genesis vehicles. It is a [Scriptable app](https://scriptable.app/) for iOS that lets you control your car using the Bluelink API.
 
 ## Features
 
@@ -15,28 +15,22 @@ An alternative Bluelink app to use on Hyundai / Kia E-GMP Electric Cars. Its a [
 
 ## Docs
 
-See [https://bluelink.andyfase.com](https://bluelink.andyfase.com) for all documentation on feature set, installation instructions and usgae of the app.
-
-## In-use
-
-[<img src="./docs/images/widget_charging.png" width="400px"/>](https://bluelink.andyfase.com/images/egmp-scriptable-in-use.mp4)
-<center>(click to view video)</center>
+See [https://devindxdev.github.io/bluelocke/](https://devindxdev.github.io/bluelocke/) for documentation on features and setup.
 
 ## Dev Instructions
 
 ### Repo Structure / Codebase
 
-The code is written in typescipt and transpiled to Javascript, which the scriptable app requires. 
+The code is written in TypeScript and transpiled to JavaScript, which Scriptable requires.
 
 `/src` is the main source code of the app  
-`/docs` is a Jekyll static CMS, which Gtihub pages supports.  
-`/.github/docs.yml` is the GitHub Action pipeline that builds and deploys the Github Pages  
-`/exampleData` is a set of exampke API payloads 
+`/docs` is a Just the Docs (Jekyll) site published via GitHub Pages.  
+`/.github/workflows/docs.yml` deploys the docs site.  
+`/exampleData` is a set of sample API payloads.
 
 ### Building the code
 
-```
-cd src
-npm i
+```bash
+npm install
 npm run build
 ```

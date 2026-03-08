@@ -68,7 +68,6 @@ export interface Config {
   debugLogging: boolean
   multiCar: boolean
   promptForUpdate: boolean
-  vin: string
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
   hideDefaultClimates: boolean
@@ -101,7 +100,6 @@ export interface FlattenedConfig {
   debugLogging: boolean
   multiCar: boolean
   promptForUpdate: boolean
-  vin: string
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
   hideDefaultClimates: boolean
@@ -124,7 +122,6 @@ const DEFAULT_TEMPS = {
 }
 
 const DEFAULT_CONFIG = {
-  vin: '',
   auth: {
     username: '',
     password: '',
@@ -211,7 +208,6 @@ export function getConfig(): Config {
   const widgetAppearanceRaw = (mergedConfig.widgetAppearance || 'system').toLocaleLowerCase()
   return {
     ...mergedConfig,
-    vin: typeof mergedConfig.vin === 'string' ? mergedConfig.vin : '',
     widgetAppearance:
       widgetAppearanceRaw === 'dark' || widgetAppearanceRaw === 'white' || widgetAppearanceRaw === 'system'
         ? widgetAppearanceRaw
@@ -222,7 +218,6 @@ export function getConfig(): Config {
 function configResetRequired(oldConfig: Config, newConfig: Config): boolean {
   return (
     oldConfig.manufacturer !== newConfig.manufacturer ||
-    oldConfig.vin !== newConfig.vin ||
     oldConfig.auth.region !== newConfig.auth.region ||
     oldConfig.auth.username !== newConfig.auth.username ||
     oldConfig.auth.password !== newConfig.auth.password
@@ -254,7 +249,6 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
       allowWidgetRemoteRefresh,
       widgetAppearance,
       manufacturer,
-      vin,
       hideDefaultClimates,
     }) => {
       // read and combine with current saved config as other config screens may have changed settings (custom climates etc)
@@ -280,7 +274,6 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
           multiCar: multiCar,
           promptForUpdate: promptForUpdate,
           manufacturer: manufacturer?.toLowerCase(),
-          vin: (vin || '').toUpperCase().trim(),
           hideDefaultClimates: hideDefaultClimates,
         },
       } as Config
@@ -318,18 +311,8 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
 
       return state
     },
-    isFormValid: ({ username, password, region, pin, vin, tempType, climateTempCold, climateTempWarm }) => {
-      if (
-        !username ||
-        !password ||
-        !region ||
-        !pin ||
-        !vin ||
-        !vin.trim() ||
-        !climateTempCold ||
-        !tempType ||
-        !climateTempWarm
-      ) {
+    isFormValid: ({ username, password, region, pin, tempType, climateTempCold, climateTempWarm }) => {
+      if (!username || !password || !region || !pin || !climateTempCold || !tempType || !climateTempWarm) {
         return false
       }
       if (tempType === 'C' && (climateTempCold < 17 || climateTempWarm > 27)) return false
@@ -370,11 +353,6 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
         label: 'Choose your Car Manufacturer',
         options: SUPPORTED_MANUFACTURERS,
         allowCustom: false,
-        isRequired: true,
-      },
-      vin: {
-        type: 'textInput',
-        label: 'VIN of car',
         isRequired: true,
       },
       tempType: {

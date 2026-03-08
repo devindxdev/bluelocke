@@ -12,7 +12,7 @@ import {
 import { createApp } from 'app'
 import { getAppLogger } from './lib/util'
 import { processSiriRequest } from 'siri'
-import { getConfig, loadConfigScreen, configExists, setConfig } from 'config'
+import { getConfig, loadConfigScreen, configExists } from 'config'
 import { confirm, quickOptions } from './lib/scriptable-utils'
 ;(async () => {
   // load config on first run if not configured
@@ -79,34 +79,12 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
       return
     }
     if (bl && bl.loginFailed()) {
-      // check for car option selection
-      const carOptions = bl.getCarOptions()
-      if (carOptions.length > 0) {
-        const carOptionsNames = carOptions.map((car) => ({
-          name: car.nickName.length > 0 ? `${car.nickName} - ${car.modelName}` : `${car.modelYear} ${car.modelName}`,
-          vin: car.vin,
-        }))
-        await quickOptions(
-          carOptionsNames.map((car) => car.name),
-          {
-            title: 'Multiple cars found, choose your vehicle',
-            onOptionSelect: (opt) => {
-              const selectedCar = carOptionsNames.find((car) => car.name === opt)
-              if (selectedCar) {
-                blConfig.vin = selectedCar.vin
-                setConfig(blConfig)
-              }
-            },
-          },
-        )
-      } else {
-        await confirm('Login Failed - please re-check your credentials', {
-          confirmButtonTitle: 'Ok',
-          includeCancel: false,
-        })
-        await loadConfigScreen()
-        return
-      }
+      await confirm('Login Failed - please re-check your credentials', {
+        confirmButtonTitle: 'Ok',
+        includeCancel: false,
+      })
+      await loadConfigScreen()
+      return
     }
 
     if (!bl) {

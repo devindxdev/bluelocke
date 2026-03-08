@@ -183,7 +183,6 @@ export class Bluelink {
   }
 
   protected async superInit(config: Config, refreshAuth: boolean, statusCheckInterval?: number) {
-    this.vin = this.config.vin
     this.statusCheckInterval = statusCheckInterval || DEFAULT_STATUS_CHECK_INTERVAL
 
     // check for cache - if not this is first login

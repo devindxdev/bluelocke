@@ -1,0 +1,20 @@
+title: Bluelocke Docs
+description: Documentation for the Bluelocke Scriptable app.
+theme: null
+remote_theme: just-the-docs/just-the-docs
+color_scheme: light
+
+url: "https://devindxdev.github.io"
+baseurl: "/bluelocke"
+
+search_enabled: true
+heading_anchors: true
+
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/devindxdev/bluelocke"
+
+footer_content: "Bluelocke documentation."
+
+plugins:
+  - jekyll-remote-theme
