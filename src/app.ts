@@ -4,11 +4,13 @@ import { getTable, Div, P, Img, quickOptions, DivChild, Spacer, destructiveConfi
 import {
   loadConfigScreen,
   deleteConfig,
+  setConfig,
   ClimateSeatSetting,
   ClimateSeatSettingCool,
   ClimateSeatSettingWarm,
 } from 'config'
 import { loadAboutScreen, doDowngrade } from 'about'
+import { Version } from 'lib/version'
 import { deleteWidgetCache } from 'widget'
 import { getAppLogger } from './lib/util'
 import { getWidgetLogger } from 'widget'
@@ -124,6 +126,26 @@ export async function createApp(config: Config, bl: Bluelink) {
 
   // fetch app icon
   const appIcon = await bl.getCarImage(config.carColor)
+
+  // async check if prompt for update is required on launch
+  if (config.promptForUpdate) {
+    const version = new Version('devindxdev', 'bluelocke')
+    version.promptForUpdate().then((updateRequired: boolean) => {
+      if (updateRequired) {
+        quickOptions(['See Details', 'Cancel', 'Never Ask Again'], {
+          title: 'Update Available',
+          onOptionSelect: (opt) => {
+            if (opt === 'See Details') {
+              loadAboutScreen()
+            } else if (opt === 'Never Ask Again') {
+              config.promptForUpdate = false
+              setConfig(config)
+            }
+          },
+        })
+      }
+    })
+  }
 
   return present({
     defaultState: {
