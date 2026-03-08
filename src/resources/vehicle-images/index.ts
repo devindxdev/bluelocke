@@ -27,11 +27,7 @@ const matchesRule = (rule: VehicleImageRule, lookup: VehicleImageLookupInput): b
   const normalizedManufacturer = normalize(lookup.manufacturer)
   const normalizedYear = normalize(lookup.modelYear)
   const trimCandidates = [normalize(lookup.modelTrim), normalizedModelName]
-  const colorCandidates = [
-    normalize(lookup.requestedColor),
-    normalize(lookup.configColor),
-    normalize(lookup.modelColour),
-  ]
+  const colorCandidates = [normalize(lookup.requestedColor), normalize(lookup.modelColour)]
 
   if (!includesAny([normalizedManufacturer], rule.match.manufacturerIncludesAny)) return false
   if (!includesAny([normalizedYear], rule.match.years)) return false

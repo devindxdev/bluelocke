@@ -125,7 +125,7 @@ export async function createApp(config: Config, bl: Bluelink) {
   }
 
   // fetch app icon
-  const appIcon = await bl.getCarImage(config.carColor)
+  const appIcon = await bl.getCarImage()
 
   // async check if prompt for update is required on launch
   if (config.promptForUpdate) {
@@ -684,7 +684,7 @@ const pageImage = connect(({ state: { appIcon, updatingActions } }, bl: Bluelink
   return Div([Img(appIcon)], {
     height: 150,
     onTripleTap: async () => {
-      const image = await bl.getCarImage(getConfig().carColor, true)
+      const image = await bl.getCarImage(undefined, true)
       setState({
         appIcon: image,
       })

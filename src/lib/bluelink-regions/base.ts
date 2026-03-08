@@ -721,7 +721,6 @@ export class Bluelink {
       modelTrim: this.cache.car.modelTrim,
       modelColour: this.cache.car.modelColour,
       requestedColor: retryOriginalColour ?? carColour,
-      configColor: this.config.carColor,
     })
     if (vehicleImageOverride) {
       const localOverridePath = `${fs.libraryDirectory()}/${vehicleImageOverride.cacheKey}`

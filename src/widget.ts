@@ -42,13 +42,11 @@ interface WidgetRefresh {
 }
 
 function isDarkMode(config: Config): boolean {
-  const appearance = (
-    ((config as Config & { widgetAppearance?: string }).widgetAppearance as string) || 'system'
-  ).toLowerCase()
+  const appearance = (config.widgetAppearance || 'system').toLowerCase()
   switch (appearance) {
     case 'dark':
       return true
-    case 'light':
+    case 'white':
       return false
     default:
       return Device.isUsingDarkAppearance()

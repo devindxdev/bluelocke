@@ -63,12 +63,12 @@ export interface Config {
   climateTempCold: number
   climateSeatLevel: string
   allowWidgetRemoteRefresh: boolean
+  widgetAppearance: 'system' | 'dark' | 'white'
   mfaPreference: 'sms' | 'email'
-  carColor: string
   debugLogging: boolean
   multiCar: boolean
   promptForUpdate: boolean
-  vin: string | undefined
+  vin: string
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
   hideDefaultClimates: boolean
@@ -97,11 +97,11 @@ export interface FlattenedConfig {
   climateTempCold: number
   climateSeatLevel: string
   allowWidgetRemoteRefresh: boolean
-  carColor: string
+  widgetAppearance: 'system' | 'dark' | 'white'
   debugLogging: boolean
   multiCar: boolean
   promptForUpdate: boolean
-  vin: string | undefined
+  vin: string
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
   hideDefaultClimates: boolean
@@ -111,7 +111,7 @@ export interface FlattenedConfig {
 // const SUPPORTED_REGIONS = ['canada']
 const SUPPORTED_REGIONS = ['canada', 'usa', 'europe', 'india', 'australia']
 const SUPPORTED_MANUFACTURERS = ['Hyundai', 'Kia', 'Genesis']
-const CAR_COLORS = ['White', 'Black', 'Grey', 'Matte-Grey', 'Metallic-Grey', 'Silver', 'Red', 'Orange', 'Blue', 'Green']
+const WIDGET_APPEARANCES: Config['widgetAppearance'][] = ['system', 'dark', 'white']
 const DEFAULT_TEMPS = {
   C: {
     cold: 19,
@@ -124,7 +124,7 @@ const DEFAULT_TEMPS = {
 }
 
 const DEFAULT_CONFIG = {
-  vin: undefined,
+  vin: '',
   auth: {
     username: '',
     password: '',
@@ -141,7 +141,7 @@ const DEFAULT_CONFIG = {
   multiCar: false,
   promptForUpdate: true,
   allowWidgetRemoteRefresh: false,
-  carColor: 'white',
+  widgetAppearance: 'system',
   manufacturer: 'hyundai',
   hideDefaultClimates: false,
   customClimates: [],
@@ -204,9 +204,18 @@ export function getConfig(): Config {
   if (!config || !configValid) {
     config = DEFAULT_CONFIG
   }
-  return {
+  const mergedConfig = {
     ...DEFAULT_CONFIG,
     ...config,
+  }
+  const widgetAppearanceRaw = (mergedConfig.widgetAppearance || 'system').toLocaleLowerCase()
+  return {
+    ...mergedConfig,
+    vin: typeof mergedConfig.vin === 'string' ? mergedConfig.vin : '',
+    widgetAppearance:
+      widgetAppearanceRaw === 'dark' || widgetAppearanceRaw === 'white' || widgetAppearanceRaw === 'system'
+        ? widgetAppearanceRaw
+        : 'system',
   }
 }
 
@@ -243,7 +252,7 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
       multiCar,
       promptForUpdate,
       allowWidgetRemoteRefresh,
-      carColor,
+      widgetAppearance,
       manufacturer,
       vin,
       hideDefaultClimates,
@@ -266,12 +275,12 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
           climateTempWarm: climateTempWarm,
           climateSeatLevel: climateSeatLevel,
           allowWidgetRemoteRefresh: allowWidgetRemoteRefresh,
-          carColor: carColor ? carColor.toLocaleLowerCase() : 'white',
+          widgetAppearance: widgetAppearance ? widgetAppearance.toLocaleLowerCase() : 'system',
           debugLogging: debugLogging,
           multiCar: multiCar,
           promptForUpdate: promptForUpdate,
           manufacturer: manufacturer?.toLowerCase(),
-          vin: vin ? vin.toUpperCase().trim() : undefined,
+          vin: (vin || '').toUpperCase().trim(),
           hideDefaultClimates: hideDefaultClimates,
         },
       } as Config
@@ -309,8 +318,18 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
 
       return state
     },
-    isFormValid: ({ username, password, region, pin, tempType, climateTempCold, climateTempWarm }) => {
-      if (!username || !password || !region || !pin || !climateTempCold || !tempType || !climateTempWarm) {
+    isFormValid: ({ username, password, region, pin, vin, tempType, climateTempCold, climateTempWarm }) => {
+      if (
+        !username ||
+        !password ||
+        !region ||
+        !pin ||
+        !vin ||
+        !vin.trim() ||
+        !climateTempCold ||
+        !tempType ||
+        !climateTempWarm
+      ) {
         return false
       }
       if (tempType === 'C' && (climateTempCold < 17 || climateTempWarm > 27)) return false
@@ -355,8 +374,8 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
       },
       vin: {
         type: 'textInput',
-        label: 'Optional VIN of car',
-        isRequired: false,
+        label: 'VIN of car',
+        isRequired: true,
       },
       tempType: {
         type: 'dropdown',
@@ -395,10 +414,10 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
         isRequired: true,
         options: Object.keys(ClimateSeatSettingCool),
       },
-      carColor: {
+      widgetAppearance: {
         type: 'dropdown',
-        label: 'Car Color (Will default to white if not available)',
-        options: CAR_COLORS,
+        label: 'Widget Appearance',
+        options: WIDGET_APPEARANCES,
         allowCustom: false,
         isRequired: true,
       },

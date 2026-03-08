@@ -19,7 +19,6 @@ export interface VehicleImageLookupInput {
   modelTrim?: string
   modelColour?: string
   requestedColor?: string
-  configColor?: string
 }
 
 export interface MatchedVehicleImage {
