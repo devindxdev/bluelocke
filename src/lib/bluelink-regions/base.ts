@@ -9,6 +9,7 @@ export const MAX_COMPLETION_POLLS = 20
 const BLUELINK_LOG_FILE = `${Script.name().replaceAll(' ', '')}-api.log`
 const DEFAULT_API_HOST = 'mybluelink.ca'
 const DEFAULT_API_DOMAIN = `https://${DEFAULT_API_HOST}/tods/api/`
+const WIDGET_REQUEST_TIMEOUT_SECS = 5
 
 export interface BluelinkTokens {
   accessToken: string
@@ -672,6 +673,9 @@ export class Bluelink {
         return null
       }
     }
+    // Widget executions have a strict Scriptable timeout budget.
+    // Keep network requests short and fall back to cached data when possible.
+    if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
     req.allowInsecureRequest = true
     this.debugLastRequest = {
       url: props.url,
@@ -713,13 +717,14 @@ export class Bluelink {
     retryOriginalColour: string | undefined = undefined,
   ): Promise<Image> {
     const fs = FileManager.local()
+    const requestedColorForOverride = retryOriginalColour
     const vehicleImageOverride = resolveVehicleImage({
       manufacturer: this.config.manufacturer,
       modelName: this.cache.car.modelName,
       modelYear: this.cache.car.modelYear,
       modelTrim: this.cache.car.modelTrim,
       modelColour: this.cache.car.modelColour,
-      requestedColor: retryOriginalColour ?? carColour,
+      requestedColor: requestedColorForOverride,
     })
     if (vehicleImageOverride) {
       const localOverridePath = `${fs.libraryDirectory()}/${vehicleImageOverride.cacheKey}`
@@ -727,9 +732,23 @@ export class Bluelink {
         return fs.readImage(localOverridePath)
       }
 
-      const image = Image.fromData(Data.fromBase64String(vehicleImageOverride.imageBase64))
-      fs.writeImage(localOverridePath, image)
-      return image
+      try {
+        if (vehicleImageOverride.imageBase64) {
+          const image = Image.fromData(Data.fromBase64String(vehicleImageOverride.imageBase64))
+          fs.writeImage(localOverridePath, image)
+          return image
+        }
+        if (vehicleImageOverride.imageUrl) {
+          const req = new Request(vehicleImageOverride.imageUrl)
+          req.method = 'GET'
+          if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
+          const image = await req.loadImage()
+          fs.writeImage(localOverridePath, image)
+          return image
+        }
+      } catch (error) {
+        if (this.config.debugLogging) this.logger.log(`Failed loading override image ${JSON.stringify(error)}`)
+      }
     }
 
     let carFilePrefix = ''
@@ -751,6 +770,7 @@ export class Bluelink {
     // download and store image
     const req = new Request(`${carImageHttpURL}/${carFilePrefix}/${carColour}.png`)
     req.method = 'GET'
+    if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
 
     try {
       const image = await req.loadImage()

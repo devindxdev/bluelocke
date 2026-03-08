@@ -46,5 +46,6 @@ export const resolveVehicleImage = (lookup: VehicleImageLookupInput): MatchedVeh
     ruleId: matchedRule.id,
     cacheKey: `vehicle-image-${matchedRule.id}.png`,
     imageBase64: matchedRule.imageBase64,
+    imageUrl: matchedRule.imageUrl,
   }
 }

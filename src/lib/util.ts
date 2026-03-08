@@ -206,6 +206,10 @@ export function getTintedIcon(name: string): Image {
   return SFSymbol.named('questionmark.app').image
 }
 
+export function getIconName(name: string): string | undefined {
+  return icons[name]?.iconName
+}
+
 export async function getTintedIconAsync(name: string): Promise<Image> {
   if (name in icons && icons[name]?.image) {
     return icons[name].image

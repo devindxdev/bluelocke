@@ -9,7 +9,8 @@ export interface VehicleImageMatch {
 export interface VehicleImageRule {
   id: string
   match: VehicleImageMatch
-  imageBase64: string
+  imageBase64?: string
+  imageUrl?: string
 }
 
 export interface VehicleImageLookupInput {
@@ -24,5 +25,6 @@ export interface VehicleImageLookupInput {
 export interface MatchedVehicleImage {
   ruleId: string
   cacheKey: string
-  imageBase64: string
+  imageBase64?: string
+  imageUrl?: string
 }

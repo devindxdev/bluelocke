@@ -1,4 +1,5 @@
 import {
+  getIconName,
   getTintedIconAsync,
   getBatteryPercentColor,
   calculateBatteryIcon,
@@ -62,6 +63,12 @@ function getPrimaryTextColor(config: Config): Color {
   return isDarkMode(config) ? Color.white() : Color.black()
 }
 
+async function getWidgetIcon(iconKey: string, color: Color): Promise<Image> {
+  const iconName = getIconName(iconKey)
+  if (!iconName) return await getTintedIconAsync(iconKey)
+  return (await tintSFSymbol(iconName, SFSymbol.named(iconName).image, color)).image
+}
+
 function getEnergyPercent(status: Status, bl: Bluelink): number | undefined {
   if (bl.supportsChargingFeatures()) return status.status.soc
   return typeof status.status.fuelLevel === 'number' ? status.status.fuelLevel : undefined
@@ -107,17 +114,31 @@ async function waitForCommandSent(
 
 async function refreshDataForWidgetWithTimeout(bl: Bluelink, config: Config, timeout = 4000): Promise<WidgetRefresh> {
   const logger = getWidgetLogger()
-  const timer = Timer.schedule(timeout, false, () => {
-    if (config.debugLogging) logger.log(`Timeout refreshing data for widget - failing back to cached data`)
-    return {
-      status: bl.getCachedStatus(),
-      nextRefresh: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes by default if call timeouts
-    }
+  const fallback = {
+    status: bl.getCachedStatus(),
+    nextRefresh: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes by default if call timeouts
+  } as WidgetRefresh
+
+  let timeoutHit = false
+  let timeoutResolve: ((value: WidgetRefresh) => void) | undefined = undefined
+  const timeoutPromise = new Promise<WidgetRefresh>((resolve) => {
+    timeoutResolve = resolve
+  })
+  const timeoutTimer = Timer.schedule(timeout, false, () => {
+    timeoutHit = true
+    if (config.debugLogging) logger.log(`Timeout refreshing data for widget - falling back to cached data`)
+    if (timeoutResolve) timeoutResolve(fallback)
   })
 
-  const result = await refreshDataForWidget(bl, config)
-  timer.invalidate()
-  return result
+  try {
+    const result = await Promise.race([refreshDataForWidget(bl, config), timeoutPromise])
+    if (!timeoutHit) timeoutTimer.invalidate()
+    return result
+  } catch (error) {
+    timeoutTimer.invalidate()
+    if (config.debugLogging) logger.log(`Widget refresh failed - using cached data. Error: ${JSON.stringify(error)}`)
+    return fallback
+  }
 }
 
 async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<WidgetRefresh> {
@@ -373,7 +394,7 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     const batterySymbolElement = batteryPercentStack.addImage(image)
     batterySymbolElement.imageSize = new Size(40, 40)
   } else {
-    const fuelElement = batteryPercentStack.addImage(await getTintedIconAsync('fuel'))
+    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', primaryText))
     fuelElement.imageSize = new Size(24, 24)
   }
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
@@ -442,24 +463,8 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     cell.centerAlignContent()
     if (align === 'right') cell.addSpacer()
 
-    const summaryIconImage =
-      icon === 'last-update'
-        ? (
-            await tintSFSymbol(
-              parseFloat(Device.systemVersion()) >= 16
-                ? 'clock.arrow.circlepath'
-                : 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
-              SFSymbol.named(
-                parseFloat(Device.systemVersion()) >= 16
-                  ? 'clock.arrow.circlepath'
-                  : 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
-              ).image,
-              primaryText,
-            )
-          ).image
-        : await getTintedIconAsync(icon)
-
-    const img = cell.addImage(summaryIconImage)
+    const iconColor = icon === 'odometer' ? new Color('#0A84FF') : icon === 'twelve-volt' ? Color.green() : primaryText
+    const img = cell.addImage(await getWidgetIcon(icon, iconColor))
     img.imageSize = new Size(13, 13)
     img.imageOpacity = 0.85
     cell.addSpacer(4)
@@ -557,7 +562,7 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
     const batterySymbolElement = batteryPercentStack.addImage(image)
     batterySymbolElement.imageSize = new Size(40, 40)
   } else {
-    const fuelElement = batteryPercentStack.addImage(await getTintedIconAsync('fuel'))
+    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', primaryText))
     fuelElement.imageSize = new Size(24, 24)
   }
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
@@ -706,13 +711,11 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
   batteryPercentStack.addSpacer()
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
   if (chargingIcon) {
-    const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
-    chargingElement.tintColor = new Color(primaryHex)
+    const chargingElement = batteryPercentStack.addImage(await getWidgetIcon(chargingIcon, new Color(primaryHex)))
     chargingElement.imageSize = new Size(15, 15)
     chargingElement.rightAlignImage()
   } else if (!supportsCharging) {
-    const fuelElement = batteryPercentStack.addImage(await getTintedIconAsync('fuel'))
-    fuelElement.tintColor = new Color(primaryHex)
+    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', new Color(primaryHex)))
     fuelElement.imageSize = new Size(15, 15)
     fuelElement.rightAlignImage()
   }
