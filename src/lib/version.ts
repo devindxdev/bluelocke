@@ -2,6 +2,13 @@ import version from '../version.json'
 
 const ASSET_BINARY = 'bluelocke.js'
 
+const normalizeReleaseNotes = (notes: unknown): string => {
+  return String(notes ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .trim()
+}
+
 export interface GithubRelease {
   version: string
   name: string
@@ -78,7 +85,7 @@ export class Version {
       date: response.published_at,
       url: asseturl,
       assetName: ASSET_BINARY,
-      notes: response.body,
+      notes: normalizeReleaseNotes(response.body),
     }
     return this.githubLatestRelease
   }
