@@ -104,7 +104,7 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
       <p class="shortcut-desc">Checks vehicle state first, then locks if appropriate. You can pair this with automations like Wi-Fi disconnect or Bluetooth disconnect to mimic walk-away lock behavior.</p>
       <p class="shortcut-caution">⚠️ Caution: If your phone is left inside the car and this runs, it can lock you out.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/b413eaa53d054242abaa0cddc3e3c951" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/ad73842a188c4da194ed3c4b2ebd9e34" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 
   <div class="shortcut-card">
