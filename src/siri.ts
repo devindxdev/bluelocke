@@ -318,7 +318,7 @@ const commandMap: commandDetection[] = [
     function: unlock,
   },
   {
-    words: ['auto', 'lock'],
+    words: ['auto'],
     function: autoLock,
   },
   {

@@ -11,7 +11,7 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
 
 - `lock`
 - `unlock`
-- `auto lock`
+- `auto`
 - `status`
 - `status remote`
 - `data`
@@ -23,7 +23,7 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
 
 ## Auto-Lock
 
-`auto lock` performs logic before sending a lock command:
+`auto` performs logic before sending a lock command:
 
 1. If already locked -> returns `Vehicle is already locked.`
 2. If running -> returns `Vehicle running.`
@@ -34,5 +34,5 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
 1. Create a new Shortcut.
 2. Add `Run Script` (Scriptable).
 3. Select `bluelocke`.
-4. Pass a text value as input, for example `auto lock`.
+4. Pass a text value as input, for example `auto`.
 5. Run manually or connect to Siri phrase / automation trigger.
