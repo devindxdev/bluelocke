@@ -1,6 +1,7 @@
 import { VehicleImageRule } from './types'
 
-const VEHICLE_IMAGE_BASE = 'https://raw.githubusercontent.com/devindxdev/bluelocke/main/assets/vehicle-images'
+const VEHICLE_IMAGE_BASE =
+  'https://raw.githubusercontent.com/devindxdev/bluelocke/refs/heads/main/assets/vehicle-images'
 const YEARS_2025_2026 = ['2025', '25', '2026', '26']
 const image = (fileName: string) => `${VEHICLE_IMAGE_BASE}/${fileName}`
 
