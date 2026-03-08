@@ -1,0 +1,297 @@
+import { Logger } from './logger'
+
+export const APP_LOG_FILE = `${Script.name().replaceAll(' ', '')}-app.log`
+let APP_LOGGER: Logger | undefined = undefined
+
+export function isNotEmptyObject(obj: Record<string, any>): boolean {
+  return obj && !(Object.keys(obj).length === 0 && obj.constructor === Object)
+}
+
+export function getAppLogger(): Logger {
+  if (!APP_LOGGER) APP_LOGGER = new Logger(APP_LOG_FILE, 100)
+  return APP_LOGGER
+}
+
+interface icon {
+  iconName: string
+  color: Color
+  image?: Image
+}
+const icons: Record<string, icon> = {
+  'battery.0': {
+    iconName: 'battery.0percent',
+    color: Color.red(),
+  },
+  'battery.25': {
+    iconName: 'battery.25percent',
+    color: Color.red(),
+  },
+  'battery.25.orange': {
+    iconName: 'battery.25percent',
+    color: Color.orange(),
+  },
+  'battery.50': {
+    iconName: 'battery.50percent',
+    color: Color.green(),
+  },
+  'battery.50.orange': {
+    iconName: 'battery.50percent',
+    color: Color.orange(),
+  },
+  'battery.75': {
+    iconName: 'battery.75percent',
+    color: Color.green(),
+  },
+  'battery.100': {
+    iconName: 'battery.100percent',
+    color: Color.green(),
+  },
+  charging: {
+    iconName: 'bolt.fill',
+    color: Color.green(),
+  },
+  odometer: {
+    iconName: 'shuffle',
+    color: Color.white(),
+  },
+  'charging-complete-widget': {
+    iconName: 'clock',
+    color: Color.white(),
+  },
+  'charging-complete': {
+    iconName: 'clock',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  'plugged-widget': {
+    iconName: 'powerplug.portrait',
+    color: Color.white(),
+  },
+  plugged: {
+    iconName: 'powerplug.portrait',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  'not-charging': {
+    iconName: 'bolt',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  'climate-on': {
+    iconName: 'fan',
+    color: Color.green(),
+  },
+  'climate-off': {
+    iconName: 'fan',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  locked: {
+    iconName: 'lock',
+    color: Color.green(),
+  },
+  unlocked: {
+    iconName: 'lock.open',
+    color: Color.red(),
+  },
+  status: {
+    iconName: 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  settings: {
+    iconName: 'gear',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  about: {
+    iconName: 'info.circle',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  'twelve-volt': {
+    iconName: 'minus.plus.batteryblock',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+  'charge-limit': {
+    // charge_limit icon IOS 16 and above
+    iconName: parseFloat(Device.systemVersion()) >= 16 ? 'bolt.brakesignal' : 'bolt.horizontal.fill',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
+}
+
+export const dateStringOptions = {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+} as Intl.DateTimeFormatOptions
+
+// export const dateStringAlways2DigitOptions = {
+//   weekday: 'short',
+//   month: 'short',
+//   day: '2-digit',
+//   hour: '2-digit',
+//   minute: '2-digit',
+// } as Intl.DateTimeFormatOptions
+
+export function getChargingPowerString(chargingPower: number, includeKw: boolean = true): string {
+  if (!chargingPower || chargingPower === 0) return '-'
+  // if DC charging (power above 11kw) then drop any decimal
+  const power = chargingPower >= 12 ? chargingPower.toFixed(0) : chargingPower.toFixed(1)
+  return includeKw ? `${power} kW` : power
+}
+
+export function getChargeCompletionString(
+  dateFrom: Date,
+  minutes: number,
+  dayFormat: 'short' | 'long' = 'short',
+  nextDayNoMinute = false,
+): string {
+  // dateFrom passed by references - hence clone it
+  const date = new Date(dateFrom.getTime())
+  date.setMinutes(date.getMinutes() + minutes)
+  if (new Date().getDate() !== date.getDate()) {
+    return date.toLocaleString(undefined, {
+      weekday: dayFormat,
+      hour: 'numeric',
+      ...(!nextDayNoMinute && {
+        minute: 'numeric',
+      }),
+    })
+  }
+  return date.toLocaleString(undefined, {
+    hour: 'numeric',
+    minute: 'numeric',
+  })
+}
+
+export function getBatteryPercentColor(batteryPercent: number): Color {
+  if (batteryPercent >= 40) {
+    return Color.green()
+  } else if (batteryPercent >= 20) {
+    return Color.orange()
+  }
+  return Color.red()
+}
+
+export async function loadTintedIcons(): Promise<void> {
+  const loading: Promise<{ name: string; image: Image }>[] = []
+  for (const [key, value] of Object.entries(icons)) {
+    loading.push(tintSFSymbol(key, SFSymbol.named(value.iconName).image, value.color))
+  }
+
+  await Promise.all(loading).then((values) => {
+    for (const value of values) {
+      if (value.name in icons) {
+        // @ts-ignore
+        icons[value.name].image = value.image
+      }
+    }
+  })
+}
+
+export function getTintedIcon(name: string): Image {
+  if (name in icons && icons[name]?.image) {
+    return icons[name].image
+  }
+  if (name in icons && icons[name]?.iconName) {
+    return SFSymbol.named(icons[name]?.iconName).image
+  }
+  return SFSymbol.named('questionmark.app').image
+}
+
+export async function getTintedIconAsync(name: string): Promise<Image> {
+  if (name in icons && icons[name]?.image) {
+    return icons[name].image
+  }
+  if (name in icons && icons[name]?.iconName) {
+    return (
+      await tintSFSymbol(
+        icons[name]?.iconName,
+        SFSymbol.named(icons[name].iconName).image,
+        icons[name].color || Color.white(),
+      )
+    ).image
+  }
+  return SFSymbol.named('questionmark.app').image
+}
+
+export async function getAngledTintedIconAsync(name: string, color: Color, angle: number): Promise<Image> {
+  return (await tintSFSymbol(name, SFSymbol.named(name).image, color, angle)).image
+}
+
+export function getChargingIcon(isCharging: boolean, isPluggedIn: boolean, isWidget = false): string | undefined {
+  return isCharging ? 'charging' : isPluggedIn ? (isWidget ? 'plugged-widget' : 'plugged') : undefined
+}
+
+export function calculateBatteryIcon(batteryPercent: number): string {
+  let percentRounded = 0
+  let colorExtra = ''
+  if (batteryPercent > 90) {
+    percentRounded = 100
+  } else if (batteryPercent >= 65) {
+    percentRounded = 75
+  } else if (batteryPercent >= 40) {
+    percentRounded = 50
+  } else if (batteryPercent >= 35) {
+    percentRounded = 50
+    colorExtra = '.orange'
+  } else if (batteryPercent >= 20) {
+    percentRounded = 25
+    colorExtra = '.orange'
+  } else if (batteryPercent >= 15) {
+    percentRounded = 25
+  }
+  return `battery.${percentRounded}${colorExtra}`
+}
+
+export async function tintSFSymbol(name: string, image: Image, color: Color, rotateDegree?: number) {
+  let rotate = false
+  if (rotateDegree) {
+    rotate = true
+  }
+  const html = `
+  <img id="image" src="data:image/png;base64,${Data.fromPNG(image).toBase64String()}" />
+  <canvas id="canvas"></canvas>
+  `
+
+  const js = `
+    let img = document.getElementById("image");
+    let canvas = document.getElementById("canvas");
+    let color = 0x${color.hex};
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+    let ctx = canvas.getContext("2d");
+    if (${rotate}) {
+      let width = canvas.width
+      let height = canvas.height
+      ctx.save()
+      var rad = ${rotateDegree} * Math.PI / 180;
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(rad); 
+      ctx.drawImage(img,width / 2 * (-1),height / 2 * (-1),width,height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, 0, 0);
+    } 
+    let imgData = ctx.getImageData(0, 0, img.width, img.height);
+    // ordered in RGBA format
+    let data = imgData.data;
+    for (let i = 0; i < data.length; i++) {
+      // skip alpha channel
+      if (i % 4 === 3) continue;
+      // bit shift the color value to get the correct channel
+      data[i] = (color >> (2 - i % 4) * 8) & 0xFF
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    canvas.toDataURL("image/png").replace(/^data:image\\/png;base64,/, "");
+  `
+
+  const wv = new WebView()
+  await wv.loadHTML(html)
+  const base64 = await wv.evaluateJavaScript(js)
+  return { name: name, image: Image.fromData(Data.fromBase64String(base64)) }
+}
+
+export async function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    Timer.schedule(milliseconds, false, () => resolve())
+  })
+}
