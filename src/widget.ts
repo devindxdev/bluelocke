@@ -7,6 +7,7 @@ import {
   getChargeCompletionString,
   getChargingPowerString,
   sleep,
+  tintSFSymbol,
 } from './lib/util'
 import { Bluelink, Status } from './lib/bluelink-regions/base'
 import { Config } from 'config'
@@ -371,6 +372,9 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     const image = await getTintedIconAsync(calculateBatteryIcon(batteryPercent))
     const batterySymbolElement = batteryPercentStack.addImage(image)
     batterySymbolElement.imageSize = new Size(40, 40)
+  } else {
+    const fuelElement = batteryPercentStack.addImage(await getTintedIconAsync('fuel'))
+    fuelElement.imageSize = new Size(24, 24)
   }
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
   if (chargingIcon) {
@@ -438,7 +442,24 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     cell.centerAlignContent()
     if (align === 'right') cell.addSpacer()
 
-    const img = cell.addImage(await getTintedIconAsync(icon))
+    const summaryIconImage =
+      icon === 'last-update'
+        ? (
+            await tintSFSymbol(
+              parseFloat(Device.systemVersion()) >= 16
+                ? 'clock.arrow.circlepath'
+                : 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
+              SFSymbol.named(
+                parseFloat(Device.systemVersion()) >= 16
+                  ? 'clock.arrow.circlepath'
+                  : 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
+              ).image,
+              primaryText,
+            )
+          ).image
+        : await getTintedIconAsync(icon)
+
+    const img = cell.addImage(summaryIconImage)
     img.imageSize = new Size(13, 13)
     img.imageOpacity = 0.85
     cell.addSpacer(4)
@@ -468,7 +489,7 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   summaryRow.addSpacer()
 
   await addSummaryCell(leftCell, 'odometer', odometerText, 'left')
-  await addSummaryCell(centerCell, 'charging-complete', lastUpdatedText, 'center')
+  await addSummaryCell(centerCell, 'last-update', lastUpdatedText, 'center')
   await addSummaryCell(rightCell, 'twelve-volt', `12V ${twelveText}`, 'right')
 
   return widget
@@ -535,6 +556,9 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
     const image = await getTintedIconAsync(calculateBatteryIcon(batteryPercent))
     const batterySymbolElement = batteryPercentStack.addImage(image)
     batterySymbolElement.imageSize = new Size(40, 40)
+  } else {
+    const fuelElement = batteryPercentStack.addImage(await getTintedIconAsync('fuel'))
+    fuelElement.imageSize = new Size(24, 24)
   }
   const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
   if (chargingIcon) {
@@ -686,6 +710,11 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
     chargingElement.tintColor = new Color(primaryHex)
     chargingElement.imageSize = new Size(15, 15)
     chargingElement.rightAlignImage()
+  } else if (!supportsCharging) {
+    const fuelElement = batteryPercentStack.addImage(await getTintedIconAsync('fuel'))
+    fuelElement.tintColor = new Color(primaryHex)
+    fuelElement.imageSize = new Size(15, 15)
+    fuelElement.rightAlignImage()
   }
 
   batteryPercentStack.addSpacer(3)

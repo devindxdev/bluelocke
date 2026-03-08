@@ -274,6 +274,13 @@ const batteryStatus = connect(({ state: { soc, fuelLevel, range, isCharging, isP
         width: '18%',
       }),
     )
+  } else {
+    icons.push(
+      Img(getTintedIcon('fuel'), {
+        align: 'left',
+        width: '18%',
+      }),
+    )
   }
   if (chargingIcon) {
     icons.push(

@@ -20,15 +20,15 @@ interface icon {
 const icons: Record<string, icon> = {
   'battery.0': {
     iconName: 'battery.0percent',
-    color: Color.red(),
+    color: Color.green(),
   },
   'battery.25': {
     iconName: 'battery.25percent',
-    color: Color.red(),
+    color: Color.green(),
   },
   'battery.25.orange': {
     iconName: 'battery.25percent',
-    color: Color.orange(),
+    color: Color.green(),
   },
   'battery.50': {
     iconName: 'battery.50percent',
@@ -36,7 +36,7 @@ const icons: Record<string, icon> = {
   },
   'battery.50.orange': {
     iconName: 'battery.50percent',
-    color: Color.orange(),
+    color: Color.green(),
   },
   'battery.75': {
     iconName: 'battery.75percent',
@@ -50,9 +50,13 @@ const icons: Record<string, icon> = {
     iconName: 'bolt.fill',
     color: Color.green(),
   },
+  fuel: {
+    iconName: 'fuelpump.fill',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
   odometer: {
-    iconName: 'shuffle',
-    color: Color.white(),
+    iconName: parseFloat(Device.systemVersion()) >= 17 ? 'gauge.with.dots.needle.67percent' : 'speedometer',
+    color: Color.dynamic(new Color('#0A84FF'), new Color('#64D2FF')),
   },
   'charging-complete-widget': {
     iconName: 'clock',
@@ -94,6 +98,13 @@ const icons: Record<string, icon> = {
     iconName: 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
     color: Color.dynamic(Color.black(), Color.white()),
   },
+  'last-update': {
+    iconName:
+      parseFloat(Device.systemVersion()) >= 16
+        ? 'clock.arrow.circlepath'
+        : 'clock.arrow.trianglehead.2.counterclockwise.rotate.90',
+    color: Color.dynamic(Color.black(), Color.white()),
+  },
   settings: {
     iconName: 'gear',
     color: Color.dynamic(Color.black(), Color.white()),
@@ -103,7 +114,7 @@ const icons: Record<string, icon> = {
     color: Color.dynamic(Color.black(), Color.white()),
   },
   'twelve-volt': {
-    iconName: 'minus.plus.batteryblock',
+    iconName: parseFloat(Device.systemVersion()) >= 16 ? 'battery.100.bolt' : 'minus.plus.batteryblock',
     color: Color.dynamic(Color.black(), Color.white()),
   },
   'charge-limit': {
