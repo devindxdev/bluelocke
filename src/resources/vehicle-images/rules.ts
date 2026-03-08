@@ -2,342 +2,365 @@ import { VehicleImageRule } from './types'
 
 const VEHICLE_IMAGE_BASE =
   'https://raw.githubusercontent.com/devindxdev/bluelocke/refs/heads/main/assets/vehicle-images'
-const YEARS_2025_2026 = ['2025', '25', '2026', '26']
-const image = (fileName: string) => `${VEHICLE_IMAGE_BASE}/${fileName}`
 
-export const vehicleImageRules: VehicleImageRule[] = [
+type SupportedYear = '2025' | '2026'
+
+interface YearConfig {
+  idYear: SupportedYear
+  matchYears: string[]
+  imageYear: SupportedYear
+}
+
+const YEAR_CONFIGS: YearConfig[] = [
   {
-    id: 'hyundai-2025-tucson-xrt-black',
+    idYear: '2025',
+    matchYears: ['2025', '25'],
+    imageYear: '2025',
+  },
+  {
+    idYear: '2026',
+    matchYears: ['2026', '26'],
+    imageYear: '2026',
+  },
+]
+
+const image = (year: SupportedYear, fileName: string) => `${VEHICLE_IMAGE_BASE}/${year}/${fileName}`
+
+const buildTucsonRules = (yearConfig: YearConfig): VehicleImageRule[] => [
+  {
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt-black`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
       colorIncludesAny: ['black', 'np1', 'phantomblack', 'abyssblack'],
     },
-    imageUrl: image('tucson-xrt-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-black.png'),
   },
   {
-    id: 'hyundai-2025-tucson-xrt-grey',
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt-grey`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
       colorIncludesAny: ['grey', 'gray', 'net'],
     },
-    imageUrl: image('tucson-xrt-grey.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-grey.png'),
   },
   {
-    id: 'hyundai-2025-tucson-xrt-green',
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt-green`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
       colorIncludesAny: ['green', 'wg2'],
     },
-    imageUrl: image('tucson-xrt-green.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-green.png'),
   },
   {
-    id: 'hyundai-2025-tucson-xrt-blue',
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt-blue`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
       colorIncludesAny: ['blue', 'tb2'],
     },
-    imageUrl: image('tucson-xrt-blue.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-blue.png'),
   },
   {
-    id: 'hyundai-2025-tucson-xrt-silver',
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt-silver`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
       colorIncludesAny: ['silver', 'r2t'],
     },
-    imageUrl: image('tucson-xrt-silver.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-silver.png'),
   },
   {
-    id: 'hyundai-2025-tucson-xrt-white',
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt-white`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
       colorIncludesAny: ['white', 'tw3'],
     },
-    imageUrl: image('tucson-xrt-white.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-white.png'),
   },
   {
-    id: 'hyundai-2025-tucson-xrt',
+    id: `hyundai-${yearConfig.idYear}-tucson-xrt`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['xrt'],
     },
-    imageUrl: image('tucson-xrt-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-xrt-black.png'),
   },
 
   {
-    id: 'hyundai-2025-tucson-preferred-black',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred-black`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
       colorIncludesAny: ['black', 'np1', 'phantomblack', 'abyssblack'],
     },
-    imageUrl: image('tucson-preferred-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-black.png'),
   },
   {
-    id: 'hyundai-2025-tucson-preferred-grey',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred-grey`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
       colorIncludesAny: ['grey', 'gray', 'nt2'],
     },
-    imageUrl: image('tucson-preferred-grey.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-grey.png'),
   },
   {
-    id: 'hyundai-2025-tucson-preferred-green',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred-green`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
       colorIncludesAny: ['green', 'wg2'],
     },
-    imageUrl: image('tucson-preferred-green.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-green.png'),
   },
   {
-    id: 'hyundai-2025-tucson-preferred-blue',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred-blue`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
       colorIncludesAny: ['blue', 'tb2'],
     },
-    imageUrl: image('tucson-preferred-blue.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-blue.png'),
   },
   {
-    id: 'hyundai-2025-tucson-preferred-silver',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred-silver`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
       colorIncludesAny: ['silver', 'r2t'],
     },
-    imageUrl: image('tucson-preferred-silver.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-silver.png'),
   },
   {
-    id: 'hyundai-2025-tucson-preferred-white',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred-white`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
       colorIncludesAny: ['white', 'tw3'],
     },
-    imageUrl: image('tucson-preferred-white.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-white.png'),
   },
   {
-    id: 'hyundai-2025-tucson-preferred',
+    id: `hyundai-${yearConfig.idYear}-tucson-preferred`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['preferred'],
     },
-    imageUrl: image('tucson-preferred-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-preferred-black.png'),
   },
 
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate-black',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate-black`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
       colorIncludesAny: ['black', 'tcm', 'np1', 'phantomblack', 'abyssblack'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-black.png'),
   },
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate-bronze',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate-bronze`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
       colorIncludesAny: ['bronze', 'bc1', 'cashmere'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-bronze.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-bronze.png'),
   },
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate-grey',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate-grey`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
       colorIncludesAny: ['grey', 'gray', 'r4g'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-grey.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-grey.png'),
   },
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate-blue',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate-blue`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
       colorIncludesAny: ['blue', 'ps8', 'tb2'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-blue.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-blue.png'),
   },
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate-silver',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate-silver`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
       colorIncludesAny: ['silver', 'r2t'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-silver.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-silver.png'),
   },
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate-white',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate-white`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
       colorIncludesAny: ['white', 'tw3'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-white.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-white.png'),
   },
   {
-    id: 'hyundai-2025-tucson-hybrid-ultimate',
+    id: `hyundai-${yearConfig.idYear}-tucson-hybrid-ultimate`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['ultimate'],
     },
-    imageUrl: image('tucson-hybrid-ultimate-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-hybrid-ultimate-black.png'),
   },
 
   {
-    id: 'hyundai-2025-tucson-nline-red',
+    id: `hyundai-${yearConfig.idYear}-tucson-nline-red`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['nline'],
       colorIncludesAny: ['red', 'r2p'],
     },
-    imageUrl: image('tucson-nline-red.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-red.png'),
   },
   {
-    id: 'hyundai-2025-tucson-red',
+    id: `hyundai-${yearConfig.idYear}-tucson-red`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       colorIncludesAny: ['red', 'r2p'],
     },
-    imageUrl: image('tucson-nline-red.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-red.png'),
   },
   {
-    id: 'hyundai-2025-tucson-nline-grey',
+    id: `hyundai-${yearConfig.idYear}-tucson-nline-grey`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['nline'],
       colorIncludesAny: ['grey', 'gray', 'r4g'],
     },
-    imageUrl: image('tucson-nline-grey.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-grey.png'),
   },
   {
-    id: 'hyundai-2025-tucson-grey',
+    id: `hyundai-${yearConfig.idYear}-tucson-grey`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       colorIncludesAny: ['grey', 'gray', 'r4g'],
     },
-    imageUrl: image('tucson-nline-grey.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-grey.png'),
   },
   {
-    id: 'hyundai-2025-tucson-nline-white',
+    id: `hyundai-${yearConfig.idYear}-tucson-nline-white`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['nline'],
       colorIncludesAny: ['white', 'tw3'],
     },
-    imageUrl: image('tucson-nline-white.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-white.png'),
   },
   {
-    id: 'hyundai-2025-tucson-white',
+    id: `hyundai-${yearConfig.idYear}-tucson-white`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       colorIncludesAny: ['white', 'tw3'],
     },
-    imageUrl: image('tucson-nline-white.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-white.png'),
   },
   {
-    id: 'hyundai-2025-tucson-nline-black',
+    id: `hyundai-${yearConfig.idYear}-tucson-nline-black`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['nline'],
       colorIncludesAny: ['black', 'tcm', 'np1', 'phantomblack', 'abyssblack'],
     },
-    imageUrl: image('tucson-nline-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-black.png'),
   },
   {
-    id: 'hyundai-2025-tucson-black',
+    id: `hyundai-${yearConfig.idYear}-tucson-black`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       colorIncludesAny: ['black', 'tcm', 'np1', 'phantomblack', 'abyssblack'],
     },
-    imageUrl: image('tucson-nline-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-black.png'),
   },
   {
-    id: 'hyundai-2025-tucson-nline',
+    id: `hyundai-${yearConfig.idYear}-tucson-nline`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
       trimIncludesAny: ['nline'],
     },
-    imageUrl: image('tucson-nline-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-black.png'),
   },
   {
-    id: 'hyundai-2025-tucson-fallback',
+    id: `hyundai-${yearConfig.idYear}-tucson-fallback`,
     match: {
       manufacturerIncludesAny: ['hyundai'],
-      years: YEARS_2025_2026,
+      years: yearConfig.matchYears,
       modelIncludesAll: ['tucson'],
     },
-    imageUrl: image('tucson-nline-black.png'),
+    imageUrl: image(yearConfig.imageYear, 'tucson-nline-black.png'),
   },
 ]
+
+export const vehicleImageRules: VehicleImageRule[] = YEAR_CONFIGS.flatMap((yearConfig) => buildTucsonRules(yearConfig))
