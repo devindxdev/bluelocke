@@ -47,13 +47,6 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
     font-size: 0.92rem;
     line-height: 1.35;
   }
-  .shortcut-caution {
-    margin-top: 0.35rem;
-    color: #7a2e00;
-    font-size: 0.86rem;
-    line-height: 1.3;
-    font-weight: 600;
-  }
   .shortcut-btn {
     flex: 0 0 auto;
     display: inline-block;
@@ -72,48 +65,16 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
   }
 </style>
 
-## Example Commands
-
-- `lock`
-- `unlock`
-- `auto`
-- `status`
-- `status remote`
-- `data`
-- `warm`
-- `cool`
-- `climate off`
-- `start charging`
-- `stop charging`
-
-## Auto-Lock
-
-`auto` performs logic before sending a lock command:
-
-1. If already locked -> returns `Vehicle is already locked.`
-2. If running -> returns `Vehicle running.`
-3. Otherwise -> sends `lock`.
-
 ## Ready-Made Shortcuts
 
 <div class="shortcut-grid">
-  <div class="shortcut-card">
-    <div class="shortcut-icon">🛡️</div>
-    <div class="shortcut-body">
-      <p class="shortcut-title">Auto-Lock</p>
-      <p class="shortcut-desc">Checks vehicle state first, then locks if appropriate. You can pair this with automations like Wi-Fi disconnect or Bluetooth disconnect to mimic walk-away lock behavior.</p>
-      <p class="shortcut-caution">⚠️ Caution: If your phone is left inside the car and this runs, it can lock you out.</p>
-    </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/ad73842a188c4da194ed3c4b2ebd9e34" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
-  </div>
-
   <div class="shortcut-card">
     <div class="shortcut-icon">🔓</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Unlock</p>
       <p class="shortcut-desc">Sends an immediate unlock command through Scriptable.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/b413eaa53d054242abaa0cddc3e3c951" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/ad73842a188c4da194ed3c4b2ebd9e34" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 
   <div class="shortcut-card">
@@ -131,5 +92,5 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
 1. Create a new Shortcut.
 2. Add `Run Script` (Scriptable).
 3. Select `bluelocke`.
-4. Pass a text value as input, for example `auto`.
+4. Pass a text value as input, for example `lock` or `unlock`.
 5. Run manually or connect to Siri phrase / automation trigger.
