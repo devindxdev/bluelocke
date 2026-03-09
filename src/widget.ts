@@ -62,6 +62,23 @@ function getPrimaryTextColor(config: Config): Color {
   return isDarkMode(config) ? Color.white() : Color.black()
 }
 
+function getLockScreenPrimaryHex(): string {
+  // Lock screen widgets always use a high-contrast palette, independent of home-screen widget appearance.
+  return '#ffffff'
+}
+
+function getLockScreenSecondaryHex(): string {
+  return 'hsla(0, 0%, 100%, 0.35)'
+}
+
+function getLockScreenTextColor(): Color {
+  return Color.white()
+}
+
+function getLockScreenBackgroundColor(): Color {
+  return new Color('1C3E66', 0.45)
+}
+
 async function getWidgetIcon(iconKey: string, color: Color): Promise<Image> {
   const iconName = getIconName(iconKey)
   if (!iconName) return await getTintedIconAsync(iconKey)
@@ -77,13 +94,6 @@ function getEnergyText(status: Status, bl: Bluelink): string {
   const energyPercent = getEnergyPercent(status, bl)
   if (bl.supportsChargingFeatures()) return `${status.status.soc.toString()}%`
   return typeof energyPercent === 'number' ? `Fuel ${energyPercent.toString()}%` : 'Fuel'
-}
-
-function getFuelLevelColor(energyPercent: number | undefined): Color {
-  if (typeof energyPercent !== 'number') return Color.orange()
-  if (energyPercent > 50) return Color.green()
-  if (energyPercent > 20) return Color.yellow()
-  return Color.red()
 }
 
 export function getWidgetLogger(): Logger {
@@ -380,21 +390,18 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   const twelveSoc = status.status.twelveSoc
   const rangeText = `~${status.status.range} ${bl.getDistanceUnit()}`
 
-  // Top row: EV/PHEV -> range, ICE/HEV -> fuel + icon
-  const topInfoStack = batteryInfoStack.addStack()
-  topInfoStack.layoutHorizontally()
-  topInfoStack.centerAlignContent()
-  topInfoStack.addSpacer()
+  // Top row: EV/PHEV -> range
   if (supportsCharging) {
+    const topInfoStack = batteryInfoStack.addStack()
+    topInfoStack.layoutHorizontally()
+    topInfoStack.centerAlignContent()
+    topInfoStack.addSpacer()
     const topRangeText = topInfoStack.addText(rangeText)
-    topRangeText.font = Font.semiboldSystemFont(15)
+    topRangeText.font = Font.semiboldSystemFont(17)
     topRangeText.textColor = primaryText
     topRangeText.minimumScaleFactor = 0.7
     topRangeText.lineLimit = 1
     topRangeText.rightAlignText()
-  } else {
-    const topFuelIcon = topInfoStack.addImage(await getWidgetIcon('fuel', getFuelLevelColor(energyPercent)))
-    topFuelIcon.imageSize = new Size(28, 28)
     topInfoStack.addSpacer()
   }
   batteryInfoStack.addSpacer(2)
@@ -425,7 +432,7 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   } else {
     const fuelText = batteryPercentStack.addText(getEnergyText(status, bl))
     fuelText.textColor = primaryText
-    fuelText.font = Font.semiboldSystemFont(15)
+    fuelText.font = Font.semiboldSystemFont(17)
     fuelText.minimumScaleFactor = 0.65
     fuelText.lineLimit = 1
     fuelText.rightAlignText()
@@ -438,11 +445,10 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     rangeBottomStack.addSpacer()
     const rangeBottomText = rangeBottomStack.addText(rangeText)
     rangeBottomText.textColor = primaryText
-    rangeBottomText.font = Font.semiboldSystemFont(15)
+    rangeBottomText.font = Font.semiboldSystemFont(17)
     rangeBottomText.minimumScaleFactor = 0.7
     rangeBottomText.lineLimit = 1
     rangeBottomText.rightAlignText()
-    rangeBottomStack.addSpacer()
   }
 
   if (supportsCharging && isCharging) {
@@ -571,9 +577,9 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
   // Range
   const rangeStack = batteryInfoStack.addStack()
   rangeStack.addSpacer()
-  const rangeText = `${status.status.range} ${bl.getDistanceUnit()}`
+  const rangeText = `Range ${status.status.range} ${bl.getDistanceUnit()}`
   const rangeElement = rangeStack.addText(rangeText)
-  rangeElement.font = Font.mediumSystemFont(20)
+  rangeElement.font = Font.mediumSystemFont(22)
   rangeElement.textColor = primaryText
   rangeElement.rightAlignText()
   // batteryInfoStack.addSpacer()
@@ -603,17 +609,11 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
     const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
     batteryPercentText.textColor =
       supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
-    batteryPercentText.font = Font.mediumSystemFont(20)
+    batteryPercentText.font = Font.mediumSystemFont(22)
   } else {
-    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', getFuelLevelColor(energyPercent)))
-    fuelElement.imageSize = new Size(28, 28)
-    batteryInfoStack.addSpacer(2)
-
-    const fuelTextStack = batteryInfoStack.addStack()
-    fuelTextStack.addSpacer()
-    const fuelText = fuelTextStack.addText(getEnergyText(status, bl))
+    const fuelText = batteryPercentStack.addText(getEnergyText(status, bl))
     fuelText.textColor = primaryText
-    fuelText.font = Font.mediumSystemFont(20)
+    fuelText.font = Font.mediumSystemFont(22)
     fuelText.rightAlignText()
   }
 
@@ -668,12 +668,12 @@ export async function createHomeScreenCircleWidget(config: Config, bl: Bluelink)
   const status = refresh.status
   const supportsCharging = bl.supportsChargingFeatures()
   const energyPercent = getEnergyPercent(status, bl)
-  const darkMode = isDarkMode(config)
-  const primaryHex = darkMode ? '#ffffff' : '#000000'
-  const secondaryHex = darkMode ? 'hsla(0, 0%, 100%, 0.3)' : 'hsla(0, 0%, 0%, 0.25)'
+  const primaryHex = getLockScreenPrimaryHex()
+  const secondaryHex = getLockScreenSecondaryHex()
 
   const widget = new ListWidget()
   widget.refreshAfterDate = refresh.nextRefresh
+  widget.backgroundColor = getLockScreenBackgroundColor()
 
   const progressStack = await progressCircle(
     widget,
@@ -698,13 +698,13 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
   const status = refresh.status
   const supportsCharging = bl.supportsChargingFeatures()
   const energyPercent = getEnergyPercent(status, bl)
-  const darkMode = isDarkMode(config)
-  const primaryHex = darkMode ? '#ffffff' : '#000000'
-  const primaryText = getPrimaryTextColor(config)
-  const secondaryHex = darkMode ? 'hsla(0, 0%, 100%, 0.3)' : 'hsla(0, 0%, 0%, 0.25)'
+  const primaryHex = getLockScreenPrimaryHex()
+  const primaryText = getLockScreenTextColor()
+  const secondaryHex = getLockScreenSecondaryHex()
 
   const widget = new ListWidget()
   widget.refreshAfterDate = refresh.nextRefresh
+  widget.backgroundColor = getLockScreenBackgroundColor()
 
   const widgetStack = widget.addStack()
   // widgetStack.addSpacer(5)
@@ -731,20 +731,14 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
   batteryInfoStack.layoutVertically()
   batteryInfoStack.addSpacer(5)
 
-  // Range
-  const rangeStack = batteryInfoStack.addStack()
-  rangeStack.addSpacer()
-  const rangeText = `${status.status.range} ${bl.getDistanceUnit()}`
-  const rangeElement = rangeStack.addText(rangeText)
-  rangeElement.font = Font.boldSystemFont(15)
-  rangeElement.textColor = primaryText
-  rangeElement.rightAlignText()
-
   // set status from BL status response
   const isCharging = status.status.isCharging
   const isPluggedIn = status.status.isPluggedIn
   const remainingChargingTime = status.status.remainingChargeTimeMins
   const lastSeen = new Date(status.status.lastRemoteStatusCheck)
+  const rangeText = `~${status.status.range} ${bl.getDistanceUnit()}`
+  const twelveSoc = status.status.twelveSoc
+  const twelveText = twelveSoc > 0 ? `${Math.floor(twelveSoc).toString()}%` : '--'
 
   // Battery Percent Value
   const batteryPercentStack = batteryInfoStack.addStack()
@@ -755,17 +749,29 @@ export async function createHomeScreenRectangleWidget(config: Config, bl: Blueli
     const chargingElement = batteryPercentStack.addImage(await getWidgetIcon(chargingIcon, new Color(primaryHex)))
     chargingElement.imageSize = new Size(17, 17)
     chargingElement.rightAlignImage()
-  } else if (!supportsCharging) {
-    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', new Color(primaryHex)))
-    fuelElement.imageSize = new Size(17, 17)
-    fuelElement.rightAlignImage()
+    batteryPercentStack.addSpacer(3)
   }
-
-  batteryPercentStack.addSpacer(3)
   const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
   batteryPercentText.textColor =
     supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
-  batteryPercentText.font = Font.boldSystemFont(15)
+  batteryPercentText.font = Font.boldSystemFont(17)
+
+  const rangeStack = batteryInfoStack.addStack()
+  rangeStack.centerAlignContent()
+  rangeStack.addSpacer()
+  const rangeElement = rangeStack.addText(rangeText)
+  rangeElement.font = Font.boldSystemFont(17)
+  rangeElement.textColor = primaryText
+  rangeElement.rightAlignText()
+
+  const auxBatteryStack = batteryInfoStack.addStack()
+  auxBatteryStack.centerAlignContent()
+  auxBatteryStack.addSpacer()
+  const auxBatteryElement = auxBatteryStack.addText(`12V ${twelveText}`)
+  auxBatteryElement.font = Font.mediumSystemFont(12)
+  auxBatteryElement.textOpacity = 0.9
+  auxBatteryElement.textColor = primaryText
+  auxBatteryElement.rightAlignText()
 
   if (supportsCharging && isCharging) {
     const chargeComplete = getChargeCompletionString(lastSeen, remainingChargingTime, 'short', true)
@@ -802,12 +808,15 @@ export async function createHomeScreenInlineWidget(config: Config, bl: Bluelink)
   const batteryPercent = supportsCharging ? status.status.soc : (energyPercent ?? 50)
   const remainingChargingTime = status.status.remainingChargeTimeMins
   const lastSeen = new Date(status.status.lastRemoteStatusCheck)
-  const darkMode = isDarkMode(config)
-  const primaryHex = darkMode ? 'hsla(0, 0%, 100%, 1.0)' : 'hsla(0, 0%, 0%, 1.0)'
-  const secondaryHex = darkMode ? 'hsla(0, 0%, 100%, 0.3)' : 'hsla(0, 0%, 0%, 0.25)'
+  const primaryHex = 'hsla(0, 0%, 100%, 1.0)'
+  const secondaryHex = getLockScreenSecondaryHex()
+  const primaryText = getLockScreenTextColor()
+  const twelveSoc = status.status.twelveSoc
+  const twelveText = twelveSoc > 0 ? `${Math.floor(twelveSoc).toString()}%` : '--'
 
   const widget = new ListWidget()
   widget.refreshAfterDate = refresh.nextRefresh
+  widget.backgroundColor = getLockScreenBackgroundColor()
 
   const widgetStack = widget.addStack()
   widgetStack.layoutHorizontally()
@@ -832,16 +841,19 @@ export async function createHomeScreenInlineWidget(config: Config, bl: Bluelink)
   iconStack.addImage(icon)
 
   //Only one line of text allowed in this style of widget
-  let rangeText = `${status.status.range} ${bl.getDistanceUnit()}`
+  let rangeText = `~${status.status.range} ${bl.getDistanceUnit()}`
   if (!supportsCharging) {
     rangeText = `${getEnergyText(status, bl)} · ${rangeText}`
   } else if (isCharging) {
     const chargeComplete = getChargeCompletionString(lastSeen, remainingChargingTime, 'short', true)
-    rangeText += ` \u{21BA} ${chargeComplete}`
+    rangeText = `${getEnergyText(status, bl)} · ${rangeText} \u{21BA} ${chargeComplete}`
+  } else {
+    rangeText = `${getEnergyText(status, bl)} · ${rangeText}`
   }
+  rangeText += ` · 12V ${twelveText}`
   const textStack = mainStack.addStack()
   const inlineText = textStack.addText(rangeText)
-  inlineText.textColor = getPrimaryTextColor(config)
+  inlineText.textColor = primaryText
 
   return widget
 }

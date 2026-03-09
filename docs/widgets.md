@@ -17,28 +17,19 @@ You can pick how widgets look in app settings:
 
 The screenshots below show the white and dark widget styles:
 
-| White Mode | Dark Mode |
-|---|---|
-| ![White mode widget background](./images/widget-background-white.png) | ![Dark mode widget background](./images/widget-background-dark.png) |
+### White Mode
+
+![White mode widget background](./images/widget-background-white.png)
+
+### Dark Mode
+
+![Dark mode widget background](./images/widget-background-dark.png)
 
 ## Home Screen Widgets
 
 Bluelocke currently supports:
 
-- `Small` widget
 - `Medium` widget
-
-### Small Widget
-
-The small widget is focused on quick checks:
-
-- Your vehicle image
-- `Range` estimate
-- `Fuel %` for ICE/HEV vehicles, or battery `%` for EV/PHEV vehicles
-- Charging indicator and charging time when applicable (EV/PHEV only)
-- Last update timestamp at the bottom
-
-For ICE/HEV vehicles, fuel is now shown with the icon above the fuel text for better readability.
 
 ### Medium Widget
 
@@ -56,9 +47,8 @@ The medium widget gives a fuller snapshot:
 
 For ICE/HEV vehicles, the medium widget now shows:
 
-- Fuel icon on its own row (above `Fuel x%`)
-- `Fuel x%` on the next row
-- `~ range` under that
+- `Fuel x%` in larger text
+- `~ range` in larger text below it
 
 ## Lock Screen Widgets
 
@@ -80,14 +70,6 @@ Here is what each value represents in plain language:
 - `Last Updated`: Time of the most recent successful status refresh shown in the widget.
 - `12V`: Health/charge level of the auxiliary 12V battery.
 - `Charging Info` (EV/PHEV): Charging state and estimated completion time.
-
-## Fuel Icon Colors (ICE/HEV)
-
-Fuel icon color is tied to current fuel level:
-
-- Above `50%`: `Green`
-- `21%` to `50%`: `Yellow`
-- `20%` and below: `Red`
 
 ## Refresh Behavior
 

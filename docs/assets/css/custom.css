@@ -1,0 +1,39 @@
+/* Keep default Just-the-Docs style; only shift accents to dark blue. */
+
+a,
+.main-content a,
+.site-title a {
+  color: #123b73;
+}
+
+a:hover,
+.main-content a:hover,
+.site-title a:hover {
+  color: #0d2b52;
+}
+
+.site-nav .nav-list .nav-list-item > .nav-list-link:hover,
+.site-nav .nav-list .nav-list-item.active > .nav-list-link {
+  color: #123b73;
+  background-image: none;
+  background-color: rgba(18, 59, 115, 0.12);
+}
+
+.search-input:focus {
+  border-color: #123b73;
+  box-shadow: 0 0 0 3px rgba(18, 59, 115, 0.18);
+}
+
+.btn-primary,
+.main-content .btn-primary,
+.site-button {
+  background-color: #123b73;
+  border-color: #123b73;
+}
+
+.btn-primary:hover,
+.main-content .btn-primary:hover,
+.site-button:hover {
+  background-color: #0d2b52;
+  border-color: #0d2b52;
+}
