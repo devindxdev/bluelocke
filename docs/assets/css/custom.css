@@ -25,15 +25,26 @@ a:hover,
 }
 
 .btn-primary,
-.main-content .btn-primary,
-.site-button {
+.main-content .btn-primary {
   background-color: #123b73;
   border-color: #123b73;
 }
 
 .btn-primary:hover,
-.main-content .btn-primary:hover,
-.site-button:hover {
+.main-content .btn-primary:hover {
   background-color: #0d2b52;
   border-color: #0d2b52;
+}
+
+/* Keep the top-right GitHub button in the default outlined style. */
+.aux-nav .site-button {
+  background-color: transparent;
+  border-color: #c7d5e5;
+  color: #123b73;
+}
+
+.aux-nav .site-button:hover {
+  background-color: rgba(18, 59, 115, 0.1);
+  border-color: #9db6d3;
+  color: #0d2b52;
 }
