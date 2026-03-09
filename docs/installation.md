@@ -35,9 +35,9 @@ Bluelocke runs inside the Scriptable iOS app.
       <svg viewBox="0 0 24 24"><path d="M3 8.5h6l2 2h10v8.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M3 8.5V6.5a2 2 0 0 1 2-2h4.3l1.7 2H19a2 2 0 0 1 2 2"></path></svg>
     </span>
     <span class="install-flow-step">Step 3</span>
-    <span class="install-flow-label">Move Into Scriptable Folder</span>
-    <span class="install-flow-sub">In Files, move <code>bluelocke.js</code> to:</span>
-    <code class="install-path">iCloud Drive/Scriptable</code>
+    <span class="install-flow-label">Move The File Into Scriptable</span>
+    <span class="install-flow-sub">On your iPhone, open the Files app and move <code>bluelocke.js</code> into the Scriptable folder in iCloud Drive.</span>
+    <code class="install-path">Files → iCloud Drive → Scriptable</code>
   </div>
 </div>
 

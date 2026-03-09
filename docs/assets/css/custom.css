@@ -90,7 +90,7 @@ a:hover,
 }
 
 .install-flow-btn {
-  position: relative;
+  position: relative !important;
   display: flex;
   flex-direction: column;
   gap: 0.32rem;
@@ -111,9 +111,12 @@ a:hover,
 }
 
 .install-flow-link-indicator {
-  position: absolute;
+  position: absolute !important;
   top: 0.66rem;
-  right: 0.66rem;
+  right: 0.66rem !important;
+  left: auto !important;
+  inset-inline-end: 0.66rem;
+  inset-inline-start: auto;
   min-width: 22px;
   height: 22px;
   padding: 0 0.28rem;
