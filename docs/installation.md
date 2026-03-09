@@ -11,6 +11,9 @@ Bluelocke runs inside the Scriptable iOS app.
 
 <div class="install-flow">
   <a class="install-flow-btn" href="https://apps.apple.com/us/app/scriptable/id1405459188?uo=4" target="_blank" rel="noopener noreferrer">
+    <span class="install-flow-link-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M9 15L15.5 8.5"></path><polyline points="11 8.5 15.5 8.5 15.5 13"></polyline><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>
+    </span>
     <span class="install-flow-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.3"></rect><line x1="10.5" y1="5.5" x2="13.5" y2="5.5"></line><circle cx="12" cy="18.5" r="0.9"></circle></svg>
     </span>
@@ -20,6 +23,9 @@ Bluelocke runs inside the Scriptable iOS app.
   </a>
 
   <a class="install-flow-btn" href="https://github.com/devindxdev/bluelocke/releases/latest/download/bluelocke.js" target="_blank" rel="noopener noreferrer">
+    <span class="install-flow-link-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M9 15L15.5 8.5"></path><polyline points="11 8.5 15.5 8.5 15.5 13"></polyline><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>
+    </span>
     <span class="install-flow-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M12 3v10"></path><polyline points="8.5 10.5 12 14 15.5 10.5"></polyline><path d="M5 17.5h14"></path></svg>
     </span>

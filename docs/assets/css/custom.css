@@ -90,6 +90,7 @@ a:hover,
 }
 
 .install-flow-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.32rem;
@@ -107,6 +108,30 @@ a:hover,
   transform: translateY(-1px);
   box-shadow: 0 12px 22px rgba(13, 43, 82, 0.14);
   border-color: #9db6d3;
+}
+
+.install-flow-link-icon {
+  position: absolute;
+  top: 0.66rem;
+  right: 0.66rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 59, 115, 0.08);
+}
+
+.install-flow-link-icon svg {
+  width: 14px;
+  height: 14px;
+  stroke: #123b73;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
 }
 
 .install-flow-static {
