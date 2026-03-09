@@ -58,6 +58,13 @@ Bluelocke supports Lock Screen styles for faster glance info:
 - `Circular`: circular progress view
 - `Rectangular`: compact detail view
 
+### Lock Screen Example
+
+<div class="widget-screenshot-card">
+  <img src="./images/lockscreen-widget-and-shortcuts.jpg" alt="Lock screen showing the Scriptable widget on the left and two shortcuts on the right." />
+</div>
+<p class="widget-screenshot-caption"><strong>Layout:</strong> The left tile is the Scriptable widget. The two tiles on the right are shortcuts.</p>
+
 These are ideal when you only need a quick status check.
 
 ## What the Widget Info Means

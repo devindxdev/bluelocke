@@ -48,3 +48,25 @@ a:hover,
   border-color: #9db6d3;
   color: #0d2b52;
 }
+
+.widget-screenshot-card {
+  max-width: 320px;
+  margin: 0.8rem 0 0.55rem;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid #c7d5e5;
+  box-shadow: 0 12px 26px rgba(13, 43, 82, 0.16);
+  background: #fff;
+}
+
+.widget-screenshot-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.widget-screenshot-caption {
+  color: #29415f;
+  font-size: 0.97rem;
+  margin-top: 0.15rem;
+}
