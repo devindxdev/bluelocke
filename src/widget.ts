@@ -79,6 +79,13 @@ function getEnergyText(status: Status, bl: Bluelink): string {
   return typeof energyPercent === 'number' ? `Fuel ${energyPercent.toString()}%` : 'Fuel'
 }
 
+function getFuelLevelColor(energyPercent: number | undefined): Color {
+  if (typeof energyPercent !== 'number') return Color.orange()
+  if (energyPercent > 50) return Color.green()
+  if (energyPercent > 20) return Color.yellow()
+  return Color.red()
+}
+
 export function getWidgetLogger(): Logger {
   if (!WIDGET_LOGGER) WIDGET_LOGGER = new Logger(WIDGET_LOG_FILE, 100)
   return WIDGET_LOGGER
@@ -386,15 +393,9 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     topRangeText.lineLimit = 1
     topRangeText.rightAlignText()
   } else {
-    const topFuelIcon = topInfoStack.addImage(await getWidgetIcon('fuel', primaryText))
+    const topFuelIcon = topInfoStack.addImage(await getWidgetIcon('fuel', getFuelLevelColor(energyPercent)))
     topFuelIcon.imageSize = new Size(28, 28)
-    topInfoStack.addSpacer(5)
-    const topFuelText = topInfoStack.addText(getEnergyText(status, bl))
-    topFuelText.font = Font.semiboldSystemFont(15)
-    topFuelText.textColor = primaryText
-    topFuelText.minimumScaleFactor = 0.65
-    topFuelText.lineLimit = 1
-    topFuelText.rightAlignText()
+    topInfoStack.addSpacer()
   }
   batteryInfoStack.addSpacer(2)
 
@@ -422,12 +423,26 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
     batteryPercentText.minimumScaleFactor = 0.65
     batteryPercentText.lineLimit = 1
   } else {
-    const rangeBottomText = batteryPercentStack.addText(rangeText)
+    const fuelText = batteryPercentStack.addText(getEnergyText(status, bl))
+    fuelText.textColor = primaryText
+    fuelText.font = Font.semiboldSystemFont(15)
+    fuelText.minimumScaleFactor = 0.65
+    fuelText.lineLimit = 1
+    fuelText.rightAlignText()
+  }
+
+  if (!supportsCharging) {
+    batteryInfoStack.addSpacer(2)
+    const rangeBottomStack = batteryInfoStack.addStack()
+    rangeBottomStack.layoutHorizontally()
+    rangeBottomStack.addSpacer()
+    const rangeBottomText = rangeBottomStack.addText(rangeText)
     rangeBottomText.textColor = primaryText
     rangeBottomText.font = Font.semiboldSystemFont(15)
     rangeBottomText.minimumScaleFactor = 0.7
     rangeBottomText.lineLimit = 1
     rangeBottomText.rightAlignText()
+    rangeBottomStack.addSpacer()
   }
 
   if (supportsCharging && isCharging) {
@@ -571,7 +586,7 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
   const chargingKw = getChargingPowerString(status.status.chargingPower)
   const lastSeen = new Date(status.status.lastRemoteStatusCheck)
 
-  // Battery Percent Value
+  // Battery / fuel value block
   const batteryPercentStack = batteryInfoStack.addStack()
   batteryPercentStack.addSpacer()
   batteryPercentStack.centerAlignContent()
@@ -579,22 +594,30 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
     const batteryIconColor = batteryPercent > 70 ? Color.green() : Color.red()
     const batterySymbolElement = batteryPercentStack.addImage(await getWidgetIcon('twelve-volt', batteryIconColor))
     batterySymbolElement.imageSize = new Size(30, 22)
+    const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
+    if (chargingIcon) {
+      const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
+      chargingElement.imageSize = new Size(28, 28)
+    }
+
+    const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
+    batteryPercentText.textColor =
+      supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
+    batteryPercentText.font = Font.mediumSystemFont(20)
   } else {
-    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', primaryText))
+    const fuelElement = batteryPercentStack.addImage(await getWidgetIcon('fuel', getFuelLevelColor(energyPercent)))
     fuelElement.imageSize = new Size(28, 28)
-  }
-  const chargingIcon = supportsCharging ? getChargingIcon(isCharging, isPluggedIn, true) : undefined
-  if (chargingIcon) {
-    const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
-    chargingElement.imageSize = new Size(28, 28)
+    batteryInfoStack.addSpacer(2)
+
+    const fuelTextStack = batteryInfoStack.addStack()
+    fuelTextStack.addSpacer()
+    const fuelText = fuelTextStack.addText(getEnergyText(status, bl))
+    fuelText.textColor = primaryText
+    fuelText.font = Font.mediumSystemFont(20)
+    fuelText.rightAlignText()
   }
 
   // batteryPercentStack.addSpacer(5)
-
-  const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
-  batteryPercentText.textColor =
-    supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
-  batteryPercentText.font = Font.mediumSystemFont(20)
 
   if (supportsCharging && isCharging) {
     const chargeComplete = getChargeCompletionString(lastSeen, remainingChargingTime, 'short', true)
