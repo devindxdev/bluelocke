@@ -49,20 +49,26 @@ a:hover,
   color: #0d2b52;
 }
 
-.widget-screenshot-card {
-  max-width: 320px;
-  margin: 0.8rem 0 0.55rem;
-  border-radius: 24px;
-  overflow: hidden;
+.main-content img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 18px;
   border: 1px solid #c7d5e5;
-  box-shadow: 0 12px 26px rgba(13, 43, 82, 0.16);
+  box-shadow: 0 10px 22px rgba(13, 43, 82, 0.14);
   background: #fff;
 }
 
+.widget-screenshot-card {
+  max-width: 220px;
+  margin: 0.8rem 0 0.55rem;
+}
+
 .widget-screenshot-card img {
-  display: block;
   width: 100%;
-  height: auto;
+  border-radius: 24px;
+  box-shadow: 0 14px 28px rgba(13, 43, 82, 0.2);
 }
 
 .widget-screenshot-caption {
