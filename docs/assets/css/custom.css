@@ -181,13 +181,3 @@ a:hover,
   color: #375372;
   line-height: 1.4;
 }
-
-.install-path {
-  display: inline-block;
-  margin-top: 0.1rem;
-  padding: 0.24rem 0.5rem;
-  border-radius: 8px;
-  border: 1px solid #d5e3f1;
-  background: #f7fbff;
-  color: #1f3d62;
-}
