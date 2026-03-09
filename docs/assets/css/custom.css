@@ -76,3 +76,95 @@ a:hover,
   font-size: 0.97rem;
   margin-top: 0.15rem;
 }
+
+.install-flow {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0.9rem 0 1rem;
+}
+
+@media (min-width: 52rem) {
+  .install-flow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.install-flow-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  padding: 0.88rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid #c7d5e5;
+  background: #fff;
+  color: #123b73 !important;
+  text-decoration: none !important;
+  box-shadow: 0 8px 18px rgba(13, 43, 82, 0.1);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.install-flow-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(13, 43, 82, 0.14);
+  border-color: #9db6d3;
+}
+
+.install-flow-static {
+  cursor: default;
+}
+
+.install-flow-static:hover {
+  transform: none;
+}
+
+.install-flow-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 59, 115, 0.1);
+  margin-bottom: 0.2rem;
+}
+
+.install-flow-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #123b73;
+  fill: none;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.install-flow-step {
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #6a84a1;
+}
+
+.install-flow-label {
+  font-size: 1rem;
+  line-height: 1.25;
+  font-weight: 700;
+  color: #123b73;
+}
+
+.install-flow-sub {
+  font-size: 0.9rem;
+  color: #375372;
+  line-height: 1.4;
+}
+
+.install-path {
+  display: inline-block;
+  margin-top: 0.1rem;
+  padding: 0.24rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #d5e3f1;
+  background: #f7fbff;
+  color: #1f3d62;
+}
