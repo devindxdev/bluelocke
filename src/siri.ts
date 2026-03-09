@@ -225,6 +225,14 @@ async function autoLock(bl: Bluelink): Promise<string> {
   return await blRequest(bl, 'lock', `I've issued a request to lock ${carName}.`)
 }
 
+async function autoLockChecker(bl: Bluelink): Promise<string> {
+  const status = await bl.getStatus(false, true)
+  const isUnlocked = !status.status.locked
+  // Across regions, climate/air control on is our most reliable running signal.
+  const isNotRunning = !status.status.climate
+  return isUnlocked && isNotRunning ? 'true' : 'false'
+}
+
 async function unlock(bl: Bluelink): Promise<string> {
   const status = bl.getCachedStatus()
   return await blRequest(
@@ -316,6 +324,14 @@ const commandMap: commandDetection[] = [
   {
     words: ['unlock'],
     function: unlock,
+  },
+  {
+    words: ['auto', 'check'],
+    function: autoLockChecker,
+  },
+  {
+    words: ['checker'],
+    function: autoLockChecker,
   },
   {
     words: ['auto'],

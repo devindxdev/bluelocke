@@ -264,8 +264,9 @@ export class BluelinkAustralia extends Bluelink {
         Stamp: this.getStamp(this.apiConfig.appId, this.apiConfig.authCfb),
       },
     })
-    if (this.requestResponseValid(resp.resp, resp.json).valid) {
-      return resp.json.resMsg.deviceId
+    const deviceId = resp?.json?.resMsg?.deviceId
+    if (this.requestResponseValid(resp.resp, resp.json).valid && deviceId) {
+      return deviceId
     }
 
     const error = `Failed to fetch Device ID: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
@@ -293,10 +294,11 @@ export class BluelinkAustralia extends Bluelink {
       throw Error(error)
     }
 
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.resMsg.vehicles.length > 0) {
-      let vehicle = resp.json.resMsg.vehicles[0]
+    const vehicles = Array.isArray(resp?.json?.resMsg?.vehicles) ? resp.json.resMsg.vehicles : []
+    if (this.requestResponseValid(resp.resp, resp.json).valid && vehicles.length > 0) {
+      let vehicle = vehicles[0]
       if (vin) {
-        for (const v of resp.json.resMsg.vehicles) {
+        for (const v of vehicles) {
           if (v.vin === vin) {
             vehicle = v
             break
@@ -312,8 +314,8 @@ export class BluelinkAustralia extends Bluelink {
         modelName: vehicle.vehicleName,
         modelYear: vehicle.year,
         odometer: 0, // not available here
-        modelColour: vehicle.detailInfo.outColor,
-        modelTrim: vehicle.detailInfo.saleCarmdlCd,
+        modelColour: vehicle?.detailInfo?.outColor,
+        modelTrim: vehicle?.detailInfo?.saleCarmdlCd,
         europeccs2: vehicle.ccuCCS2ProtocolSupport,
       }
     }
@@ -325,25 +327,26 @@ export class BluelinkAustralia extends Bluelink {
   protected returnCarStatus(status: any, updateTime: number): BluelinkStatus {
     // cached status contains a wrapped status object along with odometer info - force status does not
     // force status also does not include a time field
+    const chargingInfo = status?.Green?.ChargingInformation
+    const connectorFasteningState = this.parseNumber(chargingInfo?.ConnectorFastening?.State) ?? 0
+    const chargingRemainTime = this.parseNumber(chargingInfo?.Charging?.RemainTime) ?? 0
 
     // convert odometer if needed
+    const odometerRaw = this.parseNumber(status?.Drivetrain?.Odometer)
     const newOdometer =
-      this.distanceUnit === 'mi'
-        ? Math.floor(status.Drivetrain.Odometer * 0.621371)
-        : Math.floor(status.Drivetrain.Odometer)
+      typeof odometerRaw === 'number'
+        ? this.distanceUnit === 'mi'
+          ? Math.floor(odometerRaw * 0.621371)
+          : Math.floor(odometerRaw)
+        : undefined
 
     // isCharging based on plug being connected and remainingTime being above zero
     let isCharging = false
     let chargingPower = 0
-    if (
-      status.Green.ChargingInformation.ConnectorFastening.State &&
-      status.Green.ChargingInformation.Charging.RemainTime > 0
-    ) {
+    if (connectorFasteningState > 0 && chargingRemainTime > 0) {
       isCharging = true
       // check for charging power as sometimes not available
-      if (status.Green.Electric && status.Green.Electric.SmartGrid && status.Green.Electric.SmartGrid.RealTimePower) {
-        chargingPower = status.Green.Electric.SmartGrid.RealTimePower
-      }
+      chargingPower = this.parseNumber(status?.Green?.Electric?.SmartGrid?.RealTimePower) ?? 0
     }
 
     // check for charge limits
@@ -351,44 +354,55 @@ export class BluelinkAustralia extends Bluelink {
       dcPercent: 0,
       acPercent: 0,
     }
-    if (status.Green.ChargingInformation && status.Green.ChargingInformation.TargetSoC) {
-      chargeLimit.acPercent = status.Green.ChargingInformation.TargetSoC.Standard
-      chargeLimit.dcPercent = status.Green.ChargingInformation.TargetSoC.Quick
+    if (chargingInfo && chargingInfo.TargetSoC) {
+      chargeLimit.acPercent = this.parseNumber(chargingInfo.TargetSoC.Standard) ?? 0
+      chargeLimit.dcPercent = this.parseNumber(chargingInfo.TargetSoC.Quick) ?? 0
     }
 
     // check for location
     let location = undefined
-    if (status.Location && status.Location.GeoCoord) {
+    if (status?.Location?.GeoCoord) {
       location = {
         latitude: status.Location.GeoCoord.Latitude,
         longitude: status.Location.GeoCoord.Longitude,
       } as Location
     }
 
+    const rangeValue = this.parseNumber(status?.Drivetrain?.FuelSystem?.DTE?.Total)
+    const soc = this.normalizePercent(this.parseNumber(status?.Green?.BatteryManagement?.BatteryRemain?.Ratio))
+    const twelveSoc = this.normalizePercent(this.parseNumber(status?.Electronics?.Battery?.Level))
+    const lastRemoteStatusCheck =
+      this.parseNumber(updateTime) ?? (this.cache ? this.cache.status.lastRemoteStatusCheck : Date.now())
+    const fuelLevel =
+      this.getFuelLevelFromStatus(status?.Drivetrain?.FuelSystem ?? status) ??
+      (this.cache ? this.cache.status.fuelLevel : undefined)
+
     return {
       lastStatusCheck: Date.now(),
-      lastRemoteStatusCheck: Number(updateTime),
+      lastRemoteStatusCheck,
       isCharging: isCharging,
-      isPluggedIn: status.Green.ChargingInformation.ConnectorFastening.State > 0 ? true : false,
+      isPluggedIn: connectorFasteningState > 0,
       chargingPower: chargingPower,
-      remainingChargeTimeMins: status.Green.ChargingInformation.Charging.RemainTime,
+      remainingChargeTimeMins: chargingRemainTime,
       // sometimes range back as zero? if so ignore and use cache
       range:
-        status.Drivetrain.FuelSystem.DTE.Total > 0
-          ? Math.floor(status.Drivetrain.FuelSystem.DTE.Total)
+        typeof rangeValue === 'number' && rangeValue > 0
+          ? Math.floor(rangeValue)
           : this.cache
             ? this.cache.status.range
             : 0,
       locked: !(
-        Boolean(status.Cabin.Door.Row1.Driver.Open) &&
-        Boolean(status.Cabin.Door.Row1.Passenger.Open) &&
-        Boolean(status.Cabin.Door.Row2.Driver.Open) &&
-        Boolean(status.Cabin.Door.Row2.Passenger.Open)
+        Boolean(status?.Cabin?.Door?.Row1?.Driver?.Open) &&
+        Boolean(status?.Cabin?.Door?.Row1?.Passenger?.Open) &&
+        Boolean(status?.Cabin?.Door?.Row2?.Driver?.Open) &&
+        Boolean(status?.Cabin?.Door?.Row2?.Passenger?.Open)
       ),
-      climate: Boolean(status.Cabin.HVAC.Row1.Driver.Blower.SpeedLevel > 0),
-      soc: status.Green.BatteryManagement.BatteryRemain.Ratio,
-      twelveSoc: status.Electronics.Battery.Level ? status.Electronics.Battery.Level : 0,
-      odometer: newOdometer ? newOdometer : this.cache ? this.cache.status.odometer : 0,
+      climate: Boolean((this.parseNumber(status?.Cabin?.HVAC?.Row1?.Driver?.Blower?.SpeedLevel) ?? 0) > 0),
+      soc: typeof soc === 'number' ? soc : this.cache ? this.cache.status.soc : 0,
+      fuelLevel,
+      supportsChargeCommands: Boolean(chargingInfo),
+      twelveSoc: typeof twelveSoc === 'number' ? twelveSoc : this.cache ? this.cache.status.twelveSoc : 0,
+      odometer: typeof newOdometer === 'number' ? newOdometer : this.cache ? this.cache.status.odometer : 0,
       location: location ? location : this.cache ? this.cache.status.location : undefined,
       chargeLimit:
         chargeLimit && chargeLimit.acPercent > 0 ? chargeLimit : this.cache ? this.cache.status.chargeLimit : undefined,
@@ -407,8 +421,9 @@ export class BluelinkAustralia extends Bluelink {
         validResponseFunction: this.requestResponseValid,
       })
 
-      if (this.requestResponseValid(resp.resp, resp.json).valid) {
-        return this.returnCarStatus(resp.json.resMsg.state.Vehicle, resp.json.resMsg.lastUpdateTime)
+      const vehicleStatus = resp?.json?.resMsg?.state?.Vehicle
+      if (this.requestResponseValid(resp.resp, resp.json).valid && vehicleStatus) {
+        return this.returnCarStatus(vehicleStatus, resp?.json?.resMsg?.lastUpdateTime)
       }
       const error = `Failed to retrieve vehicle status: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
       if (this.config.debugLogging) this.logger.log(error)
@@ -499,7 +514,8 @@ export class BluelinkAustralia extends Bluelink {
       }
 
       // iterate over all actions to find the one we are waiting for - if it exists
-      for (const record of resp.json.resMsg) {
+      const records = Array.isArray(resp?.json?.resMsg) ? resp.json.resMsg : []
+      for (const record of records) {
         if (record.recordId === transactionId) {
           const result = record.result
           if (result) {

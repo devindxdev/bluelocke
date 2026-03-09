@@ -305,16 +305,28 @@ export class Bluelink {
   protected getFuelLevelFromStatus(status: any): number | undefined {
     const candidates = [
       status?.fuelLevel,
+      status?.FuelLevel,
       status?.fuelLevelPercent,
+      status?.FuelLevelPercent,
       status?.fuelLevelPrcnt,
       status?.fuel?.level,
+      status?.Fuel?.Level,
       status?.fuel?.value,
+      status?.Fuel?.Value,
       status?.fuel?.percent,
+      status?.Fuel?.Percent,
       status?.fuelInfo?.level,
+      status?.FuelInfo?.Level,
       status?.engineStatus?.fuelLevel,
+      status?.EngineStatus?.FuelLevel,
       status?.engineStatus?.fuel?.level,
+      status?.EngineStatus?.Fuel?.Level,
       status?.vehicleStatus?.fuelLevel,
+      status?.VehicleStatus?.FuelLevel,
       status?.status?.fuelLevel,
+      status?.Status?.FuelLevel,
+      status?.FuelSystem?.FuelLevel,
+      status?.FuelSystem?.Level,
       status?.fuellevel,
     ]
 
