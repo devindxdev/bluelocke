@@ -1,20 +1,28 @@
-import {
-  Config,
-  CustomClimateConfig,
-  ChargeLimitConfig,
-  ClimateSeatSetting,
-  ClimateSeatSettingCool,
-  ClimateSeatSettingWarm,
-} from 'config'
-import { Logger } from 'lib/logger'
-import { Bluelink, ClimateRequest, ChargeLimit } from 'lib/bluelink-regions/base'
-import { getChargeCompletionString, sleep } from 'lib/util'
+import { Config, CustomClimateConfig, ChargeLimitConfig, buildStandardClimateRequest, ClimateSeatSetting } from 'config'
+import { Bluelink, ClimateRequest, ChargeLimit, Status } from 'lib/bluelink-regions/base'
+import { getChargeCompletionString, getSiriLogger, sleep } from 'lib/util'
 
-const SIRI_LOG_FILE = 'egmp-bluelink-siri.log'
+const SHORTCUT_STATUS_TIMEOUT_MS = 4500
+const SHORTCUT_CACHE_FALLBACK_MAX_AGE_MS = 15 * 60 * 1000
+let debugSiriLogging = false
+
+function getErrorMessage(error: unknown, includeStack = false): string {
+  if (error instanceof Error) {
+    if (includeStack && error.stack) return `${error.message}\n${error.stack}`
+    return error.message
+  }
+  if (typeof error === 'string') return error
+  try {
+    return JSON.stringify(error)
+  } catch (_serializationError) {
+    return String(error)
+  }
+}
 
 export async function processSiriRequest(config: Config, bl: Bluelink, shortcutParameter: any): Promise<string> {
   const shortcutParameterAsString = shortcutParameter as string
-  const logger = new Logger(SIRI_LOG_FILE, 100)
+  const logger = getSiriLogger()
+  debugSiriLogging = config.debugLogging
   if (config.debugLogging) logger.log(`Siri request: ${shortcutParameterAsString}`)
 
   const commands = commandMap
@@ -46,11 +54,19 @@ export async function processSiriRequest(config: Config, bl: Bluelink, shortcutP
     }
 
     if (found) {
-      const response = await commandDetection.function(bl, commandDetection.data)
-      if (config.debugLogging) logger.log(`Siri response: ${response}`)
-      return response
+      try {
+        if (config.debugLogging) logger.log(`Matched siri command: ${commandDetection.words.join(' ')}`)
+        const response = await commandDetection.function(bl, commandDetection.data)
+        if (config.debugLogging) logger.log(`Siri response: ${response}`)
+        return response
+      } catch (error) {
+        const errorMessage = getErrorMessage(error, config.debugLogging)
+        logger.log(`Siri command failed for "${shortcutParameterAsString}": ${errorMessage}`)
+        return `Shortcut command failed: ${getErrorMessage(error)}`
+      }
     }
   }
+  if (config.debugLogging) logger.log(`Unsupported siri command: ${shortcutParameterAsString}`)
   return `You asked me ${shortcutParameter} and i dont support that command`
 }
 
@@ -110,53 +126,21 @@ async function getRemoteStatus(bl: Bluelink): Promise<string> {
 
 async function warm(bl: Bluelink): Promise<string> {
   const status = bl.getCachedStatus()
-  const config = bl.getConfig()
   return await blRequest(
     bl,
     'climate',
     `I've issued a request to pre-warm ${status.car.nickName || `your ${status.car.modelName}`}.`,
-    {
-      enable: true,
-      frontDefrost: true,
-      rearDefrost: true,
-      steering: true,
-      temp: bl.getConfig().climateTempWarm,
-      durationMinutes: 15,
-      ...(config.climateSeatLevel !== 'Off' && {
-        seatClimateOption: {
-          driver: ClimateSeatSettingWarm[config.climateSeatLevel],
-          passenger: ClimateSeatSettingWarm[config.climateSeatLevel],
-          rearLeft: ClimateSeatSettingWarm[config.climateSeatLevel],
-          rearRight: ClimateSeatSettingWarm[config.climateSeatLevel],
-        },
-      }),
-    } as ClimateRequest,
+    buildStandardClimateRequest(bl.getConfig(), 'warm') as ClimateRequest,
   )
 }
 
 async function cool(bl: Bluelink): Promise<string> {
   const status = bl.getCachedStatus()
-  const config = bl.getConfig()
   return await blRequest(
     bl,
     'climate',
     `I've issued a request to pre-cool ${status.car.nickName || `your ${status.car.modelName}`}.`,
-    {
-      enable: true,
-      frontDefrost: false,
-      rearDefrost: false,
-      steering: false,
-      temp: config.climateTempCold,
-      durationMinutes: 15,
-      ...(config.climateSeatLevel !== 'Off' && {
-        seatClimateOption: {
-          driver: ClimateSeatSettingCool[config.climateSeatLevel],
-          passenger: ClimateSeatSettingCool[config.climateSeatLevel],
-          rearLeft: ClimateSeatSettingCool[config.climateSeatLevel],
-          rearRight: ClimateSeatSettingCool[config.climateSeatLevel],
-        },
-      }),
-    } as ClimateRequest,
+    buildStandardClimateRequest(bl.getConfig(), 'cool') as ClimateRequest,
   )
 }
 
@@ -201,7 +185,15 @@ async function customClimate(bl: Bluelink, data: CustomClimateConfig): Promise<s
 }
 
 async function lock(bl: Bluelink): Promise<string> {
-  const status = bl.getCachedStatus()
+  const status = await getShortcutStatus(bl, true)
+  if (!status) return 'Unable to validate vehicle state.'
+  if (status.status.locked) return ''
+
+  // Across regions, climate/air control on is our most reliable running signal.
+  if (status.status.climate) {
+    return `Vehicle running.`
+  }
+
   return await blRequest(
     bl,
     'lock',
@@ -225,8 +217,51 @@ async function autoLock(bl: Bluelink): Promise<string> {
   return await blRequest(bl, 'lock', `I've issued a request to lock ${carName}.`)
 }
 
+async function getShortcutStatus(bl: Bluelink, allowCachedFallback = false): Promise<Status | undefined> {
+  const logger = debugSiriLogging ? getSiriLogger() : undefined
+  try {
+    if (debugSiriLogging) logger?.log(`Shortcut status lookup: requesting live status`)
+    const status = await Promise.race<Status | undefined>([
+      bl.getStatus(false, true),
+      new Promise<undefined>((resolve) => {
+        Timer.schedule(SHORTCUT_STATUS_TIMEOUT_MS, false, () => resolve(undefined))
+      }),
+    ])
+    if (status) {
+      if (debugSiriLogging) logger?.log(`Shortcut status lookup: live status success`)
+      return status
+    }
+    if (debugSiriLogging)
+      logger?.log(`Shortcut status lookup: live status timed out after ${SHORTCUT_STATUS_TIMEOUT_MS}ms`)
+  } catch (_error) {
+    if (debugSiriLogging) logger?.log(`Shortcut status lookup failed: ${getErrorMessage(_error, true)}`)
+  }
+
+  if (!allowCachedFallback) {
+    if (debugSiriLogging) logger?.log(`Shortcut status lookup: cached fallback disabled`)
+    return undefined
+  }
+
+  const cachedStatus = bl.getCachedStatus()
+  if (!cachedStatus || !cachedStatus.status) {
+    if (debugSiriLogging) logger?.log(`Shortcut status lookup: no cached status available`)
+    return undefined
+  }
+  const cacheAgeMs = Date.now() - cachedStatus.status.lastStatusCheck
+  if (cacheAgeMs > SHORTCUT_CACHE_FALLBACK_MAX_AGE_MS) {
+    if (debugSiriLogging)
+      logger?.log(
+        `Shortcut status lookup: cached status too old (${cacheAgeMs}ms > ${SHORTCUT_CACHE_FALLBACK_MAX_AGE_MS}ms)`,
+      )
+    return undefined
+  }
+  if (debugSiriLogging) logger?.log(`Shortcut status lookup: using cached status (${cacheAgeMs}ms old)`)
+  return cachedStatus
+}
+
 async function autoLockChecker(bl: Bluelink): Promise<string> {
-  const status = await bl.getStatus(false, true)
+  const status = await getShortcutStatus(bl, true)
+  if (!status) return 'false'
   const isUnlocked = !status.status.locked
   // Across regions, climate/air control on is our most reliable running signal.
   const isNotRunning = !status.status.climate

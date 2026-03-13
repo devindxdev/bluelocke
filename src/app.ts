@@ -1,18 +1,11 @@
-import { Config, getConfig, STANDARD_CLIMATE_OPTIONS } from 'config'
-import { Bluelink, Status, ClimateRequest, ChargeLimit } from './lib/bluelink-regions/base'
+import { Config, getConfig, STANDARD_CLIMATE_OPTIONS, buildStandardClimateRequest } from 'config'
+import { Bluelink, Status, ClimateRequest, ChargeLimit, formatVehicleDisplayName } from './lib/bluelink-regions/base'
 import { getTable, Div, P, Img, quickOptions, DivChild, Spacer, destructiveConfirm } from 'lib/scriptable-utils'
-import {
-  loadConfigScreen,
-  deleteConfig,
-  setConfig,
-  ClimateSeatSetting,
-  ClimateSeatSettingCool,
-  ClimateSeatSettingWarm,
-} from 'config'
+import { loadConfigScreen, deleteConfig, setConfig, ClimateSeatSetting } from 'config'
 import { loadAboutScreen, doDowngrade } from 'about'
 import { Version } from 'lib/version'
 import { deleteWidgetCache } from 'widget'
-import { getAppLogger } from './lib/util'
+import { getAppLogger, getSiriLogger } from './lib/util'
 import { getWidgetLogger } from 'widget'
 import {
   sleep,
@@ -78,35 +71,7 @@ const MIN_API_REFRESH_TIME = 900000 // 15 minutes
 
 function getDisplayName(car: Status['car']): string {
   const config = getConfig() as Config & { displayNameOverride?: string }
-  const displayNameOverride = config.displayNameOverride
-  if (displayNameOverride && displayNameOverride.trim().length > 0) {
-    return displayNameOverride.trim()
-  }
-
-  const normalizeToken = (token: string) => token.toLowerCase().replace(/[^a-z0-9]/g, '')
-  const powertrainTokens = new Set(['hev', 'phev', 'ev', 'hybrid', 'electric'])
-
-  let model = car.modelName || ''
-  const year = car.modelYear || ''
-  const trim = car.modelTrim || ''
-
-  if (model && trim) {
-    const trimTokens = new Set(trim.split(/\s+/).map(normalizeToken))
-    const modelParts = model.split(/\s+/)
-    while (modelParts.length > 0) {
-      const lastPart = modelParts[modelParts.length - 1] || ''
-      const normalizedLast = normalizeToken(lastPart)
-      if (powertrainTokens.has(normalizedLast) && trimTokens.has(normalizedLast)) {
-        modelParts.pop()
-        continue
-      }
-      break
-    }
-    model = modelParts.join(' ')
-  }
-
-  const joined = [year, model, trim].filter((x) => x && x.trim().length > 0).join(' ')
-  return joined || model || car.nickName || 'My Hyundai'
+  return formatVehicleDisplayName(car, config.displayNameOverride)
 }
 
 export async function createApp(config: Config, bl: Bluelink) {
@@ -219,8 +184,9 @@ const settings = (bl: Bluelink) => {
             switch (opt) {
               case 'Share Debug Logs': {
                 const blRedactedLogs = bl.getLogger().readAndRedact()
-                const widgetLogs = getWidgetLogger().read()
-                const appLogs = getAppLogger().read()
+                const widgetLogs = getWidgetLogger().readAndRedact()
+                const appLogs = getAppLogger().readAndRedact()
+                const siriLogs = getSiriLogger().readAndRedact()
                 ShareSheet.present([
                   'Bluelink API logs:',
                   blRedactedLogs,
@@ -228,6 +194,8 @@ const settings = (bl: Bluelink) => {
                   widgetLogs,
                   'App Logs',
                   appLogs,
+                  'Shortcut Logs',
+                  siriLogs,
                 ])
                 break
               }
@@ -483,30 +451,16 @@ const pageIcons = connect(
                               },
                             }),
                         } as ClimateRequest)
-                      : ({
-                          enable: opt !== 'Off' ? true : false,
-                          frontDefrost: opt === 'Warm' ? true : false,
-                          rearDefrost: opt === 'Warm' ? true : false,
-                          steering: opt === 'Warm' ? true : false,
-                          temp: opt === 'Warm' ? config.climateTempWarm : config.climateTempCold,
-                          durationMinutes: 15,
-                          ...(config.climateSeatLevel !== 'Off' && {
-                            seatClimateOption:
-                              opt === 'Warm'
-                                ? {
-                                    driver: ClimateSeatSettingWarm[config.climateSeatLevel],
-                                    passenger: ClimateSeatSettingWarm[config.climateSeatLevel],
-                                    rearLeft: 0,
-                                    rearRight: 0,
-                                  }
-                                : {
-                                    driver: ClimateSeatSettingCool[config.climateSeatLevel],
-                                    passenger: ClimateSeatSettingCool[config.climateSeatLevel],
-                                    rearLeft: 0,
-                                    rearRight: 0,
-                                  },
-                          }),
-                        } as ClimateRequest),
+                      : opt === 'Off'
+                        ? ({
+                            enable: false,
+                            frontDefrost: false,
+                            rearDefrost: false,
+                            steering: false,
+                            temp: config.climateTempCold,
+                            durationMinutes: 15,
+                          } as ClimateRequest)
+                        : (buildStandardClimateRequest(config, opt === 'Warm' ? 'warm' : 'cool') as ClimateRequest),
                     actions: updatingActions,
                     actionKey: 'climate',
                     updatingText: payload

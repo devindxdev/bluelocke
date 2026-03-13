@@ -1,4 +1,4 @@
-import { Bluelink } from 'lib/bluelink-regions/base'
+import { Bluelink, ClimateRequest } from 'lib/bluelink-regions/base'
 import { form, confirm, quickOptions, destructiveConfirm } from './lib/scriptable-utils'
 
 const KEYCHAIN_BLUELINK_CONFIG_KEY = 'egmp-bluelink-config'
@@ -54,9 +54,31 @@ export interface ChargeLimitConfig {
   dcPercent: number
 }
 
+export type VehicleTypeOverride = 'auto' | 'ice' | 'hev' | 'phev' | 'ev'
+export type StandardClimateSeatLevel = 'Off' | 'Low' | 'Medium' | 'High'
+export type StandardClimateSeatSelection = 'DRIVER' | 'FRONT' | 'ALL'
+
+export interface StandardClimatePresetConfig {
+  temp: number
+  frontDefrost: boolean
+  rearDefrost: boolean
+  steering: boolean
+  durationMinutes: number
+  seatClimateLevel: StandardClimateSeatLevel
+  seatClimateSettings: StandardClimateSeatSelection
+}
+
+export interface StandardClimateConfig {
+  warm: StandardClimatePresetConfig
+  cool: StandardClimatePresetConfig
+}
+
 export interface Config {
   manufacturer: string
   auth: Auth
+  displayNameOverride: string
+  vehicleTypeOverride: VehicleTypeOverride
+  standardClimateConfig: StandardClimateConfig
   tempType: 'C' | 'F'
   distanceUnit: 'km' | 'mi'
   climateTempWarm: number
@@ -89,6 +111,9 @@ export interface FlattenedConfig {
   password: string
   pin: string
   region: string
+  displayNameOverride: string
+  vehicleTypeOverride: VehicleTypeOverride
+  standardClimateConfig: StandardClimateConfig
   tempType: 'C' | 'F'
   distanceUnit: 'km' | 'mi'
   mfaPreference: 'sms' | 'email'
@@ -106,10 +131,34 @@ export interface FlattenedConfig {
   chargeLimits: ChargeLimitConfig[]
 }
 
+interface CarSettingsConfig {
+  displayNameOverride: string
+  vehicleTypeOverride: VehicleTypeOverride
+}
+
+interface ClimateSettingsForm {
+  warmPreset: boolean
+  coolPreset: boolean
+}
+
+type MainConfigForm = Omit<
+  FlattenedConfig,
+  | 'displayNameOverride'
+  | 'vehicleTypeOverride'
+  | 'standardClimateConfig'
+  | 'climateTempWarm'
+  | 'climateTempCold'
+  | 'climateSeatLevel'
+> & {
+  carSettings: boolean
+  climateSettings: boolean
+}
+
 // const SUPPORTED_REGIONS = ['canada']
 const SUPPORTED_REGIONS = ['canada', 'usa', 'europe', 'india', 'australia']
 const SUPPORTED_MANUFACTURERS = ['Hyundai', 'Kia', 'Genesis']
 const WIDGET_APPEARANCES: Config['widgetAppearance'][] = ['system', 'dark', 'white']
+const VEHICLE_TYPE_OVERRIDES: VehicleTypeOverride[] = ['auto', 'ice', 'hev', 'phev', 'ev']
 const DEFAULT_TEMPS = {
   C: {
     cold: 19,
@@ -121,6 +170,29 @@ const DEFAULT_TEMPS = {
   },
 }
 
+function getDefaultStandardClimateConfig(tempType: 'C' | 'F'): StandardClimateConfig {
+  return {
+    warm: {
+      temp: DEFAULT_TEMPS[tempType].warm,
+      frontDefrost: true,
+      rearDefrost: true,
+      steering: true,
+      durationMinutes: 15,
+      seatClimateLevel: 'Off',
+      seatClimateSettings: 'FRONT',
+    },
+    cool: {
+      temp: DEFAULT_TEMPS[tempType].cold,
+      frontDefrost: false,
+      rearDefrost: false,
+      steering: false,
+      durationMinutes: 15,
+      seatClimateLevel: 'Off',
+      seatClimateSettings: 'FRONT',
+    },
+  }
+}
+
 const DEFAULT_CONFIG = {
   auth: {
     username: '',
@@ -128,6 +200,9 @@ const DEFAULT_CONFIG = {
     pin: '',
     region: '',
   },
+  displayNameOverride: '',
+  vehicleTypeOverride: 'auto',
+  standardClimateConfig: getDefaultStandardClimateConfig('C'),
   tempType: 'C',
   distanceUnit: 'km',
   mfaPreference: 'sms',
@@ -206,8 +281,12 @@ export function getConfig(): Config {
     ...config,
   }
   const widgetAppearanceRaw = (mergedConfig.widgetAppearance || 'system').toLocaleLowerCase()
+  const vehicleTypeOverrideRaw = (mergedConfig.vehicleTypeOverride || 'auto').toLocaleLowerCase() as VehicleTypeOverride
   return {
     ...mergedConfig,
+    displayNameOverride: (mergedConfig.displayNameOverride || '').trim(),
+    vehicleTypeOverride: VEHICLE_TYPE_OVERRIDES.includes(vehicleTypeOverrideRaw) ? vehicleTypeOverrideRaw : 'auto',
+    standardClimateConfig: getStandardClimateConfig(mergedConfig),
     widgetAppearance:
       widgetAppearanceRaw === 'dark' || widgetAppearanceRaw === 'white' || widgetAppearanceRaw === 'system'
         ? widgetAppearanceRaw
@@ -228,8 +307,94 @@ function configValid(config: Config): boolean {
   return config && Object.hasOwn(config, 'auth')
 }
 
+function normalizeSeatClimateLevel(level: string | undefined): StandardClimateSeatLevel {
+  return (['Off', 'Low', 'Medium', 'High'] as StandardClimateSeatLevel[]).includes(
+    (level || 'Off') as StandardClimateSeatLevel,
+  )
+    ? ((level || 'Off') as StandardClimateSeatLevel)
+    : 'Off'
+}
+
+function normalizeSeatClimateSelection(selection: string | undefined): StandardClimateSeatSelection {
+  return (['DRIVER', 'FRONT', 'ALL'] as StandardClimateSeatSelection[]).includes(
+    (selection || 'FRONT') as StandardClimateSeatSelection,
+  )
+    ? ((selection || 'FRONT') as StandardClimateSeatSelection)
+    : 'FRONT'
+}
+
+export function getStandardClimateConfig(config: Partial<Config> & { tempType?: 'C' | 'F' }): StandardClimateConfig {
+  const tempType = config.tempType || 'C'
+  const defaults = getDefaultStandardClimateConfig(tempType)
+  const standardConfig = config.standardClimateConfig
+  const legacySeatLevel = normalizeSeatClimateLevel(config.climateSeatLevel)
+  const warmConfig: Partial<StandardClimatePresetConfig> = standardConfig?.warm || {}
+  const coolConfig: Partial<StandardClimatePresetConfig> = standardConfig?.cool || {}
+
+  return {
+    warm: {
+      ...defaults.warm,
+      ...warmConfig,
+      temp:
+        typeof warmConfig.temp === 'number'
+          ? warmConfig.temp
+          : typeof config.climateTempWarm === 'number'
+            ? config.climateTempWarm
+            : defaults.warm.temp,
+      seatClimateLevel: normalizeSeatClimateLevel(warmConfig.seatClimateLevel || legacySeatLevel),
+      seatClimateSettings: normalizeSeatClimateSelection(warmConfig.seatClimateSettings),
+    },
+    cool: {
+      ...defaults.cool,
+      ...coolConfig,
+      temp:
+        typeof coolConfig.temp === 'number'
+          ? coolConfig.temp
+          : typeof config.climateTempCold === 'number'
+            ? config.climateTempCold
+            : defaults.cool.temp,
+      seatClimateLevel: normalizeSeatClimateLevel(coolConfig.seatClimateLevel || legacySeatLevel),
+      seatClimateSettings: normalizeSeatClimateSelection(coolConfig.seatClimateSettings),
+    },
+  }
+}
+
+function buildSeatClimateOption(
+  seatClimateLevel: StandardClimateSeatLevel,
+  seatClimateSettings: StandardClimateSeatSelection,
+  preset: 'warm' | 'cool',
+) {
+  if (seatClimateLevel === 'Off') return undefined
+  const seatMap = preset === 'warm' ? ClimateSeatSettingWarm : ClimateSeatSettingCool
+  const seatValue = seatMap[seatClimateLevel] as number
+  return {
+    driver: seatValue,
+    passenger: ['ALL', 'FRONT'].includes(seatClimateSettings) ? seatValue : 0,
+    rearLeft: seatClimateSettings === 'ALL' ? seatValue : 0,
+    rearRight: seatClimateSettings === 'ALL' ? seatValue : 0,
+  }
+}
+
+export function buildStandardClimateRequest(config: Config, preset: 'warm' | 'cool'): ClimateRequest {
+  const presetConfig = getStandardClimateConfig(config)[preset]
+  const seatClimateOption = buildSeatClimateOption(
+    presetConfig.seatClimateLevel,
+    presetConfig.seatClimateSettings,
+    preset,
+  )
+  return {
+    enable: true,
+    frontDefrost: presetConfig.frontDefrost,
+    rearDefrost: presetConfig.rearDefrost,
+    steering: presetConfig.steering,
+    temp: presetConfig.temp,
+    durationMinutes: presetConfig.durationMinutes,
+    ...(seatClimateOption && { seatClimateOption }),
+  }
+}
+
 export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
-  return await form<FlattenedConfig>({
+  return await form<MainConfigForm>({
     title: 'Bluelink Configuration settings',
     subtitle: 'Saved within IOS keychain and never exposed beyond your device(s)',
     onSubmit: ({
@@ -240,9 +405,6 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
       tempType,
       mfaPreference,
       distanceUnit,
-      climateTempWarm,
-      climateTempCold,
-      climateSeatLevel,
       debugLogging,
       multiCar,
       promptForUpdate,
@@ -253,6 +415,22 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
     }) => {
       // read and combine with current saved config as other config screens may have changed settings (custom climates etc)
       const config = getConfig()
+      const normalizedTempType = tempType || config.tempType || 'C'
+      const existingStandardClimateConfig = getStandardClimateConfig(config)
+      const standardClimateConfig =
+        config.tempType === normalizedTempType
+          ? existingStandardClimateConfig
+          : {
+              ...existingStandardClimateConfig,
+              warm: {
+                ...existingStandardClimateConfig.warm,
+                temp: DEFAULT_TEMPS[normalizedTempType].warm,
+              },
+              cool: {
+                ...existingStandardClimateConfig.cool,
+                temp: DEFAULT_TEMPS[normalizedTempType].cold,
+              },
+            }
       const newConfig = {
         ...config,
         ...{
@@ -262,12 +440,12 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
             region: region,
             pin: pin,
           },
-          tempType: tempType,
+          tempType: normalizedTempType,
           distanceUnit: distanceUnit,
           mfaPreference: mfaPreference,
-          climateTempCold: climateTempCold,
-          climateTempWarm: climateTempWarm,
-          climateSeatLevel: climateSeatLevel,
+          standardClimateConfig: standardClimateConfig,
+          climateTempCold: standardClimateConfig.cool.temp,
+          climateTempWarm: standardClimateConfig.warm.temp,
           allowWidgetRemoteRefresh: allowWidgetRemoteRefresh,
           widgetAppearance: widgetAppearance ? widgetAppearance.toLocaleLowerCase() : 'system',
           debugLogging: debugLogging,
@@ -282,16 +460,7 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
         bl.deleteCache()
       }
     },
-    onStateChange: (state, previousState): Partial<FlattenedConfig> => {
-      if (state.tempType !== previousState.tempType) {
-        if (state.tempType === 'C') {
-          state.climateTempCold = DEFAULT_TEMPS.C.cold
-          state.climateTempWarm = DEFAULT_TEMPS.C.warm
-        } else {
-          state.climateTempCold = DEFAULT_TEMPS.F.cold
-          state.climateTempWarm = DEFAULT_TEMPS.F.warm
-        }
-      }
+    onStateChange: (state, previousState): Partial<MainConfigForm> => {
       if (state.allowWidgetRemoteRefresh && !previousState.allowWidgetRemoteRefresh) {
         confirm('Enabling background remote refresh may impact your 12v battery ', {
           confirmButtonTitle: 'I understand',
@@ -311,14 +480,10 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
 
       return state
     },
-    isFormValid: ({ username, password, region, pin, tempType, climateTempCold, climateTempWarm }) => {
-      if (!username || !password || !region || !pin || !climateTempCold || !tempType || !climateTempWarm) {
+    isFormValid: ({ username, password, region, pin, tempType }) => {
+      if (!username || !password || !region || !pin || !tempType) {
         return false
       }
-      if (tempType === 'C' && (climateTempCold < 17 || climateTempWarm > 27)) return false
-      if (tempType === 'F' && (climateTempCold < 62 || climateTempWarm > 82)) return false
-      if (climateTempCold.toString().includes('.') && climateTempCold % 1 !== 0.5) return false
-      if (climateTempWarm.toString().includes('.') && climateTempWarm % 1 !== 0.5) return false
       return true
     },
     submitButtonText: 'Save',
@@ -355,6 +520,24 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
         allowCustom: false,
         isRequired: true,
       },
+      carSettings: {
+        type: 'clickable',
+        label: 'Car Settings',
+        customIcon: 'car',
+        faded: true,
+        onClickFunction: () => {
+          loadCarSettingsScreen()
+        },
+      },
+      climateSettings: {
+        type: 'clickable',
+        label: 'Climate Settings',
+        customIcon: 'thermometer',
+        faded: true,
+        onClickFunction: () => {
+          loadClimateSettingsScreen()
+        },
+      },
       tempType: {
         type: 'dropdown',
         label: 'Choose your preferred temperature scale',
@@ -375,22 +558,6 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
         options: ['sms', 'email'],
         allowCustom: false,
         isRequired: true,
-      },
-      climateTempWarm: {
-        type: 'numberValue',
-        label: 'Climate temp when pre-heating (whole number or .5)',
-        isRequired: true,
-      },
-      climateTempCold: {
-        type: 'numberValue',
-        label: 'Climate temp when pre-cooling (whole number or .5)',
-        isRequired: true,
-      },
-      climateSeatLevel: {
-        type: 'dropdown',
-        label: 'Seat Climate Level',
-        isRequired: true,
-        options: Object.keys(ClimateSeatSettingCool),
       },
       widgetAppearance: {
         type: 'dropdown',
@@ -469,7 +636,169 @@ export async function loadConfigScreen(bl: Bluelink | undefined = undefined) {
         isRequired: false,
       },
     },
-  })(getFlattenedConfig())
+  })({
+    ...getFlattenedConfig(),
+    carSettings: false,
+    climateSettings: false,
+  })
+}
+
+export async function loadCarSettingsScreen() {
+  const config = getConfig()
+  return await form<CarSettingsConfig>({
+    title: 'Car Settings',
+    subtitle: 'Override how your vehicle is named and classified throughout Bluelocke.',
+    onSubmit: ({ displayNameOverride, vehicleTypeOverride }) => {
+      const currentConfig = getConfig()
+      setConfig({
+        ...currentConfig,
+        displayNameOverride: displayNameOverride ? displayNameOverride.trim() : '',
+        vehicleTypeOverride: vehicleTypeOverride || 'auto',
+      } as Config)
+    },
+    isFormValid: ({ vehicleTypeOverride }) => {
+      return !!vehicleTypeOverride
+    },
+    submitButtonText: 'Save',
+    fields: {
+      displayNameOverride: {
+        type: 'textInput',
+        label: 'Vehicle Name Override (optional)',
+        isRequired: false,
+      },
+      vehicleTypeOverride: {
+        type: 'dropdown',
+        label: 'Vehicle Type Override',
+        options: VEHICLE_TYPE_OVERRIDES,
+        allowCustom: false,
+        isRequired: true,
+      },
+    },
+  })({
+    displayNameOverride: config.displayNameOverride || '',
+    vehicleTypeOverride: config.vehicleTypeOverride || 'auto',
+  })
+}
+
+export async function loadClimateSettingsScreen() {
+  return await form<ClimateSettingsForm>({
+    title: 'Climate Settings',
+    subtitle: 'Edit what the default Warm and Cool actions do in the app and Shortcut commands.',
+    onSubmit: () => {},
+    isFormValid: () => true,
+    submitButtonText: 'Done',
+    fields: {
+      warmPreset: {
+        type: 'clickable',
+        label: 'Warm Preset',
+        customIcon: 'sun',
+        faded: true,
+        onClickFunction: () => {
+          loadStandardClimatePresetScreen('warm')
+        },
+      },
+      coolPreset: {
+        type: 'clickable',
+        label: 'Cool Preset',
+        customIcon: 'moon_circle',
+        faded: true,
+        onClickFunction: () => {
+          loadStandardClimatePresetScreen('cool')
+        },
+      },
+    },
+  })({
+    warmPreset: false,
+    coolPreset: false,
+  })
+}
+
+export async function loadStandardClimatePresetScreen(preset: 'warm' | 'cool') {
+  const config = getConfig()
+  const standardConfig = getStandardClimateConfig(config)[preset]
+  const presetLabel = preset === 'warm' ? 'Warm' : 'Cool'
+  return await form<StandardClimatePresetConfig>({
+    title: `${presetLabel} Preset`,
+    subtitle: `Controls what the default ${presetLabel.toLowerCase()} action does in Bluelocke.`,
+    onSubmit: ({
+      temp,
+      frontDefrost,
+      rearDefrost,
+      steering,
+      durationMinutes,
+      seatClimateLevel,
+      seatClimateSettings,
+    }) => {
+      const currentConfig = getConfig()
+      const mergedStandardConfig = getStandardClimateConfig(currentConfig)
+      const nextStandardConfig = {
+        ...mergedStandardConfig,
+        [preset]: {
+          temp: temp,
+          frontDefrost: frontDefrost,
+          rearDefrost: rearDefrost,
+          steering: steering,
+          durationMinutes: durationMinutes,
+          seatClimateLevel: normalizeSeatClimateLevel(seatClimateLevel),
+          seatClimateSettings: normalizeSeatClimateSelection(seatClimateSettings),
+        },
+      } as StandardClimateConfig
+      setConfig({
+        ...currentConfig,
+        standardClimateConfig: nextStandardConfig,
+        climateTempWarm: nextStandardConfig.warm.temp,
+        climateTempCold: nextStandardConfig.cool.temp,
+      } as Config)
+    },
+    isFormValid: ({ temp, durationMinutes }) => {
+      if (!temp || !durationMinutes) return false
+      if (config.tempType === 'C' && (temp < 17 || temp > 27)) return false
+      if (config.tempType === 'F' && (temp < 62 || temp > 82)) return false
+      if (temp.toString().includes('.') && temp % 1 !== 0.5) return false
+      if (durationMinutes < 1 || durationMinutes > 30) return false
+      return true
+    },
+    submitButtonText: 'Save',
+    fields: {
+      temp: {
+        type: 'numberValue',
+        label: `Temperature (${config.tempType})`,
+        isRequired: true,
+      },
+      durationMinutes: {
+        type: 'numberValue',
+        label: 'Duration Minutes',
+        isRequired: true,
+      },
+      frontDefrost: {
+        type: 'checkbox',
+        label: 'Enable front defrost',
+        isRequired: false,
+      },
+      rearDefrost: {
+        type: 'checkbox',
+        label: 'Enable rear defrost',
+        isRequired: false,
+      },
+      steering: {
+        type: 'checkbox',
+        label: 'Enable heated steering wheel',
+        isRequired: false,
+      },
+      seatClimateLevel: {
+        type: 'dropdown',
+        label: 'Seat Climate Level',
+        isRequired: true,
+        options: ['Off', 'Low', 'Medium', 'High'],
+      },
+      seatClimateSettings: {
+        type: 'dropdown',
+        label: 'Seat Selection',
+        isRequired: true,
+        options: ['DRIVER', 'FRONT', 'ALL'],
+      },
+    },
+  })(standardConfig)
 }
 
 export async function loadWidgetConfigScreen() {

@@ -1,7 +1,9 @@
 import { Logger } from './logger'
 
 export const APP_LOG_FILE = `${Script.name().replaceAll(' ', '')}-app.log`
+export const SIRI_LOG_FILE = `${Script.name().replaceAll(' ', '')}-siri.log`
 let APP_LOGGER: Logger | undefined = undefined
+let SIRI_LOGGER: Logger | undefined = undefined
 
 export function isNotEmptyObject(obj: Record<string, any>): boolean {
   return obj && !(Object.keys(obj).length === 0 && obj.constructor === Object)
@@ -10,6 +12,11 @@ export function isNotEmptyObject(obj: Record<string, any>): boolean {
 export function getAppLogger(): Logger {
   if (!APP_LOGGER) APP_LOGGER = new Logger(APP_LOG_FILE, 100)
   return APP_LOGGER
+}
+
+export function getSiriLogger(): Logger {
+  if (!SIRI_LOGGER) SIRI_LOGGER = new Logger(SIRI_LOG_FILE, 100)
+  return SIRI_LOGGER
 }
 
 interface icon {

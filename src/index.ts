@@ -10,7 +10,7 @@ import {
   createHomeScreenInlineWidget,
 } from 'widget'
 import { createApp } from 'app'
-import { getAppLogger } from './lib/util'
+import { getAppLogger, getSiriLogger } from './lib/util'
 import { processSiriRequest } from 'siri'
 import { getConfig, loadConfigScreen, configExists } from 'config'
 import { confirm, quickOptions } from './lib/scriptable-utils'
@@ -35,6 +35,7 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
     const errorMessage = `Error Initalizing Bluelink: ${error}`
     const errorMessageShort = errorMessage.replace(/\{.*\}/, '')
     logger.log(errorMessage)
+    if (config.runsWithSiri) getSiriLogger().log(errorMessage)
     if (!config.runsWithSiri && !config.runsInWidget) {
       await quickOptions(['Ok', 'Settings', 'Share Debug Logs'], {
         title: errorMessageShort,
@@ -43,8 +44,9 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
           switch (opt) {
             case 'Share Debug Logs': {
               const blRedactedLogs = getBluelinkLogger().readAndRedact()
-              const widgetLogs = getWidgetLogger().read()
-              const appLogs = getAppLogger().read()
+              const widgetLogs = getWidgetLogger().readAndRedact()
+              const appLogs = getAppLogger().readAndRedact()
+              const siriLogs = getSiriLogger().readAndRedact()
               await ShareSheet.present([
                 'Bluelink API logs:',
                 blRedactedLogs,
@@ -52,6 +54,8 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
                 widgetLogs,
                 'App Logs',
                 appLogs,
+                'Shortcut Logs',
+                siriLogs,
               ])
               break
             }
@@ -67,6 +71,8 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
         Script.setWidget(createErrorWidget(errorMessage, blConfig))
       } else {
         Script.setShortcutOutput(errorMessage)
+        // @ts-ignore - undocumented api
+        App.close()
       }
       Script.complete()
     }
@@ -76,6 +82,19 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
   // deal with login failure, multiple car selection - main app only
   if (!bl || bl.loginFailed()) {
     if (config.runsWithSiri || config.runsInWidget) {
+      const errorMessage =
+        bl && bl.loginFailed()
+          ? 'Login failed - please re-check your credentials.'
+          : 'Something went wrong initializing Bluelink.'
+      if (config.runsWithSiri) getSiriLogger().log(errorMessage)
+      if (config.runsInWidget) {
+        Script.setWidget(createErrorWidget(errorMessage, blConfig))
+      } else {
+        Script.setShortcutOutput(errorMessage)
+        // @ts-ignore - undocumented api
+        App.close()
+      }
+      Script.complete()
       return
     }
     if (bl && bl.loginFailed()) {
@@ -121,6 +140,8 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
     Script.complete()
   } else if (config.runsWithSiri) {
     Script.setShortcutOutput(await processSiriRequest(blConfig, bl, args.shortcutParameter))
+    // @ts-ignore - undocumented api
+    App.close()
     Script.complete()
   } else {
     try {

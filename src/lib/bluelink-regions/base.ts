@@ -1,4 +1,4 @@
-import { Config } from '../../config'
+import { Config, VehicleTypeOverride } from '../../config'
 import { defaultImage } from '../../resources/defaultImage'
 import { resolveVehicleImage } from '../../resources/vehicle-images'
 import { Logger } from '../logger'
@@ -121,6 +121,129 @@ export interface ChargeLimit {
 export interface Location {
   latitude: string
   longitude: string
+}
+
+const normalizeVehicleText = (value: string | undefined): string => {
+  return (value ?? '')
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+const normalizeVehicleToken = (value: string | undefined): string => {
+  return normalizeVehicleText(value).replace(/\s+/g, '')
+}
+
+const titleCaseVehicleWord = (word: string): string => {
+  const lower = word.toLocaleLowerCase()
+  if (!lower) return ''
+  if (/^\d+$/.test(lower)) return lower
+
+  const specialWords: Record<string, string> = {
+    ev: 'EV',
+    hev: 'HEV',
+    phev: 'PHEV',
+    xrt: 'XRT',
+    sel: 'SEL',
+    se: 'SE',
+    ex: 'EX',
+    lx: 'LX',
+    gt: 'GT',
+    awd: 'AWD',
+    fwd: 'FWD',
+    rwd: 'RWD',
+  }
+
+  return specialWords[lower] ?? `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`
+}
+
+const titleCaseVehicleText = (value: string): string => {
+  return value
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .map((part) => titleCaseVehicleWord(part))
+    .join(' ')
+}
+
+const KNOWN_TRIM_LABELS: Array<{ matcher: RegExp; label: string }> = [
+  { matcher: /\bn[\s-]?line\b/i, label: 'N Line' },
+  { matcher: /\bxrt\b/i, label: 'XRT' },
+  { matcher: /\bpreferred\b/i, label: 'Preferred' },
+  { matcher: /\bultimate\b/i, label: 'Ultimate' },
+  { matcher: /\blimited\b/i, label: 'Limited' },
+  { matcher: /\bcalligraphy\b/i, label: 'Calligraphy' },
+  { matcher: /\bgt[\s-]?line\b/i, label: 'GT-Line' },
+  { matcher: /\bsel\b/i, label: 'SEL' },
+  { matcher: /\bse\b/i, label: 'SE' },
+  { matcher: /\bex\b/i, label: 'EX' },
+  { matcher: /\blx\b/i, label: 'LX' },
+]
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const cleanVehicleModelName = (modelName: string | undefined, modelYear: string | undefined): string => {
+  let model = (modelName ?? '').trim()
+  if (!model) return ''
+
+  if (modelYear) {
+    model = model.replace(new RegExp(`^\\s*${escapeRegExp(modelYear)}\\b\\s*`, 'i'), '')
+  } else {
+    model = model.replace(/^\s*\d{4}\b\s*/i, '')
+  }
+
+  const looksBackendStyled = /[()/]/.test(model) || model === model.toLocaleUpperCase()
+  if (looksBackendStyled) {
+    model = model.replace(/\([^)]*\)/g, ' ')
+    model = model.replace(/\b(?:hev|phev|ev)\s*\/\s*(?:hev|phev|ev)\b/gi, ' ')
+    model = model.replace(/\b(?:hev|phev|ev|hybrid|electric)\b/gi, ' ')
+    model = model.replace(/[_/]+/g, ' ')
+    model = model.replace(/\s+/g, ' ').trim()
+    model = titleCaseVehicleText(model)
+  }
+
+  return model.replace(/\s+/g, ' ').trim()
+}
+
+const inferVehicleTrimLabel = (modelName: string | undefined, modelTrim: string | undefined): string | undefined => {
+  const haystack = `${modelName ?? ''} ${modelTrim ?? ''}`
+  for (const option of KNOWN_TRIM_LABELS) {
+    if (option.matcher.test(haystack)) return option.label
+  }
+
+  const trim = (modelTrim ?? '').trim()
+  if (!trim || /[()]/.test(trim)) return undefined
+  if (/^[A-Z0-9-]{4,}$/.test(trim)) return undefined
+  if (!/[a-zA-Z]{3,}/.test(trim)) return undefined
+  return titleCaseVehicleText(trim)
+}
+
+export function formatVehicleDisplayName(car: BluelinkCar, displayNameOverride?: string): string {
+  if (displayNameOverride && displayNameOverride.trim().length > 0) {
+    return displayNameOverride.trim()
+  }
+
+  const year = car.modelYear || ''
+  const model = cleanVehicleModelName(car.modelName, year)
+  const inferredTrim = inferVehicleTrimLabel(car.modelName, car.modelTrim)
+  const normalizedModel = normalizeVehicleToken(model)
+  const normalizedTrim = normalizeVehicleToken(inferredTrim)
+  const trim = normalizedTrim && normalizedModel.includes(normalizedTrim) ? '' : (inferredTrim ?? '')
+
+  const joined = [year, model, trim].filter((value) => value && value.trim().length > 0).join(' ')
+  return joined || model || car.nickName || 'My Hyundai'
+}
+
+const vehicleTypeSupportsCharging = (vehicleType: VehicleTypeOverride): boolean | undefined => {
+  switch (vehicleType) {
+    case 'ev':
+    case 'phev':
+      return true
+    case 'ice':
+    case 'hev':
+      return false
+    default:
+      return undefined
+  }
 }
 
 const carImageHttpURL = 'https://bluelink.andyfase.com/app-assets/car-images/'
@@ -385,12 +508,26 @@ export class Bluelink {
 
   public supportsChargingFeatures(): boolean {
     if (!this.cache || !this.cache.status) return false
+    const configuredChargingSupport = vehicleTypeSupportsCharging(this.config.vehicleTypeOverride || 'auto')
+    if (typeof configuredChargingSupport === 'boolean') return configuredChargingSupport
+
     const status = this.cache.status
-    const modelTokens = `${this.cache.car.modelName || ''} ${this.cache.car.modelTrim || ''}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-    const likelyNonPlugHybrid =
-      (modelTokens.includes('hev') || modelTokens.includes('hybrid')) && !modelTokens.includes('phev')
+    const modelTokens = normalizeVehicleText(`${this.cache.car.modelName || ''} ${this.cache.car.modelTrim || ''}`)
+    const tokenSet = new Set(modelTokens.split(/\s+/).filter((token) => token.length > 0))
+    const mentionsHev = tokenSet.has('hev')
+    const mentionsPhev = tokenSet.has('phev')
+    const mentionsHybrid = tokenSet.has('hybrid')
+    const likelyNonPlugHybrid = (mentionsHev || mentionsHybrid) && !mentionsPhev
+    const ambiguousHevPhevLabel = mentionsHev && mentionsPhev
+    const hasFuelLevel = typeof status.fuelLevel === 'number'
+    const hasUsableSoc = typeof status.soc === 'number' && status.soc > 0
+    const hasFuelOnlyHybridStatus =
+      hasFuelLevel && !hasUsableSoc && !status.isPluggedIn && !status.isCharging && !status.chargeLimit
+
+    if ((likelyNonPlugHybrid || ambiguousHevPhevLabel) && hasFuelOnlyHybridStatus) {
+      return false
+    }
+
     if (typeof status.supportsChargeCommands === 'boolean') {
       if (status.supportsChargeCommands && likelyNonPlugHybrid && !status.isPluggedIn && !status.isCharging) {
         return false
@@ -426,35 +563,7 @@ export class Bluelink {
   }
 
   public getVehicleDisplayName(car: BluelinkCar): string {
-    const displayNameOverride = (this.config as Config & { displayNameOverride?: string }).displayNameOverride
-    if (displayNameOverride && displayNameOverride.trim().length > 0) {
-      return displayNameOverride.trim()
-    }
-
-    const normalizeToken = (token: string) => token.toLowerCase().replace(/[^a-z0-9]/g, '')
-    const powertrainTokens = new Set(['hev', 'phev', 'ev', 'hybrid', 'electric'])
-
-    let model = car.modelName || ''
-    const year = car.modelYear || ''
-    const trim = car.modelTrim || ''
-
-    if (model && trim) {
-      const trimTokens = new Set(trim.split(/\s+/).map(normalizeToken))
-      const modelParts = model.split(/\s+/)
-      while (modelParts.length > 0) {
-        const lastPart = modelParts[modelParts.length - 1] || ''
-        const normalizedLast = normalizeToken(lastPart)
-        if (powertrainTokens.has(normalizedLast) && trimTokens.has(normalizedLast)) {
-          modelParts.pop()
-          continue
-        }
-        break
-      }
-      model = modelParts.join(' ')
-    }
-
-    const joined = [year, model, trim].filter((x) => x && x.trim().length > 0).join(' ')
-    return joined || model || car.nickName || 'My Hyundai'
+    return formatVehicleDisplayName(car, this.config.displayNameOverride)
   }
 
   public async refreshAuth(force = false): Promise<void> {
