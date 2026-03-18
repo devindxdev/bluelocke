@@ -1,1 +1,21 @@
 <link rel="stylesheet" href="{{ '/assets/css/custom.css' | relative_url }}">
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (document.querySelector('.support-floating-cta')) return;
+
+    var cta = document.createElement('a');
+    cta.className = 'support-floating-cta';
+    cta.href = 'https://cal.com/bydev.devind/30min';
+    cta.target = '_blank';
+    cta.rel = 'noopener noreferrer';
+    cta.setAttribute('aria-label', 'Book Bluelocke setup help');
+    cta.innerHTML =
+      '<span class="support-floating-cta__icon" aria-hidden="true">↗</span>' +
+      '<span class="support-floating-cta__content">' +
+      '<span class="support-floating-cta__label">Book Setup Help</span>' +
+      '<span class="support-floating-cta__sub">1:1 help for setup or troubleshooting</span>' +
+      '</span>';
+
+    document.body.appendChild(cta);
+  });
+</script>

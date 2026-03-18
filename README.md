@@ -36,6 +36,13 @@ Andy built the original foundation this project is based on. Credit to Andy for 
 3. Use the latest `bluelocke.js` release asset in your Scriptable script.
 4. Run the script once and complete setup (region, brand, credentials, PIN, preferences).
 
+## Need Help Setting It Up?
+
+If you want personal help getting Bluelocke working, book a [Bluelocke Setup & Support Call](https://cal.com/bydev.devind/30min).
+
+Use GitHub issues for public bugs and feature requests:
+- [github.com/devindxdev/bluelocke/issues](https://github.com/devindxdev/bluelocke/issues)
+
 ## Development
 
 ### Repo Structure

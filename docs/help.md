@@ -29,6 +29,16 @@ nav_order: 10
 
 ## Getting support
 
-- Open issues on GitHub:
-  - `https://github.com/devindxdev/bluelocke/issues`
+Choose the path that fits the issue:
 
+<div class="support-links">
+  <a class="support-link-card" href="https://github.com/devindxdev/bluelocke/issues" target="_blank" rel="noopener noreferrer">
+    <strong>GitHub Issues</strong>
+    <span>Use this for bug reports, feature requests, and public issues that are useful for the project to track openly.</span>
+  </a>
+
+  <a class="support-link-card" href="https://cal.com/bydev.devind/30min" target="_blank" rel="noopener noreferrer">
+    <strong>Bluelocke Setup &amp; Support Call</strong>
+    <span>Use this if you want personal 1:1 help with setup, login problems, widgets, shortcuts, or troubleshooting.</span>
+  </a>
+</div>
