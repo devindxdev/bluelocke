@@ -5,15 +5,10 @@ nav_order: 11
 
 # Auto Update
 
-Bluelocke checks GitHub releases and can prompt for updates on app launch.
+Bluelocke checks for newer GitHub releases automatically.
 
-## To Publish an Update
+When you open the script, Bluelocke will let you know if a newer version is available.
 
-1. Bump `src/version.json` (for example `v1.16.0`).
-2. Build:
-   - `npm run build`
-3. Commit and push changes.
-4. Create and push a matching git tag.
-5. Create a GitHub release for that tag and attach `build/bluelocke.js`.
+You can also tap the information icon in the app to check whether there is a newer version available.
 
-If the installed script is older than the latest release, users will see an update prompt.
+If your installed script is older than the latest release, Bluelocke will show you that an update is available.
