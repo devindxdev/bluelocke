@@ -1,5 +1,12 @@
 import { Config, getConfig, STANDARD_CLIMATE_OPTIONS, buildStandardClimateRequest } from 'config'
-import { Bluelink, Status, ClimateRequest, ChargeLimit, formatVehicleDisplayName } from './lib/bluelink-regions/base'
+import {
+  Bluelink,
+  Status,
+  ClimateRequest,
+  ChargeLimit,
+  formatVehicleDisplayName,
+  getBluelinkResponseLogger,
+} from './lib/bluelink-regions/base'
 import { getTable, Div, P, Img, quickOptions, DivChild, Spacer, destructiveConfirm } from 'lib/scriptable-utils'
 import { loadConfigScreen, deleteConfig, setConfig, ClimateSeatSetting } from 'config'
 import { loadAboutScreen, doDowngrade } from 'about'
@@ -101,7 +108,7 @@ export async function createApp(config: Config, bl: Bluelink) {
           title: 'Update Available',
           onOptionSelect: (opt) => {
             if (opt === 'See Details') {
-              loadAboutScreen()
+              loadAboutScreen(bl)
             } else if (opt === 'Never Ask Again') {
               config.promptForUpdate = false
               setConfig(config)
@@ -132,7 +139,7 @@ export async function createApp(config: Config, bl: Bluelink) {
       chargeLimit: cachedStatus.status.chargeLimit,
     },
     render: () => [
-      pageTitle(),
+      pageTitle(bl),
       batteryStatus(bl),
       pageImage(bl),
       pageIcons(bl),
@@ -142,24 +149,25 @@ export async function createApp(config: Config, bl: Bluelink) {
   })
 }
 
-const pageTitle = connect(({ state: { name } }) => {
-  return Div(
-    [
-      P(name, {
-        font: (n) => Font.boldSystemFont(n),
-        fontSize: 35,
-        align: 'left',
-        width: '90%',
-      }),
-      Img(getTintedIcon('about'), { align: 'right' }),
-    ],
-    {
-      onTap: () => {
-        loadAboutScreen()
+const pageTitle = (bl: Bluelink) =>
+  connect(({ state: { name } }) => {
+    return Div(
+      [
+        P(name, {
+          font: (n) => Font.boldSystemFont(n),
+          fontSize: 35,
+          align: 'left',
+          width: '90%',
+        }),
+        Img(getTintedIcon('about'), { align: 'right' }),
+      ],
+      {
+        onTap: () => {
+          loadAboutScreen(bl)
+        },
       },
-    },
-  )
-})
+    )
+  })()
 
 const settings = (bl: Bluelink) => {
   return Div(
@@ -184,12 +192,15 @@ const settings = (bl: Bluelink) => {
             switch (opt) {
               case 'Share Debug Logs': {
                 const blRedactedLogs = bl.getLogger().readAndRedact()
+                const blResponseLogs = getBluelinkResponseLogger().readAndRedact()
                 const widgetLogs = getWidgetLogger().readAndRedact()
                 const appLogs = getAppLogger().readAndRedact()
                 const siriLogs = getSiriLogger().readAndRedact()
                 ShareSheet.present([
                   'Bluelink API logs:',
                   blRedactedLogs,
+                  'Bluelink API responses:',
+                  blResponseLogs || 'No API response snapshots yet.',
                   'Widget Logs',
                   widgetLogs,
                   'App Logs',

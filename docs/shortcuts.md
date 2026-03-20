@@ -74,7 +74,7 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
       <p class="shortcut-title">Unlock</p>
       <p class="shortcut-desc">Sends an immediate unlock command through Scriptable.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/ad73842a188c4da194ed3c4b2ebd9e34" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/7a8a1f23728b4ffb87ef3fdcacb0cd86" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 
   <div class="shortcut-card">
@@ -83,7 +83,52 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
       <p class="shortcut-title">Lock</p>
       <p class="shortcut-desc">Sends an immediate lock command through Scriptable.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/6fc83bb72ba7417fad9ee4a3b1f8aa37" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/647e2f473f964c8ea7bdf727219dac7f" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+  </div>
+
+  <div class="shortcut-card">
+    <div class="shortcut-icon">❄️</div>
+    <div class="shortcut-body">
+      <p class="shortcut-title">Cool the Car</p>
+      <p class="shortcut-desc">Starts the default cool climate preset through Scriptable.</p>
+    </div>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/305654e50b174843b931d7fdec830147" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+  </div>
+
+  <div class="shortcut-card">
+    <div class="shortcut-icon">🔥</div>
+    <div class="shortcut-body">
+      <p class="shortcut-title">Warm the Car</p>
+      <p class="shortcut-desc">Starts the default warm climate preset through Scriptable.</p>
+    </div>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/7f226eb58405428392ae785068dd19a0" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+  </div>
+</div>
+
+## Auto-Lock Shortcuts
+
+<blockquote class="warning-title">
+  <p><strong>Use care with auto-lock shortcuts.</strong></p>
+  <p>If your phone is left inside the car and the shortcut runs, you can lock yourself out.</p>
+</blockquote>
+
+<div class="shortcut-grid">
+  <div class="shortcut-card">
+    <div class="shortcut-icon">🛡️</div>
+    <div class="shortcut-body">
+      <p class="shortcut-title">Auto Lock - Safe</p>
+      <p class="shortcut-desc">Checks whether the vehicle is unlocked and prompts you before sending the lock command.</p>
+    </div>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/280c50ea17d249b0bc2f253e88026c44" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+  </div>
+
+  <div class="shortcut-card">
+    <div class="shortcut-icon">⚠️</div>
+    <div class="shortcut-body">
+      <p class="shortcut-title">Auto Lock</p>
+      <p class="shortcut-desc">Immediately locks when its automation runs. Only use this if you understand the lockout risk.</p>
+    </div>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 </div>
 

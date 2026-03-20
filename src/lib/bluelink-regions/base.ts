@@ -7,6 +7,8 @@ const KEYCHAIN_CACHE_KEY = 'egmp-bluelink-cache'
 export const DEFAULT_STATUS_CHECK_INTERVAL = 3600 * 1000
 export const MAX_COMPLETION_POLLS = 20
 const BLUELINK_LOG_FILE = `${Script.name().replaceAll(' ', '')}-api.log`
+const BLUELINK_RESPONSE_LOG_FILE = `${Script.name().replaceAll(' ', '')}-api-response.log`
+const CAPTURE_NEXT_API_RESPONSE_KEY = `${Script.name().replaceAll(' ', '')}-capture-next-api-response`
 const DEFAULT_API_HOST = 'mybluelink.ca'
 const DEFAULT_API_DOMAIN = `https://${DEFAULT_API_HOST}/tods/api/`
 const WIDGET_REQUEST_TIMEOUT_SECS = 5
@@ -262,6 +264,26 @@ const carImageMap: Record<string, string> = {
 
 export function getBluelinkLogger() {
   return new Logger(BLUELINK_LOG_FILE, 100)
+}
+
+export function getBluelinkResponseLogger() {
+  return new Logger(BLUELINK_RESPONSE_LOG_FILE, 250)
+}
+
+export function queueNextApiResponseCapture() {
+  const logger = getBluelinkResponseLogger()
+  logger.clear()
+  Keychain.set(CAPTURE_NEXT_API_RESPONSE_KEY, '1')
+}
+
+export function hasQueuedApiResponseCapture(): boolean {
+  return Keychain.contains(CAPTURE_NEXT_API_RESPONSE_KEY)
+}
+
+function consumeQueuedApiResponseCapture(): boolean {
+  if (!hasQueuedApiResponseCapture()) return false
+  Keychain.remove(CAPTURE_NEXT_API_RESPONSE_KEY)
+  return true
 }
 
 export class Bluelink {
@@ -809,10 +831,23 @@ export class Bluelink {
     try {
       if (this.config.debugLogging) this.logger.log(`Sending request ${JSON.stringify(this.debugLastRequest)}`)
       const json = !props.notJSON ? await req.loadJSON() : await req.loadString()
-      if (this.config.debugLogging)
+      if (this.config.debugLogging) {
         this.logger.log(
           `response ${JSON.stringify(req.response)} data: ${!props.notJSON ? JSON.stringify(json) : 'not JSON'}`,
         )
+      }
+      if (consumeQueuedApiResponseCapture()) {
+        const payload = typeof json === 'string' ? json : JSON.stringify(json, null, 2)
+        getBluelinkResponseLogger().log(
+          [
+            `URL: ${props.url}`,
+            `Method: ${req.method}`,
+            `Status: ${req.response?.statusCode || 'unknown'}`,
+            'Payload:',
+            payload,
+          ].join('\n'),
+        )
+      }
 
       const checkResponse = props.validResponseFunction(req.response, json)
       if (!props.noRetry && checkResponse.retry && !props.noAuth) {

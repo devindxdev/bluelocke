@@ -312,6 +312,75 @@ export async function tintSFSymbol(name: string, image: Image, color: Color, rot
   return { name: name, image: Image.fromData(Data.fromBase64String(base64)) }
 }
 
+export async function trimTransparentImageBounds(image: Image, padding = 6): Promise<Image> {
+  try {
+    const html = `
+    <img id="image" src="data:image/png;base64,${Data.fromPNG(image).toBase64String()}" />
+    <canvas id="source"></canvas>
+    <canvas id="target"></canvas>
+    `
+
+    const js = `
+      const img = document.getElementById("image");
+      const source = document.getElementById("source");
+      const target = document.getElementById("target");
+
+      source.width = img.width;
+      source.height = img.height;
+      const sctx = source.getContext("2d");
+      sctx.drawImage(img, 0, 0);
+
+      const imageData = sctx.getImageData(0, 0, source.width, source.height);
+      const { data, width, height } = imageData;
+
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const alpha = data[(y * width + x) * 4 + 3];
+          if (alpha > 0) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (maxX < 0 || maxY < 0) {
+        return source.toDataURL("image/png").replace(/^data:image\\/png;base64,/, "");
+      }
+
+      const pad = ${padding};
+      minX = Math.max(0, minX - pad);
+      minY = Math.max(0, minY - pad);
+      maxX = Math.min(width - 1, maxX + pad);
+      maxY = Math.min(height - 1, maxY + pad);
+
+      const cropWidth = maxX - minX + 1;
+      const cropHeight = maxY - minY + 1;
+
+      target.width = cropWidth;
+      target.height = cropHeight;
+
+      const tctx = target.getContext("2d");
+      tctx.drawImage(source, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+      return target.toDataURL("image/png").replace(/^data:image\\/png;base64,/, "");
+    `
+
+    const wv = new WebView()
+    await wv.loadHTML(html)
+    const base64 = await wv.evaluateJavaScript(js)
+    return Image.fromData(Data.fromBase64String(base64))
+  } catch (_error) {
+    return image
+  }
+}
+
 export async function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => {
     Timer.schedule(milliseconds, false, () => resolve())

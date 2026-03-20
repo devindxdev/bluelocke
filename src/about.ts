@@ -1,12 +1,23 @@
 import { getTable, Div, P, Spacer, quickOptions, OK } from 'lib/scriptable-utils'
 import { GithubRelease, Version } from 'lib/version'
 import { getAppLogger, getSiriLogger } from './lib/util'
-import { getBluelinkLogger } from 'lib/bluelink-regions/base'
+import {
+  Bluelink,
+  getBluelinkLogger,
+  getBluelinkResponseLogger,
+  queueNextApiResponseCapture,
+} from 'lib/bluelink-regions/base'
 import { getWidgetLogger } from 'widget'
 
 const SCRIPTABLE_DIR = '/var/mobile/Library/Mobile Documents/iCloud~dk~simonbs~Scriptable/Documents'
 const logger = getAppLogger()
-const DEBUG_LOG_SECTIONS = ['Shortcut Logs', 'App Logs', 'Widget Logs', 'Bluelink API Logs'] as const
+const DEBUG_LOG_SECTIONS = [
+  'Shortcut Logs',
+  'App Logs',
+  'Widget Logs',
+  'Bluelink API Logs',
+  'Bluelink API Responses',
+] as const
 type DebugLogSection = (typeof DEBUG_LOG_SECTIONS)[number]
 
 function getDebugLogContents(section: DebugLogSection): string {
@@ -19,6 +30,11 @@ function getDebugLogContents(section: DebugLogSection): string {
       return getWidgetLogger().readAndRedact() || 'No widget logs yet.'
     case 'Bluelink API Logs':
       return getBluelinkLogger().readAndRedact() || 'No API logs yet.'
+    case 'Bluelink API Responses':
+      return (
+        getBluelinkResponseLogger().readAndRedact() ||
+        'No API response snapshots yet. Turn on debug logging, reproduce the issue, then try again.'
+      )
   }
 }
 
@@ -26,6 +42,8 @@ function getAllDebugLogs(): string[] {
   return [
     'Bluelink API logs:',
     getDebugLogContents('Bluelink API Logs'),
+    'Bluelink API responses:',
+    getDebugLogContents('Bluelink API Responses'),
     'Widget Logs',
     getDebugLogContents('Widget Logs'),
     'App Logs',
@@ -151,7 +169,7 @@ const { present, connect, setState } = getTable<{
   name: 'About App',
 })
 
-export async function loadAboutScreen() {
+export async function loadAboutScreen(bl?: Bluelink) {
   // load version async
   const version = new Version('devindxdev', 'bluelocke')
   version.getRelease().then((release) => setState({ release: release }))
@@ -167,6 +185,7 @@ export async function loadAboutScreen() {
       appWebsite(),
       author(),
       viewDebugLogs(),
+      shareApiResponseData(bl),
       shareDebugLogs(),
       Spacer({ rowHeight: 30 }),
       currentVersion(),
@@ -225,7 +244,7 @@ const viewDebugLogs = connect(() => {
         color: Color.blue(),
         align: 'left',
       }),
-      P('Read shortcut, app, widget, or API logs directly in-app.', {
+      P('Read shortcut, app, widget, API, or API response logs directly in-app.', {
         font: (n) => Font.mediumRoundedSystemFont(n),
         fontSize: 16,
         color: Color.gray(),
@@ -247,6 +266,49 @@ const viewDebugLogs = connect(() => {
   )
 })
 
+const shareApiResponseData = (bl?: Bluelink) =>
+  Div(
+    [
+      P('Share API Response Data', {
+        font: (n) => Font.mediumRoundedSystemFont(n),
+        fontSize: 20,
+        color: Color.blue(),
+        align: 'left',
+      }),
+      P(
+        bl
+          ? 'Fetches fresh vehicle data from Bluelink, saves the returned payload once, then opens the share sheet.'
+          : 'Open About from the main app to fetch and share fresh API response data.',
+        {
+          font: (n) => Font.mediumRoundedSystemFont(n),
+          fontSize: 16,
+          color: Color.gray(),
+          align: 'left',
+        },
+      ),
+    ],
+    {
+      height: 90,
+      onTap: async () => {
+        if (!bl) {
+          await OK('Unavailable Here', {
+            message: 'Open About from the main app, then use Share API Response Data there.',
+          })
+          return
+        }
+        getBluelinkResponseLogger().clear()
+        try {
+          await bl.refreshAuth()
+          queueNextApiResponseCapture()
+          await bl.getStatus(false, true)
+        } catch (error) {
+          getBluelinkResponseLogger().log(`Failed to fetch API response data: ${error}`)
+        }
+        await ShareSheet.present(['Bluelink API responses:', getDebugLogContents('Bluelink API Responses')])
+      },
+    },
+  )
+
 const shareDebugLogs = connect(() => {
   return Div(
     [
@@ -256,7 +318,7 @@ const shareDebugLogs = connect(() => {
         color: Color.blue(),
         align: 'left',
       }),
-      P('Includes app, widget, shortcut, and API logs.', {
+      P('Includes app, widget, shortcut, API, and API response logs.', {
         font: (n) => Font.mediumRoundedSystemFont(n),
         fontSize: 16,
         color: Color.gray(),

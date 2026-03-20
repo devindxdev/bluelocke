@@ -42,6 +42,135 @@ interface WidgetRefresh {
   status: Status
 }
 
+const WIDE_MEDIUM_WIDGET_WIDTH = 364
+const REGULAR_MEDIUM_WIDGET_WIDTH = 338
+const NARROW_MEDIUM_WIDGET_WIDTH = 329
+
+interface MediumWidgetGeometry {
+  widgetWidth: number
+  paddingTop: number
+  paddingLeft: number
+  paddingBottom: number
+  paddingRight: number
+  titleInset: number
+  titleFontSize: number
+  titleMinimumScaleFactor: number
+  titleRowHeight: number
+  titleBottomSpacer: number
+  carImageWidth: number
+  mediaRightSafetyInset: number
+  contentRowHeight: number
+  statsColumnWidth: number
+  contentGap: number
+  batteryInfoTopSpacer: number
+  statsTrailingInset: number
+  topMetricRowHeight: number
+  primaryMetricRowHeight: number
+  secondaryMetricRowHeight: number
+  rightMetricFontSize: number
+  batteryPercentFontSize: number
+  chargingFontSize: number
+  batteryIconSize: Size
+  chargingIconSize: number
+  footerTopSpacer: number
+  footerLeadingInset: number
+  footerTrailingInset: number
+  footerGroupTargetWidth: number
+  footerRowHeight: number
+  footerGap: number
+  footerIconSize: number
+  footerFontSize: number
+}
+
+interface MediumWidgetFooterLayout {
+  footerCellWidth: number
+  footerOuterLead: number
+  footerOuterTrail: number
+}
+
+function getMediumWidgetWidth(screenWidth: number): number {
+  if (screenWidth >= 428) return WIDE_MEDIUM_WIDGET_WIDTH
+  if (screenWidth >= 390) return REGULAR_MEDIUM_WIDGET_WIDTH
+  return NARROW_MEDIUM_WIDGET_WIDTH
+}
+
+function interpolateMediumValue(widgetWidth: number, wide: number, regular: number, narrow: number): number {
+  if (widgetWidth >= REGULAR_MEDIUM_WIDGET_WIDTH) {
+    const t = (widgetWidth - REGULAR_MEDIUM_WIDGET_WIDTH) / (WIDE_MEDIUM_WIDGET_WIDTH - REGULAR_MEDIUM_WIDGET_WIDTH)
+    return regular + (wide - regular) * t
+  }
+
+  const t = (widgetWidth - NARROW_MEDIUM_WIDGET_WIDTH) / (REGULAR_MEDIUM_WIDGET_WIDTH - NARROW_MEDIUM_WIDGET_WIDTH)
+  return narrow + (regular - narrow) * t
+}
+
+function interpolateMediumSize(widgetWidth: number, wide: Size, regular: Size, narrow: Size): Size {
+  return new Size(
+    Math.round(interpolateMediumValue(widgetWidth, wide.width, regular.width, narrow.width)),
+    Math.round(interpolateMediumValue(widgetWidth, wide.height, regular.height, narrow.height)),
+  )
+}
+
+function getMediumWidgetGeometry(screenWidth: number): MediumWidgetGeometry {
+  const widgetWidth = getMediumWidgetWidth(screenWidth)
+
+  return {
+    widgetWidth,
+    paddingTop: Math.round(interpolateMediumValue(widgetWidth, 20, 18, 18)),
+    paddingLeft: Math.round(interpolateMediumValue(widgetWidth, 5, 5, 5)),
+    paddingBottom: Math.round(interpolateMediumValue(widgetWidth, 20, 16, 16)),
+    paddingRight: Math.round(interpolateMediumValue(widgetWidth, 15, 12, 12)),
+    titleInset: Math.round(interpolateMediumValue(widgetWidth, 8, 0, 0)),
+    titleFontSize: Math.round(interpolateMediumValue(widgetWidth, 25, 23, 22)),
+    titleMinimumScaleFactor: interpolateMediumValue(widgetWidth, 0.8, 0.72, 0.68),
+    titleRowHeight: Math.round(interpolateMediumValue(widgetWidth, 32, 30, 29)),
+    titleBottomSpacer: Math.round(interpolateMediumValue(widgetWidth, 2, 3, 3)),
+    carImageWidth: Math.round(interpolateMediumValue(widgetWidth, 220, 176, 168)),
+    mediaRightSafetyInset: Math.round(interpolateMediumValue(widgetWidth, 0, 8, 10)),
+    contentRowHeight: Math.round(interpolateMediumValue(widgetWidth, 100, 92, 90)),
+    statsColumnWidth: Math.round(interpolateMediumValue(widgetWidth, 125, 108, 102)),
+    contentGap: Math.round(interpolateMediumValue(widgetWidth, 4, 3, 3)),
+    batteryInfoTopSpacer: Math.round(interpolateMediumValue(widgetWidth, 10, 9, 8)),
+    statsTrailingInset: Math.round(interpolateMediumValue(widgetWidth, 0, 4, 4)),
+    topMetricRowHeight: Math.round(interpolateMediumValue(widgetWidth, 20, 18, 18)),
+    primaryMetricRowHeight: Math.round(interpolateMediumValue(widgetWidth, 26, 24, 24)),
+    secondaryMetricRowHeight: Math.round(interpolateMediumValue(widgetWidth, 24, 22, 22)),
+    rightMetricFontSize: Math.round(interpolateMediumValue(widgetWidth, 17, 16, 15)),
+    batteryPercentFontSize: Math.round(interpolateMediumValue(widgetWidth, 15, 14, 13)),
+    chargingFontSize: Math.round(interpolateMediumValue(widgetWidth, 14, 12, 12)),
+    batteryIconSize: interpolateMediumSize(widgetWidth, new Size(32, 24), new Size(30, 22), new Size(28, 21)),
+    chargingIconSize: Math.round(interpolateMediumValue(widgetWidth, 28, 24, 23)),
+    footerTopSpacer: Math.round(interpolateMediumValue(widgetWidth, 8, 6, 6)),
+    footerLeadingInset: Math.round(interpolateMediumValue(widgetWidth, 0, 0, 0)),
+    footerTrailingInset: Math.round(interpolateMediumValue(widgetWidth, 0, 4, 4)),
+    footerGroupTargetWidth: Math.round(interpolateMediumValue(widgetWidth, 274, 236, 224)),
+    footerRowHeight: Math.round(interpolateMediumValue(widgetWidth, 24, 22, 22)),
+    footerGap: Math.round(interpolateMediumValue(widgetWidth, 5, 6, 6)),
+    footerIconSize: Math.round(interpolateMediumValue(widgetWidth, 18, 15, 14)),
+    footerFontSize: Math.round(interpolateMediumValue(widgetWidth, 12, 11, 10)),
+  }
+}
+
+function getMediumWidgetFooterLayout(
+  usableWidth: number,
+  footerLeadingInset: number,
+  footerTrailingInset: number,
+  footerGroupTargetWidth: number,
+  footerGap: number,
+): MediumWidgetFooterLayout {
+  const footerAvailable = Math.max(0, usableWidth - footerLeadingInset - footerTrailingInset)
+  const footerGroupWidth = Math.min(footerGroupTargetWidth, footerAvailable)
+  const footerCellWidth = Math.max(1, Math.floor((footerGroupWidth - footerGap * 2) / 3))
+  const footerUsedWidth = footerCellWidth * 3 + footerGap * 2
+  const footerCenteringSlack = Math.max(0, footerAvailable - footerUsedWidth)
+
+  return {
+    footerCellWidth,
+    footerOuterLead: footerLeadingInset + Math.floor(footerCenteringSlack / 2),
+    footerOuterTrail: footerTrailingInset + (footerCenteringSlack - Math.floor(footerCenteringSlack / 2)),
+  }
+}
+
 function isDarkMode(config: Config): boolean {
   const appearance = (config.widgetAppearance || 'system').toLowerCase()
   switch (appearance) {
@@ -328,6 +457,8 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   const status = refresh.status
   const primaryText = getPrimaryTextColor(config)
   const darkMode = isDarkMode(config)
+  const screenWidth = Math.min(Device.screenSize().width, Device.screenSize().height)
+  const profile = getMediumWidgetGeometry(screenWidth)
 
   // Prepare image
   const appIcon = await bl.getCarImage()
@@ -335,7 +466,7 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
 
   // define widget and set date for when the next refresh should not occur before.
   const widget = new ListWidget()
-  widget.setPadding(20, 5, 20, 15)
+  widget.setPadding(profile.paddingTop, profile.paddingLeft, profile.paddingBottom, profile.paddingRight)
   widget.refreshAfterDate = refresh.nextRefresh
 
   const mainStack = widget.addStack()
@@ -344,37 +475,8 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   // Add background color
   widget.backgroundColor = getBgColor(config)
 
-  // Show app icon and title
-  const titleStack = mainStack.addStack()
-  titleStack.layoutHorizontally()
-  titleStack.addSpacer(8)
-  const titleElement = titleStack.addText(title)
-  titleElement.textColor = primaryText
-  titleElement.textOpacity = darkMode ? 0.7 : 1
-  titleElement.font = Font.mediumSystemFont(25)
-  titleElement.minimumScaleFactor = 0.8
-  titleElement.lineLimit = 1
-  titleElement.leftAlignText()
-  mainStack.addSpacer(2)
-
   const supportsCharging = bl.supportsChargingFeatures()
   const energyPercent = getEnergyPercent(status, bl)
-
-  // Center Stack
-  const contentStack = mainStack.addStack()
-  contentStack.centerAlignContent()
-  contentStack.addSpacer(4)
-  const carImageElement = contentStack.addImage(appIcon)
-  carImageElement.imageSize = new Size(220, 220 / (appIcon.size.width / appIcon.size.height))
-  contentStack.addSpacer(4)
-
-  // Battery Info
-  const batteryInfoStack = contentStack.addStack()
-  batteryInfoStack.layoutVertically()
-  batteryInfoStack.size = new Size(125, 100)
-  batteryInfoStack.addSpacer(10)
-
-  // set status from BL status response
   const isCharging = status.status.isCharging
   const isPluggedIn = status.status.isPluggedIn
   const batteryPercent = supportsCharging ? status.status.soc : (energyPercent ?? 0)
@@ -389,100 +491,6 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   const lastSeen = new Date(status.status.lastRemoteStatusCheck)
   const twelveSoc = status.status.twelveSoc
   const rangeText = `~${status.status.range} ${bl.getDistanceUnit()}`
-
-  // Top row: EV/PHEV -> range
-  if (supportsCharging) {
-    const topInfoStack = batteryInfoStack.addStack()
-    topInfoStack.layoutHorizontally()
-    topInfoStack.centerAlignContent()
-    topInfoStack.addSpacer()
-    const topRangeText = topInfoStack.addText(rangeText)
-    topRangeText.font = Font.semiboldSystemFont(17)
-    topRangeText.textColor = primaryText
-    topRangeText.minimumScaleFactor = 0.7
-    topRangeText.lineLimit = 1
-    topRangeText.rightAlignText()
-    topInfoStack.addSpacer()
-  }
-  batteryInfoStack.addSpacer(2)
-
-  // Battery Percent Value
-  const batteryPercentStack = batteryInfoStack.addStack()
-  batteryPercentStack.layoutHorizontally()
-  batteryPercentStack.addSpacer()
-  batteryPercentStack.centerAlignContent()
-  if (supportsCharging) {
-    const batteryIconColor = batteryPercent > 70 ? Color.green() : Color.red()
-    const batterySymbolElement = batteryPercentStack.addImage(await getWidgetIcon('twelve-volt', batteryIconColor))
-    batterySymbolElement.imageSize = new Size(32, 24)
-    const chargingIcon = getChargingIcon(isCharging, isPluggedIn, true)
-    if (chargingIcon) {
-      const chargingElement = batteryPercentStack.addImage(await getTintedIconAsync(chargingIcon))
-      chargingElement.imageSize = new Size(28, 28)
-    }
-
-    batteryPercentStack.addSpacer(5)
-
-    const batteryPercentText = batteryPercentStack.addText(getEnergyText(status, bl))
-    batteryPercentText.textColor =
-      supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
-    batteryPercentText.font = Font.semiboldSystemFont(15)
-    batteryPercentText.minimumScaleFactor = 0.65
-    batteryPercentText.lineLimit = 1
-  } else {
-    const fuelText = batteryPercentStack.addText(getEnergyText(status, bl))
-    fuelText.textColor = primaryText
-    fuelText.font = Font.semiboldSystemFont(17)
-    fuelText.minimumScaleFactor = 0.65
-    fuelText.lineLimit = 1
-    fuelText.rightAlignText()
-  }
-
-  if (!supportsCharging) {
-    batteryInfoStack.addSpacer(2)
-    const rangeBottomStack = batteryInfoStack.addStack()
-    rangeBottomStack.layoutHorizontally()
-    rangeBottomStack.addSpacer()
-    const rangeBottomText = rangeBottomStack.addText(rangeText)
-    rangeBottomText.textColor = primaryText
-    rangeBottomText.font = Font.semiboldSystemFont(17)
-    rangeBottomText.minimumScaleFactor = 0.7
-    rangeBottomText.lineLimit = 1
-    rangeBottomText.rightAlignText()
-  }
-
-  if (supportsCharging && isCharging) {
-    const chargeComplete = getChargeCompletionString(lastSeen, remainingChargingTime)
-    const batteryChargingTimeStack = mainStack.addStack()
-    batteryChargingTimeStack.layoutHorizontally()
-    batteryChargingTimeStack.addSpacer()
-    // batteryChargingTimeStack.addSpacer()
-
-    const chargingSpeedElement = batteryChargingTimeStack.addText(`${chargingKw}`)
-    chargingSpeedElement.font = Font.mediumSystemFont(14)
-    chargingSpeedElement.textOpacity = 0.9
-    chargingSpeedElement.textColor = primaryText
-    chargingSpeedElement.rightAlignText()
-    batteryChargingTimeStack.addSpacer(3)
-
-    const chargingTimeIconElement = batteryChargingTimeStack.addImage(
-      await getTintedIconAsync('charging-complete-widget'),
-    )
-    chargingTimeIconElement.imageSize = new Size(17, 17)
-    batteryChargingTimeStack.addSpacer(3)
-
-    const chargingTimeElement = batteryChargingTimeStack.addText(`${chargeComplete}`)
-    chargingTimeElement.font = Font.mediumSystemFont(14)
-    chargingTimeElement.textOpacity = 0.9
-    chargingTimeElement.textColor = primaryText
-    chargingTimeElement.rightAlignText()
-  }
-  mainStack.addSpacer(8)
-
-  // Symmetric status footer: mileage (left) | last update (center) | 12V battery % (right)
-  const summaryRow = mainStack.addStack()
-  summaryRow.layoutHorizontally()
-  summaryRow.centerAlignContent()
 
   const addSummaryCell = async (
     parent: WidgetStack,
@@ -504,12 +512,12 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
             : Color.red()
           : primaryText
     const img = cell.addImage(await getWidgetIcon(icon, iconColor))
-    img.imageSize = new Size(18, 18)
+    img.imageSize = new Size(profile.footerIconSize, profile.footerIconSize)
     img.imageOpacity = 0.85
-    cell.addSpacer(5)
+    cell.addSpacer(profile.footerGap)
 
     const label = cell.addText(text)
-    label.font = Font.mediumSystemFont(12)
+    label.font = Font.mediumSystemFont(profile.footerFontSize)
     label.textColor = primaryText
     label.textOpacity = 0.85
     label.minimumScaleFactor = 0.8
@@ -521,16 +529,175 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   const lastUpdatedText = lastSeen.toLocaleString(undefined, { hour: 'numeric', minute: '2-digit' })
   const twelveText = twelveSoc > 0 ? `${Math.floor(twelveSoc)}%` : '--'
 
-  summaryRow.addSpacer()
+  const addRightMetricTextRow = (
+    parent: WidgetStack,
+    text: string,
+    rowHeight: number,
+    fontSize: number,
+    minScaleFactor = 0.65,
+  ) => {
+    const row = parent.addStack()
+    row.layoutHorizontally()
+    row.size = new Size(profile.statsColumnWidth, rowHeight)
+    row.addSpacer()
+
+    const label = row.addText(text)
+    label.textColor = primaryText
+    label.font = Font.semiboldSystemFont(fontSize)
+    label.minimumScaleFactor = minScaleFactor
+    label.lineLimit = 1
+    label.rightAlignText()
+
+    if (profile.statsTrailingInset > 0) row.addSpacer(profile.statsTrailingInset)
+  }
+
+  const addRightMetricStack = async (parent: WidgetStack, fixedWidth?: number) => {
+    parent.layoutVertically()
+    if (fixedWidth) parent.size = new Size(fixedWidth, profile.contentRowHeight)
+    parent.addSpacer(profile.batteryInfoTopSpacer)
+
+    if (supportsCharging) {
+      addRightMetricTextRow(parent, rangeText, profile.topMetricRowHeight, profile.rightMetricFontSize, 0.7)
+    }
+    parent.addSpacer(2)
+
+    const batteryPercentStack = parent.addStack()
+    batteryPercentStack.layoutHorizontally()
+    if (fixedWidth) batteryPercentStack.size = new Size(fixedWidth, profile.primaryMetricRowHeight)
+    batteryPercentStack.addSpacer()
+
+    if (supportsCharging) {
+      const metricGroup = batteryPercentStack.addStack()
+      metricGroup.layoutHorizontally()
+      metricGroup.centerAlignContent()
+
+      const batteryIconColor = batteryPercent > 70 ? Color.green() : Color.red()
+      const batterySymbolElement = metricGroup.addImage(await getWidgetIcon('twelve-volt', batteryIconColor))
+      batterySymbolElement.imageSize = profile.batteryIconSize
+      const chargingIcon = getChargingIcon(isCharging, isPluggedIn, true)
+      if (chargingIcon) {
+        const chargingElement = metricGroup.addImage(await getTintedIconAsync(chargingIcon))
+        chargingElement.imageSize = new Size(profile.chargingIconSize, profile.chargingIconSize)
+      }
+
+      metricGroup.addSpacer(profile.footerGap)
+
+      const batteryPercentText = metricGroup.addText(getEnergyText(status, bl))
+      batteryPercentText.textColor =
+        supportsCharging && typeof energyPercent === 'number' ? getBatteryPercentColor(energyPercent) : primaryText
+      batteryPercentText.font = Font.semiboldSystemFont(profile.batteryPercentFontSize)
+      batteryPercentText.minimumScaleFactor = 0.65
+      batteryPercentText.lineLimit = 1
+    } else {
+      const fuelText = batteryPercentStack.addText(getEnergyText(status, bl))
+      fuelText.textColor = primaryText
+      fuelText.font = Font.semiboldSystemFont(profile.rightMetricFontSize)
+      fuelText.minimumScaleFactor = 0.65
+      fuelText.lineLimit = 1
+      fuelText.rightAlignText()
+    }
+    if (profile.statsTrailingInset > 0) batteryPercentStack.addSpacer(profile.statsTrailingInset)
+
+    if (!supportsCharging) {
+      parent.addSpacer(2)
+      addRightMetricTextRow(parent, rangeText, profile.secondaryMetricRowHeight, profile.rightMetricFontSize, 0.7)
+    }
+  }
+
+  const addChargingRow = async () => {
+    if (!supportsCharging || !isCharging) return
+
+    const chargeComplete = getChargeCompletionString(lastSeen, remainingChargingTime)
+    const batteryChargingTimeStack = mainStack.addStack()
+    batteryChargingTimeStack.layoutHorizontally()
+    batteryChargingTimeStack.addSpacer()
+
+    const chargingSpeedElement = batteryChargingTimeStack.addText(`${chargingKw}`)
+    chargingSpeedElement.font = Font.mediumSystemFont(profile.chargingFontSize)
+    chargingSpeedElement.textOpacity = 0.9
+    chargingSpeedElement.textColor = primaryText
+    chargingSpeedElement.rightAlignText()
+    batteryChargingTimeStack.addSpacer(3)
+
+    const chargingTimeIconElement = batteryChargingTimeStack.addImage(
+      await getTintedIconAsync('charging-complete-widget'),
+    )
+    chargingTimeIconElement.imageSize = new Size(profile.footerIconSize, profile.footerIconSize)
+    batteryChargingTimeStack.addSpacer(3)
+
+    const chargingTimeElement = batteryChargingTimeStack.addText(`${chargeComplete}`)
+    chargingTimeElement.font = Font.mediumSystemFont(profile.chargingFontSize)
+    chargingTimeElement.textOpacity = 0.9
+    chargingTimeElement.textColor = primaryText
+    chargingTimeElement.rightAlignText()
+  }
+
+  const usableWidth = profile.widgetWidth - profile.paddingLeft - profile.paddingRight
+  const footerLayout = getMediumWidgetFooterLayout(
+    usableWidth,
+    profile.footerLeadingInset,
+    profile.footerTrailingInset,
+    profile.footerGroupTargetWidth,
+    profile.footerGap,
+  )
+
+  const titleStack = mainStack.addStack()
+  titleStack.layoutHorizontally()
+  titleStack.addSpacer(8)
+  const titleElement = titleStack.addText(`   ${title}`)
+  titleElement.textColor = primaryText
+  titleElement.textOpacity = darkMode ? 0.7 : 1
+  titleElement.font = Font.mediumSystemFont(25)
+  titleElement.minimumScaleFactor = 0.8
+  titleElement.lineLimit = 1
+  titleElement.leftAlignText()
+  mainStack.addSpacer(2)
+
+  const contentRow = mainStack.addStack()
+  contentRow.layoutHorizontally()
+  contentRow.size = new Size(usableWidth, profile.contentRowHeight)
+
+  const mediaWidth = Math.max(1, usableWidth - profile.statsColumnWidth - profile.contentGap)
+  const mediaStack = contentRow.addStack()
+  mediaStack.layoutVertically()
+  mediaStack.size = new Size(mediaWidth, profile.contentRowHeight)
+  const actualImageWidth = Math.max(1, Math.min(profile.carImageWidth, mediaWidth - profile.mediaRightSafetyInset))
+  const actualImageHeight = actualImageWidth / (appIcon.size.width / appIcon.size.height)
+  const leadingSlack = Math.max(0, mediaWidth - actualImageWidth - profile.mediaRightSafetyInset)
+
+  mediaStack.addSpacer()
+  const imageRow = mediaStack.addStack()
+  imageRow.layoutHorizontally()
+  imageRow.size = new Size(mediaWidth, actualImageHeight)
+  imageRow.addSpacer(leadingSlack)
+  const compactImageElement = imageRow.addImage(appIcon)
+  compactImageElement.imageSize = new Size(actualImageWidth, actualImageHeight)
+  if (profile.mediaRightSafetyInset > 0) imageRow.addSpacer(profile.mediaRightSafetyInset)
+  mediaStack.addSpacer()
+
+  contentRow.addSpacer(profile.contentGap)
+
+  const batteryInfoStack = contentRow.addStack()
+  batteryInfoStack.size = new Size(profile.statsColumnWidth, profile.contentRowHeight)
+  await addRightMetricStack(batteryInfoStack, profile.statsColumnWidth)
+
+  await addChargingRow()
+  mainStack.addSpacer(profile.footerTopSpacer)
+
+  const summaryRow = mainStack.addStack()
+  summaryRow.layoutHorizontally()
+  summaryRow.size = new Size(usableWidth, profile.footerRowHeight)
+
+  summaryRow.addSpacer(footerLayout.footerOuterLead)
   const leftCell = summaryRow.addStack()
-  leftCell.size = new Size(88, 24)
-  summaryRow.addSpacer()
+  leftCell.size = new Size(footerLayout.footerCellWidth, profile.footerRowHeight)
+  summaryRow.addSpacer(profile.footerGap)
   const centerCell = summaryRow.addStack()
-  centerCell.size = new Size(88, 24)
-  summaryRow.addSpacer()
+  centerCell.size = new Size(footerLayout.footerCellWidth, profile.footerRowHeight)
+  summaryRow.addSpacer(profile.footerGap)
   const rightCell = summaryRow.addStack()
-  rightCell.size = new Size(88, 24)
-  summaryRow.addSpacer()
+  rightCell.size = new Size(footerLayout.footerCellWidth, profile.footerRowHeight)
+  summaryRow.addSpacer(footerLayout.footerOuterTrail)
 
   await addSummaryCell(leftCell, 'odometer', odometerText, 'left')
   await addSummaryCell(centerCell, 'last-update', lastUpdatedText, 'center')

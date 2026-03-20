@@ -55,6 +55,16 @@ export class Logger {
     this.writeFile(currentData)
   }
 
+  public clear() {
+    if (this.previousFilepath && this.fm.fileExists(this.previousFilepath)) {
+      this.fm.remove(this.previousFilepath)
+    }
+    if (this.fm.fileExists(this.filepath)) {
+      this.fm.remove(this.filepath)
+    }
+    this.previousFilepath = ''
+  }
+
   private redact(filepath: string): string {
     let contents = ''
     if (this.fm.fileExists(filepath)) {

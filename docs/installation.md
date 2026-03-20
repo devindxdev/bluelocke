@@ -49,7 +49,7 @@ Open Scriptable and tap `bluelocke` to run setup.
 <div class="support-callout">
   <h3>Need personal help?</h3>
   <p>If you want help getting Bluelocke installed, signed in, and fully working, you can book a 1:1 Bluelocke Setup &amp; Support Call.</p>
-  <a class="btn btn-primary" href="https://cal.com/bydev.devind/30min" target="_blank" rel="noopener noreferrer">Book Setup Help</a>
+  <a class="support-callout-btn" href="https://cal.com/bydev.devind/30min" target="_blank" rel="noopener noreferrer">Book Setup Help</a>
 </div>
 
 ## Optional Next

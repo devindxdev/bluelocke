@@ -48,22 +48,31 @@ Use iOS Shortcuts automations to run Bluelocke commands automatically.
 
 <div class="automation-card">
   <p><strong>Why this trigger:</strong> For Bluelocke, using <strong>Wi-Fi disconnect</strong> from your vehicle’s CarPlay Wi-Fi SSID is often more reliable than Bluetooth-only disconnect triggers.</p>
+  <p><strong>Recommended shortcut:</strong> Use <strong>Auto Lock - Safe</strong> first. It checks whether the vehicle is unlocked and gives you a chance to confirm before locking.</p>
   <div class="automation-actions">
-    <a class="automation-btn" href="https://www.icloud.com/shortcuts/b413eaa53d054242abaa0cddc3e3c951" target="_blank" rel="noopener noreferrer">Install Auto-Lock Shortcut</a>
+    <a class="automation-btn" href="https://www.icloud.com/shortcuts/280c50ea17d249b0bc2f253e88026c44" target="_blank" rel="noopener noreferrer">Install Auto Lock - Safe</a>
+    <a class="automation-btn" href="https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0" target="_blank" rel="noopener noreferrer">Install Auto Lock</a>
     <a class="automation-btn" href="./shortcuts">Open Shortcuts Docs</a>
   </div>
 </div>
 
 ## Setup Steps
 
-1. Install the Auto-Lock shortcut:
-   [https://www.icloud.com/shortcuts/b413eaa53d054242abaa0cddc3e3c951](https://www.icloud.com/shortcuts/b413eaa53d054242abaa0cddc3e3c951)
+1. Install the recommended safe shortcut:
+   [https://www.icloud.com/shortcuts/280c50ea17d249b0bc2f253e88026c44](https://www.icloud.com/shortcuts/280c50ea17d249b0bc2f253e88026c44)
 2. In iOS Shortcuts, go to `Automation` and tap `+` to create a new personal automation.
 3. Choose `Wi-Fi` as the trigger.
 4. Set trigger to `When I Disconnect` and select your vehicle’s CarPlay Wi-Fi network (SSID).
-5. Add `Run Shortcut` and select your installed Auto-Lock shortcut.
+5. Add `Run Shortcut` and select your installed `Auto Lock - Safe` shortcut.
 6. Set it to run immediately (disable ask-before-running if desired).
 7. Test while near your vehicle before relying on it daily.
+
+## Advanced: Direct Auto-Lock
+
+Use the direct `Auto Lock` shortcut only if you deliberately want the automation to lock immediately without a confirmation prompt.
+
+- Shortcut: [https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0](https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0)
+- Risk: if your phone is left inside the vehicle and the automation runs, you can lock yourself out more easily than with the safe version.
 
 ## Fallback Trigger (If Needed)
 
@@ -74,4 +83,3 @@ If your vehicle setup does not provide stable CarPlay Wi-Fi disconnect events, u
 - Time-based warm/cool shortcut before commute
 - Scheduled charge start/stop routines
 - Periodic status refresh shortcut
-

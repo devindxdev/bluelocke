@@ -1,5 +1,5 @@
 import { initRegionalBluelink } from 'lib/bluelink'
-import { getBluelinkLogger } from 'lib/bluelink-regions/base'
+import { getBluelinkLogger, getBluelinkResponseLogger } from 'lib/bluelink-regions/base'
 import { getWidgetLogger } from 'widget'
 import {
   createSmallWidget,
@@ -44,12 +44,15 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
           switch (opt) {
             case 'Share Debug Logs': {
               const blRedactedLogs = getBluelinkLogger().readAndRedact()
+              const blResponseLogs = getBluelinkResponseLogger().readAndRedact()
               const widgetLogs = getWidgetLogger().readAndRedact()
               const appLogs = getAppLogger().readAndRedact()
               const siriLogs = getSiriLogger().readAndRedact()
               await ShareSheet.present([
                 'Bluelink API logs:',
                 blRedactedLogs,
+                'Bluelink API responses:',
+                blResponseLogs || 'No API response snapshots yet.',
                 'Widget Logs',
                 widgetLogs,
                 'App Logs',
