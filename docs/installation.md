@@ -46,6 +46,8 @@ Bluelocke runs inside the Scriptable iOS app.
 
 Open Scriptable and tap `bluelocke` to run setup.
 
+After setup, the first shortcut worth adding is [Auto Lock - Safe](./shortcuts). It gives you a safer walk-away auto-lock option before you start building other shortcuts or automations.
+
 <div class="support-callout">
   <h3>Need personal help?</h3>
   <p>If you want help getting Bluelocke installed, signed in, and fully working, you can book a 1:1 Bluelocke Setup &amp; Support Call.</p>
