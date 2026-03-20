@@ -171,7 +171,7 @@ const KNOWN_TRIM_LABELS: Array<{ matcher: RegExp; label: string }> = [
   { matcher: /\bn[\s-]?line\b/i, label: 'N Line' },
   { matcher: /\bxrt\b/i, label: 'XRT' },
   { matcher: /\bpreferred\b/i, label: 'Preferred' },
-  { matcher: /\bultimate\b/i, label: 'Ultimate' },
+  { matcher: /\bult(?:imate)?\b/i, label: 'Ultimate' },
   { matcher: /\blimited\b/i, label: 'Limited' },
   { matcher: /\bcalligraphy\b/i, label: 'Calligraphy' },
   { matcher: /\bgt[\s-]?line\b/i, label: 'GT-Line' },
