@@ -22,17 +22,27 @@ const includesAll = (haystack: string, needles: string[] | undefined): boolean =
   })
 }
 
+const excludesAny = (haystacks: string[], needles: string[] | undefined): boolean => {
+  if (!needles || needles.length === 0) return false
+  return needles.some((needle) => {
+    const normalizedNeedle = normalize(needle)
+    if (!normalizedNeedle) return false
+    return haystacks.some((haystack) => haystack.includes(normalizedNeedle))
+  })
+}
+
 const matchesRule = (rule: VehicleImageRule, lookup: VehicleImageLookupInput): boolean => {
   const normalizedModelName = normalize(lookup.modelName)
   const normalizedManufacturer = normalize(lookup.manufacturer)
   const normalizedYear = normalize(lookup.modelYear)
-  const trimCandidates = [normalize(lookup.modelTrim), normalizedModelName]
+  const trimCandidates = [normalize(lookup.modelTrim), normalize(lookup.trimHint), normalizedModelName]
   const colorCandidates = [normalize(lookup.requestedColor), normalize(lookup.modelColour)]
 
   if (!includesAny([normalizedManufacturer], rule.match.manufacturerIncludesAny)) return false
   if (!includesAny([normalizedYear], rule.match.years)) return false
   if (!includesAll(normalizedModelName, rule.match.modelIncludesAll)) return false
   if (!includesAny(trimCandidates, rule.match.trimIncludesAny)) return false
+  if (excludesAny(trimCandidates, rule.match.trimExcludesAny)) return false
   if (!includesAny(colorCandidates, rule.match.colorIncludesAny)) return false
 
   return true

@@ -2,6 +2,7 @@ export interface VehicleImageMatch {
   manufacturerIncludesAny?: string[]
   modelIncludesAll?: string[]
   trimIncludesAny?: string[]
+  trimExcludesAny?: string[]
   years?: string[]
   colorIncludesAny?: string[]
 }
@@ -18,6 +19,7 @@ export interface VehicleImageLookupInput {
   modelName?: string
   modelYear?: string
   modelTrim?: string
+  trimHint?: string
   modelColour?: string
   requestedColor?: string
 }

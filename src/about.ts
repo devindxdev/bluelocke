@@ -19,6 +19,7 @@ const DEBUG_LOG_SECTIONS = [
   'Bluelink API Responses',
 ] as const
 type DebugLogSection = (typeof DEBUG_LOG_SECTIONS)[number]
+type DebugViewerAction = 'share-api-response' | 'close'
 
 function getDebugLogContents(section: DebugLogSection): string {
   switch (section) {
@@ -62,9 +63,35 @@ function escapeHtml(value: string): string {
     .replaceAll("'", '&#39;')
 }
 
-async function presentDebugLogViewer(section: DebugLogSection) {
-  const content = getDebugLogContents(section)
+async function presentDebugContentViewer(
+  title: string,
+  description: string,
+  content: string,
+  actions: DebugViewerAction[] = [],
+) {
   const webView = new WebView()
+  const supportsShareApiResponse = actions.includes('share-api-response')
+  const actionBar = actions.length
+    ? `
+        <div class="actions">
+          ${supportsShareApiResponse ? '<a class="btn primary" href="bluelocke://share-api-response">Share</a>' : ''}
+          <a class="btn" href="bluelocke://close">Close</a>
+        </div>
+      `
+    : ''
+
+  if (actions.length > 0) {
+    webView.shouldAllowRequest = (request) => {
+      if (!request.url.startsWith('bluelocke://')) return true
+
+      if (request.url === 'bluelocke://share-api-response') {
+        ShareSheet.present(['Bluelink API responses:', getDebugLogContents('Bluelink API Responses')])
+      }
+
+      return false
+    }
+  }
+
   await webView.loadHTML(`
     <html>
       <head>
@@ -86,6 +113,29 @@ async function presentDebugLogViewer(section: DebugLogSection) {
             border-radius: 18px;
             padding: 18px;
             box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+          }
+          .actions {
+            display: flex;
+            gap: 10px;
+            margin: 0 0 16px 0;
+          }
+          .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.92);
+            text-decoration: none;
+            font-weight: 600;
+          }
+          .btn.primary {
+            border-color: #2563eb;
+            background: #2563eb;
+            color: #ffffff;
           }
           h1 {
             margin: 0 0 10px 0;
@@ -114,6 +164,16 @@ async function presentDebugLogViewer(section: DebugLogSection) {
               border-color: rgba(96, 165, 250, 0.24);
               box-shadow: none;
             }
+            .btn {
+              border-color: rgba(148, 163, 184, 0.32);
+              color: #e2e8f0;
+              background: rgba(15, 23, 42, 0.8);
+            }
+            .btn.primary {
+              border-color: rgba(96, 165, 250, 0.9);
+              background: #2563eb;
+              color: #ffffff;
+            }
             p {
               color: #94a3b8;
             }
@@ -122,14 +182,23 @@ async function presentDebugLogViewer(section: DebugLogSection) {
       </head>
       <body>
         <div class="card">
-          <h1>${escapeHtml(section)}</h1>
-          <p>Redacted log view. Reproduce the issue first, then refresh this screen.</p>
+          <h1>${escapeHtml(title)}</h1>
+          <p>${escapeHtml(description)}</p>
+          ${actionBar}
           <pre>${escapeHtml(content)}</pre>
         </div>
       </body>
     </html>
   `)
   await webView.present()
+}
+
+async function presentDebugLogViewer(section: DebugLogSection) {
+  await presentDebugContentViewer(
+    section,
+    'Redacted log view. Reproduce the issue first, then refresh this screen.',
+    getDebugLogContents(section),
+  )
 }
 
 export function doDowngrade(appFile = `${Script.name()}.js`) {
@@ -185,7 +254,7 @@ export async function loadAboutScreen(bl?: Bluelink) {
       appWebsite(),
       author(),
       viewDebugLogs(),
-      shareApiResponseData(bl),
+      viewApiResponseData(bl),
       shareDebugLogs(),
       Spacer({ rowHeight: 30 }),
       currentVersion(),
@@ -266,10 +335,10 @@ const viewDebugLogs = connect(() => {
   )
 })
 
-const shareApiResponseData = (bl?: Bluelink) =>
+const viewApiResponseData = (bl?: Bluelink) =>
   Div(
     [
-      P('Share API Response Data', {
+      P('View API Response Data', {
         font: (n) => Font.mediumRoundedSystemFont(n),
         fontSize: 20,
         color: Color.blue(),
@@ -277,8 +346,8 @@ const shareApiResponseData = (bl?: Bluelink) =>
       }),
       P(
         bl
-          ? 'Fetches fresh vehicle data from Bluelink, saves the returned payload once, then opens the share sheet.'
-          : 'Open About from the main app to fetch and share fresh API response data.',
+          ? 'Fetches fresh vehicle data from Bluelink, then opens a redacted in-app viewer. Use Share inside the viewer if needed.'
+          : 'Open About from the main app to fetch fresh API response data. Cached response snapshots can still be viewed here.',
         {
           font: (n) => Font.mediumRoundedSystemFont(n),
           fontSize: 16,
@@ -290,21 +359,22 @@ const shareApiResponseData = (bl?: Bluelink) =>
     {
       height: 90,
       onTap: async () => {
-        if (!bl) {
-          await OK('Unavailable Here', {
-            message: 'Open About from the main app, then use Share API Response Data there.',
-          })
-          return
+        if (bl) {
+          getBluelinkResponseLogger().clear()
+          try {
+            await bl.refreshAuth()
+            queueNextApiResponseCapture()
+            await bl.getStatus(false, true)
+          } catch (error) {
+            getBluelinkResponseLogger().log(`Failed to fetch API response data: ${error}`)
+          }
         }
-        getBluelinkResponseLogger().clear()
-        try {
-          await bl.refreshAuth()
-          queueNextApiResponseCapture()
-          await bl.getStatus(false, true)
-        } catch (error) {
-          getBluelinkResponseLogger().log(`Failed to fetch API response data: ${error}`)
-        }
-        await ShareSheet.present(['Bluelink API responses:', getDebugLogContents('Bluelink API Responses')])
+        await presentDebugContentViewer(
+          'Bluelink API Responses',
+          'Redacted response view. Fetch fresh data from the main app before sharing if you need a current snapshot.',
+          getDebugLogContents('Bluelink API Responses'),
+          ['share-api-response', 'close'],
+        )
       },
     },
   )
