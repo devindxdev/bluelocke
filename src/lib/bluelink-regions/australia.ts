@@ -376,6 +376,18 @@ export class BluelinkAustralia extends Bluelink {
     const fuelLevel =
       this.getFuelLevelFromStatus(status?.Drivetrain?.FuelSystem ?? status) ??
       (this.cache ? this.cache.status.fuelLevel : undefined)
+    const doorLockValues = [
+      this.parseNumber(status?.Cabin?.Door?.Row1?.Driver?.Lock),
+      this.parseNumber(status?.Cabin?.Door?.Row1?.Passenger?.Lock),
+      this.parseNumber(status?.Cabin?.Door?.Row2?.Left?.Lock),
+      this.parseNumber(status?.Cabin?.Door?.Row2?.Right?.Lock),
+    ].filter((value): value is number => typeof value === 'number')
+    const isLocked =
+      doorLockValues.length > 0
+        ? doorLockValues.every((value) => value === 0)
+        : this.cache
+          ? this.cache.status.locked
+          : false
 
     return {
       lastStatusCheck: Date.now(),
@@ -391,12 +403,7 @@ export class BluelinkAustralia extends Bluelink {
           : this.cache
             ? this.cache.status.range
             : 0,
-      locked: !(
-        Boolean(status?.Cabin?.Door?.Row1?.Driver?.Open) &&
-        Boolean(status?.Cabin?.Door?.Row1?.Passenger?.Open) &&
-        Boolean(status?.Cabin?.Door?.Row2?.Driver?.Open) &&
-        Boolean(status?.Cabin?.Door?.Row2?.Passenger?.Open)
-      ),
+      locked: isLocked,
       climate: Boolean((this.parseNumber(status?.Cabin?.HVAC?.Row1?.Driver?.Blower?.SpeedLevel) ?? 0) > 0),
       soc: typeof soc === 'number' ? soc : this.cache ? this.cache.status.soc : 0,
       fuelLevel,

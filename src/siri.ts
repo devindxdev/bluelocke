@@ -184,13 +184,17 @@ async function customClimate(bl: Bluelink, data: CustomClimateConfig): Promise<s
   )
 }
 
+function shouldIgnoreRunningStateForShortcuts(bl: Bluelink): boolean {
+  return bl.getConfig().auth.region === 'australia'
+}
+
 async function lock(bl: Bluelink): Promise<string> {
   const status = await getShortcutStatus(bl, true)
   if (!status) return 'Unable to validate vehicle state.'
   if (status.status.locked) return ''
 
   // Across regions, climate/air control on is our most reliable running signal.
-  if (status.status.climate) {
+  if (!shouldIgnoreRunningStateForShortcuts(bl) && status.status.climate) {
     return `Vehicle running.`
   }
 
@@ -210,7 +214,7 @@ async function autoLock(bl: Bluelink): Promise<string> {
   }
 
   // Across regions, climate/air control on is our most reliable running signal.
-  if (status.status.climate) {
+  if (!shouldIgnoreRunningStateForShortcuts(bl) && status.status.climate) {
     return `Vehicle running.`
   }
 
@@ -263,6 +267,7 @@ async function autoLockChecker(bl: Bluelink): Promise<string> {
   const status = await getShortcutStatus(bl, true)
   if (!status) return 'false'
   const isUnlocked = !status.status.locked
+  if (shouldIgnoreRunningStateForShortcuts(bl)) return isUnlocked ? 'true' : 'false'
   // Across regions, climate/air control on is our most reliable running signal.
   const isNotRunning = !status.status.climate
   return isUnlocked && isNotRunning ? 'true' : 'false'
