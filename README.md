@@ -2,15 +2,6 @@
 
 Bluelocke is a Scriptable app for iOS that lets you monitor and control Hyundai, Kia, and Genesis vehicles using Bluelink-compatible APIs.
 
-## Project Origin
-
-This project is forked from Andy Fase's upstream work:
-
-- Upstream repo: [andyfase/egmp-bluelink-scriptable](https://github.com/andyfase/egmp-bluelink-scriptable)
-- Upstream docs: [bluelink.andyfase.com](https://bluelink.andyfase.com)
-
-Andy built the original foundation this project is based on. Credit to Andy for the core architecture, feature direction, and initial docs structure.
-
 ## Features
 
 - Home screen and lock screen widgets
@@ -68,3 +59,5 @@ npm run lint
 ## License
 
 This repository is licensed under the MIT License. See [LICENSE](./LICENSE).
+
+<sub>This repo was forked from [Andy Fase's upstream work](https://github.com/andyfase/egmp-bluelink-scriptable) and overhauled to support HEV &amp; EV with a huge focus on widgets and walk-away auto lock.</sub>

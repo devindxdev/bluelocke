@@ -27,6 +27,4 @@ Bluelocke is a Scriptable app for iOS that lets you monitor and control your Hyu
 - [Help / FAQ](./help)
 - [Auto Update](./auto-update)
 
-## Credits
-
-This docs structure is adapted from the original documentation created by Andy Fase for the upstream project.
+<sub>Bluelocke was forked from [Andy Fase's upstream work](https://github.com/andyfase/egmp-bluelink-scriptable) and overhauled to support HEV &amp; EV with a huge focus on widgets and walk-away auto lock.</sub>
