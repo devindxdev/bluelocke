@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluelocke - iOS Vehicle Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            background-color: #ffffff;
+            color: #0f172a; /* Slate 900 */
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        .animate-float-delayed {
+            animation: float 6s ease-in-out infinite;
+            animation-delay: 1.5s;
+        }
+
+        /* Hide scrollbar for clean aesthetic */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="antialiased overflow-x-hidden selection:bg-blue-600 selection:text-white">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full top-0 z-50 glass-panel">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white shadow-md">
+                    <i class="fas fa-shield-alt text-sm"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-black">Bluelocke</span>
+            </div>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-500">
+                <a href="#features" class="hover:text-black transition-colors">Features</a>
+                <a href="https://devindxdev.github.io/bluelocke/" target="_blank" class="hover:text-black transition-colors">Docs</a>
+                <a href="https://github.com/devindxdev/bluelocke" target="_blank" class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black hover:bg-slate-800 transition-all text-white shadow-lg shadow-black/10">
+                    <i class="fab fa-github text-lg"></i>
+                    <span>View on GitHub</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-slate-50/50">
+        <!-- Background decorative elements -->
+        <div class="absolute top-0 right-0 w-[40rem] h-[40rem] bg-slate-100 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
+
+        <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-16 lg:gap-8 items-center">
+            
+            <!-- Hero Text -->
+            <div class="flex flex-col items-start z-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-sm font-medium mb-8 shadow-sm">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-40"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Scriptable App for iOS
+                </div>
+                <h1 class="text-5xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6 text-black">
+                    Smart control for your vehicle. <span class="text-blue-600 block mt-2">Right from iOS.</span>
+                </h1>
+                <p class="text-lg text-slate-500 mb-8 max-w-xl leading-relaxed">
+                    An open-source project to help bring walk-away auto lock and widgets to your Hyundai, Kia, or Genesis vehicle. Currently supporting Canada, USA, Europe, India, and Australia.
+                </p>
+                <div class="flex flex-wrap items-center gap-4">
+                    <a href="https://github.com/devindxdev/bluelocke" target="_blank" class="px-8 py-4 rounded-full bg-black hover:bg-blue-600 text-white font-semibold transition-all shadow-xl shadow-black/10 flex items-center gap-3">
+                        <i class="fas fa-download"></i>
+                        Get Bluelocke
+                    </a>
+                    <a href="https://devindxdev.github.io/bluelocke/" target="_blank" class="px-8 py-4 rounded-full bg-white hover:bg-slate-50 text-black font-semibold border border-slate-200 transition-all shadow-sm flex items-center gap-2">
+                        <i class="fas fa-book text-slate-400"></i>
+                        Read the Docs
+                    </a>
+                </div>
+            </div>
+
+            <!-- Hero Images layered -->
+            <div class="relative flex justify-center lg:justify-end mt-10 lg:mt-0 h-[500px] lg:h-[600px]">
+                
+                <!-- Lock screen group (Back) -->
+                <div class="relative z-10">
+                    <!-- Label Outside Top -->
+                    <div class="absolute -top-5 left-1/2 -translate-x-1/2 bg-white text-black text-xs font-bold px-4 py-2 rounded-full shadow-lg border border-slate-200 whitespace-nowrap z-20 flex items-center gap-1.5">
+                        <i class="fas fa-lock text-slate-400"></i> Lock Screen Widget
+                    </div>
+                    
+                    <!-- Lock screen image -->
+                    <div class="w-64 md:w-[300px] h-[550px] rounded-[3rem] overflow-hidden shadow-2xl border-[8px] border-white bg-slate-100">
+                        <img src="https://devindxdev.github.io/bluelocke/images/lockscreen-widget-and-shortcuts.jpg" alt="Bluelocke Lockscreen" class="w-full h-full object-cover">
+                    </div>
+                </div>
+                
+                <!-- White widget group (Front) -->
+                <div class="absolute bottom-12 -left-4 lg:-left-12 z-20">
+                    <!-- Label Outside Bottom -->
+                    <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-white text-black text-xs font-bold px-4 py-2 rounded-full shadow-lg border border-slate-200 whitespace-nowrap z-30 flex items-center gap-1.5">
+                        <i class="fas fa-home text-blue-500"></i> Home Screen Widget
+                    </div>
+
+                    <!-- White widget image -->
+                    <div class="w-48 md:w-[280px] rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white bg-white">
+                        <img src="https://devindxdev.github.io/bluelocke/images/widget-background-white.png" alt="Bluelocke White Widget" class="w-full h-auto object-cover">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Supported Brands Banner -->
+    <section class="border-y border-slate-200 bg-white py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <p class="text-center text-xs font-bold text-slate-400 tracking-[0.2em] uppercase mb-8">Compatible via Bluelink API with</p>
+            <div class="flex flex-wrap justify-center items-center gap-16 md:gap-24 opacity-60 hover:opacity-100 transition-opacity duration-500">
+                <!-- Brand Logos with CSS blending to ensure they look clean on white -->
+                <img src="https://di-uploads-pod5.dealerinspire.com/triplejsaipan/uploads/2018/05/HyundaiLogoStacked_4cblk-1024x659.gif" alt="Hyundai Logo" class="h-10 md:h-12 object-contain mix-blend-multiply grayscale">
+                <img src="https://bucket.dealervenom.com/2023/05/Kia.png?auto=compress%2Cformat&ixlib=php-3.3.1" alt="Kia Logo" class="h-8 md:h-10 object-contain mix-blend-multiply grayscale">
+                <img src="https://1000logos.net/wp-content/uploads/2019/10/Genesis-Logo.png" alt="Genesis Logo" class="h-12 md:h-14 object-contain mix-blend-multiply grayscale">
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 relative bg-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center max-w-2xl mx-auto mb-20">
+                <h2 class="text-3xl md:text-5xl font-extrabold text-black mb-6">Built for seamless automation.</h2>
+                <p class="text-slate-500 text-lg">Bluelocke brings the most requested vehicle features natively to your iOS ecosystem, without bloated manufacturer apps.</p>
+            </div>
+
+            <!-- Bento Grid -->
+            <div class="grid md:grid-cols-3 gap-6">
+                
+                <!-- Highlight Feature: Walk-away lock -->
+                <div class="md:col-span-2 bg-slate-50 rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden border border-slate-200 group hover:border-black/20 transition-all">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px]"></div>
+                    <div class="relative z-10 flex flex-col h-full justify-between">
+                        <div class="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl mb-8 shadow-lg shadow-blue-600/20">
+                            <i class="fas fa-person-walking-arrow-right"></i>
+                        </div>
+                        <div>
+                            <div class="inline-block px-3 py-1 bg-blue-600 text-white text-[10px] font-bold tracking-widest rounded-full uppercase mb-5">Primary Focus</div>
+                            <h3 class="text-2xl md:text-3xl font-bold text-black mb-4">Walk-away Auto Lock</h3>
+                            <p class="text-slate-500 leading-relaxed max-w-md text-lg">
+                                Never wonder if you left your car unlocked again. Bluelocke leverages iOS Shortcuts and Automations to automatically ensure your vehicle is locked as you walk away.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widgets -->
+                <div class="bg-slate-50 rounded-[2.5rem] p-8 relative overflow-hidden border border-slate-200 flex flex-col items-start justify-between">
+                    <div class="w-full mb-6 relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+                         <img src="https://devindxdev.github.io/bluelocke/images/widget-background-white.png" alt="Widget Preview" class="w-full h-auto">
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-black mb-2">Home & Lock Widgets</h3>
+                        <p class="text-slate-500 text-sm leading-relaxed">
+                            Keep your vehicle's status at a glance. Beautifully crafted, native-feeling widgets.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Siri Shortcuts -->
+                <div class="bg-slate-50 rounded-[2.5rem] p-8 relative overflow-hidden border border-slate-200">
+                    <div class="w-14 h-14 rounded-2xl bg-white border border-slate-200 text-blue-600 flex items-center justify-center text-2xl mb-8 shadow-sm">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-black mb-3">Siri Commands</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">
+                        "Hey Siri, cool down the car." Deep integration with iOS Shortcuts lets you control your vehicle with just your voice.
+                    </p>
+                </div>
+
+                <!-- Full Control -->
+                <div class="md:col-span-2 bg-slate-50 rounded-[2.5rem] p-8 relative overflow-hidden border border-slate-200 flex flex-col md:flex-row items-center gap-8">
+                    <div class="flex-1">
+                        <div class="w-14 h-14 rounded-2xl bg-white border border-slate-200 text-blue-600 flex items-center justify-center text-2xl mb-8 shadow-sm">
+                            <i class="fas fa-sliders-h"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-black mb-3">In-App Controls</h3>
+                        <p class="text-slate-500 leading-relaxed">
+                            A minimal interface for when you need manual control. Instantly lock/unlock doors, trigger climate controls, or force a status refresh directly within the script.
+                        </p>
+                    </div>
+                    <!-- Minimal UI representation -->
+                    <div class="w-full md:w-64 flex flex-col gap-3 p-5 bg-white rounded-3xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                            <span class="text-sm font-semibold text-black">Lock Doors</span>
+                            <div class="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center">
+                                <i class="fas fa-lock text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                            <span class="text-sm font-semibold text-black">Start Climate</span>
+                            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <i class="fas fa-snowflake text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer / CTA -->
+    <footer class="border-t border-slate-200 bg-slate-50 pt-24 pb-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col items-center text-center mb-20">
+                <div class="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl mb-8 shadow-xl shadow-blue-600/20">
+                    <i class="fas fa-car"></i>
+                </div>
+                <h2 class="text-3xl md:text-4xl font-extrabold text-black mb-6">Ready to upgrade your drive?</h2>
+                <p class="text-slate-500 mb-10 max-w-md text-lg">Download the Scriptable app and grab the Bluelocke source from GitHub to get started.</p>
+                <a href="https://github.com/devindxdev/bluelocke" target="_blank" class="px-8 py-4 rounded-full bg-black text-white font-bold hover:bg-blue-600 transition-all shadow-xl shadow-black/10 flex items-center gap-3">
+                    <i class="fab fa-github text-xl"></i>
+                    Get it on GitHub
+                </a>
+            </div>
+            
+            <div class="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-slate-200 text-sm text-slate-400 font-medium">
+                <p>&copy; 2026 Bluelocke. Open source project.</p>
+                <div class="flex items-center gap-6 mt-4 md:mt-0">
+                    <span class="hover:text-black transition-colors cursor-pointer">Built with Scriptable</span>
+                    <span class="hover:text-black transition-colors cursor-pointer">Bluelink API</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

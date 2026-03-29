@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "source ./build.sh; build",
+    "build:site": "sh ./scripts/build-site.sh",
     "prebuild": "npm run lint",
     "lint": "npm run prettier && eslint \"*.ts\" \"src/**/*.ts\" --fix",
     "watch": "source ./build.sh; build_and_watch",
