@@ -4,7 +4,8 @@
   "description": "testing",
   "main": "index.js",
   "scripts": {
-    "build": "source ./build.sh; build",
+    "build": "if [ \"${VERCEL:-}\" = \"1\" ]; then npm run build:site; else npm run build:scriptable; fi",
+    "build:scriptable": "source ./build.sh; build",
     "build:site": "sh ./scripts/build-site.sh",
     "prebuild": "npm run lint",
     "lint": "npm run prettier && eslint \"*.ts\" \"src/**/*.ts\" --fix",
