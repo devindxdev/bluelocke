@@ -14,6 +14,15 @@ import { getAppLogger, getSiriLogger } from './lib/util'
 import { processSiriRequest } from 'siri'
 import { getConfig, loadConfigScreen, configExists } from 'config'
 import { confirm, quickOptions } from './lib/scriptable-utils'
+
+function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean): string {
+  if (region === 'canada') {
+    return requiresForegroundAuth
+      ? 'Login failed. Canada 2FA may require opening Bluelocke in the main app to enter the verification code.'
+      : 'Login failed - please re-check your credentials. If Canada 2FA is enabled, enter the verification code when prompted.'
+  }
+  return 'Login failed - please re-check your credentials.'
+}
 ;(async () => {
   // load config on first run if not configured
   if (!configExists() && (config.runsWithSiri || config.runsInWidget)) return
@@ -87,7 +96,7 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
     if (config.runsWithSiri || config.runsInWidget) {
       const errorMessage =
         bl && bl.loginFailed()
-          ? 'Login failed - please re-check your credentials.'
+          ? getLoginFailureMessage(blConfig.auth.region, true)
           : 'Something went wrong initializing Bluelink.'
       if (config.runsWithSiri) getSiriLogger().log(errorMessage)
       if (config.runsInWidget) {
@@ -101,7 +110,7 @@ import { confirm, quickOptions } from './lib/scriptable-utils'
       return
     }
     if (bl && bl.loginFailed()) {
-      await confirm('Login Failed - please re-check your credentials', {
+      await confirm(getLoginFailureMessage(blConfig.auth.region, false), {
         confirmButtonTitle: 'Ok',
         includeCancel: false,
       })

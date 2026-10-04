@@ -8,15 +8,30 @@ import {
   Location,
   DEFAULT_STATUS_CHECK_INTERVAL,
   MAX_COMPLETION_POLLS,
+  WIDGET_REQUEST_TIMEOUT_SECS,
 } from './base'
 import { Config } from '../../config'
 import { isNotEmptyObject } from '../util'
+import { textInput } from '../scriptable-utils/'
 
 const DEFAULT_API_DOMAIN = 'mybluelink.ca'
 const API_DOMAINS: Record<string, string> = {
   hyundai: 'mybluelink.ca',
   kia: 'kiaconnect.ca',
   genesis: 'genesisconnect.ca',
+}
+const CANADA_MFA_REQUEST_KEY = `${Script.name().replaceAll(' ', '')}-canada-mfa-requested-at`
+const CANADA_MFA_REQUEST_COOLDOWN_MS = 2 * 60 * 1000
+
+interface MFAResponse {
+  requestId: string
+  otpKey?: string
+  email: string
+  phone?: string
+}
+
+function canPromptForCanadaMfa(): boolean {
+  return !config.runsInWidget && !config.runsWithSiri
 }
 
 export class BluelinkCanada extends Bluelink {
@@ -77,6 +92,47 @@ export class BluelinkCanada extends Bluelink {
     return obj
   }
 
+  protected getAdditionalHeaders(): Record<string, string> {
+    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.deviceid) {
+      this.additionalHeaders.deviceid = this.cache.token.additionalTokens.deviceid
+    }
+    return this.additionalHeaders
+  }
+
+  private regenerateDeviceId(): void {
+    this.additionalHeaders.deviceid = UUID.string()
+    if (this.cache && this.cache.token) {
+      this.cache.token.additionalTokens = {
+        ...(this.cache.token.additionalTokens || {}),
+        deviceid: this.additionalHeaders.deviceid,
+      }
+      this.saveCache()
+    }
+  }
+
+  private hasRecentMfaRequest(): boolean {
+    if (!Keychain.contains(CANADA_MFA_REQUEST_KEY)) return false
+    const rawValue = Keychain.get(CANADA_MFA_REQUEST_KEY)
+    const requestedAt = Number.parseInt(rawValue, 10)
+    if (!Number.isFinite(requestedAt)) {
+      Keychain.remove(CANADA_MFA_REQUEST_KEY)
+      return false
+    }
+    if (Date.now() - requestedAt > CANADA_MFA_REQUEST_COOLDOWN_MS) {
+      Keychain.remove(CANADA_MFA_REQUEST_KEY)
+      return false
+    }
+    return true
+  }
+
+  private markMfaRequestStarted(): void {
+    Keychain.set(CANADA_MFA_REQUEST_KEY, Date.now().toString())
+  }
+
+  private clearMfaRequestStarted(): void {
+    if (Keychain.contains(CANADA_MFA_REQUEST_KEY)) Keychain.remove(CANADA_MFA_REQUEST_KEY)
+  }
+
   private requestResponseValid(
     resp: Record<string, any>,
     payload: Record<string, any>,
@@ -103,6 +159,7 @@ export class BluelinkCanada extends Bluelink {
     const req = new Request(`https://${this.apiHost}/login`)
     req.headers = this.getAdditionalHeaders()
     req.method = 'GET'
+    if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
     await req.load()
     if (req.response.cookies) {
       for (const cookie of req.response.cookies) {
@@ -112,6 +169,171 @@ export class BluelinkCanada extends Bluelink {
       }
     }
     return ''
+  }
+
+  private async getMfaRequestDetails(username: string): Promise<MFAResponse> {
+    const resp = await this.request({
+      url: this.apiDomain + 'mfa/selverifmeth',
+      data: JSON.stringify({
+        mfaApiCode: '0107',
+        userAccount: username,
+      }),
+      validResponseFunction: this.requestResponseValid,
+      headers: {},
+      noAuth: true,
+    })
+
+    if (this.requestResponseValid(resp.resp, resp.json).valid) {
+      const result = resp.json.result || {}
+      const emailList = Array.isArray(result.emailList) ? result.emailList : []
+      const email = emailList.length > 0 ? emailList[0] : username
+      const phone = result.userPhone || undefined
+      return {
+        requestId: result.userInfoUuid,
+        email: email,
+        phone: phone,
+      }
+    }
+
+    const error = `Failed to get MFA request details: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    throw Error(error)
+  }
+
+  protected async mfa(
+    username: string,
+    otpRequest: MFAResponse,
+    authCookie: string,
+  ): Promise<BluelinkTokens | undefined> {
+    if (!canPromptForCanadaMfa()) {
+      if (this.config.debugLogging) {
+        this.logger.log('Canada MFA required in non-interactive context; skipping OTP send until app is opened.')
+      }
+      return undefined
+    }
+
+    if (this.hasRecentMfaRequest()) {
+      if (this.config.debugLogging) {
+        this.logger.log('Canada MFA request already sent recently; suppressing duplicate OTP send.')
+      }
+      return undefined
+    }
+
+    this.markMfaRequestStarted()
+
+    const notifyBySms = this.config.mfaPreference === 'sms' && otpRequest.phone
+    const sendOtpResp = await this.request({
+      url: this.apiDomain + 'mfa/sendotp',
+      data: JSON.stringify({
+        otpMethod: notifyBySms ? 'M' : 'E',
+        mfaApiCode: '0107',
+        userAccount: otpRequest.email,
+        userPhone: notifyBySms ? otpRequest.phone : '',
+        userInfoUuid: otpRequest.requestId,
+      }),
+      validResponseFunction: this.requestResponseValid,
+      headers: {},
+      noAuth: true,
+    })
+    if (!this.requestResponseValid(sendOtpResp.resp, sendOtpResp.json).valid) {
+      this.clearMfaRequestStarted()
+      this.regenerateDeviceId()
+      const error = `MFA Send Failed: ${JSON.stringify(sendOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
+    }
+
+    const otpKey = sendOtpResp.json.result && sendOtpResp.json.result.otpKey
+    if (!otpKey) {
+      this.clearMfaRequestStarted()
+      this.regenerateDeviceId()
+      const error = `MFA Send Failed: missing otpKey ${JSON.stringify(sendOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
+    }
+    otpRequest.otpKey = otpKey
+
+    const otpCode = await textInput(`MFA code sent via ${notifyBySms ? 'sms' : 'email'}.`, {
+      submitText: 'Enter Code',
+      flavor: 'number',
+    })
+    if (!otpCode) {
+      this.clearMfaRequestStarted()
+      if (this.config.debugLogging) this.logger.log('MFA Verify Failed / Cancelled')
+      return undefined
+    }
+
+    if (this.config.debugLogging) this.logger.log(`MFA Code entered: ${otpCode}`)
+    const validateOtpResp = await this.request({
+      url: this.apiDomain + 'mfa/validateotp',
+      data: JSON.stringify({
+        otpNo: otpCode,
+        userAccount: username,
+        otpKey: otpRequest.otpKey,
+        mfaApiCode: '0107',
+      }),
+      validResponseFunction: this.requestResponseValid,
+      headers: {},
+      noAuth: true,
+    })
+    if (!this.requestResponseValid(validateOtpResp.resp, validateOtpResp.json).valid) {
+      this.clearMfaRequestStarted()
+      this.regenerateDeviceId()
+      const error = `MFA Verify Failed: ${JSON.stringify(validateOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
+    }
+
+    const otpValidationKey = validateOtpResp.json.result && validateOtpResp.json.result.otpValidationKey
+    if (!otpValidationKey) {
+      this.clearMfaRequestStarted()
+      this.regenerateDeviceId()
+      const error = `MFA Verify Failed: missing otpValidationKey ${JSON.stringify(validateOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
+    }
+
+    if (!validateOtpResp.json.result.verifiedOtp) {
+      this.clearMfaRequestStarted()
+      this.regenerateDeviceId()
+      const error = `MFA Verify Failed: OTP was not verified ${JSON.stringify(validateOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
+    }
+
+    const genTokenResp = await this.request({
+      url: this.apiDomain + 'mfa/genmfatkn',
+      data: JSON.stringify({
+        userAccount: username,
+        otpEmail: otpRequest.email,
+        mfaApiCode: '0107',
+        otpValidationKey: otpValidationKey,
+        mfaYn: 'Y',
+      }),
+      validResponseFunction: this.requestResponseValid,
+      headers: {},
+      noAuth: true,
+    })
+    if (this.requestResponseValid(genTokenResp.resp, genTokenResp.json).valid) {
+      this.clearMfaRequestStarted()
+      const token = genTokenResp.json.result.token
+      const deviceid = this.getAdditionalHeaders().deviceid || ''
+      return {
+        accessToken: token.accessToken,
+        refreshToken: token.refreshToken,
+        expiry: Math.floor(Date.now() / 1000) + Number(token.expireIn),
+        authCookie: authCookie,
+        additionalTokens: {
+          deviceid: deviceid,
+        },
+      }
+    }
+
+    this.clearMfaRequestStarted()
+    this.regenerateDeviceId()
+    const error = `MFA token generation failed: ${JSON.stringify(genTokenResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    return undefined
   }
 
   protected async login(): Promise<BluelinkTokens | undefined> {
@@ -130,13 +352,34 @@ export class BluelinkCanada extends Bluelink {
       validResponseFunction: this.requestResponseValid,
     })
     if (this.requestResponseValid(resp.resp, resp.json).valid) {
+      const deviceid = this.getAdditionalHeaders().deviceid || ''
       return {
         accessToken: resp.json.result.token.accessToken,
+        refreshToken: resp.json.result.token.refreshToken,
         expiry: Math.floor(Date.now() / 1000) + Number(resp.json.result.token.expireIn), // we only get a expireIn not a actual date
         authCookie: cookieValue,
+        additionalTokens: {
+          deviceid: deviceid,
+        },
       }
     }
 
+    if (
+      Object.hasOwn(resp.json, 'error') &&
+      Object.hasOwn(resp.json.error, 'errorCode') &&
+      resp.json.error.errorCode === '7110'
+    ) {
+      if (!canPromptForCanadaMfa()) {
+        if (this.config.debugLogging) {
+          this.logger.log('Canada MFA required during widget/shortcut login; not sending OTP outside the main app.')
+        }
+        return undefined
+      }
+      const otpRequest = await this.getMfaRequestDetails(this.config.auth.username)
+      return await this.mfa(this.config.auth.username, otpRequest, cookieValue)
+    }
+
+    this.regenerateDeviceId()
     const error = `Login Failed: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     return undefined

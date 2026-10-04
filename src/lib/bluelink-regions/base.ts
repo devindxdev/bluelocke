@@ -11,7 +11,7 @@ const BLUELINK_RESPONSE_LOG_FILE = `${Script.name().replaceAll(' ', '')}-api-res
 const CAPTURE_NEXT_API_RESPONSE_KEY = `${Script.name().replaceAll(' ', '')}-capture-next-api-response`
 const DEFAULT_API_HOST = 'mybluelink.ca'
 const DEFAULT_API_DOMAIN = `https://${DEFAULT_API_HOST}/tods/api/`
-const WIDGET_REQUEST_TIMEOUT_SECS = 5
+export const WIDGET_REQUEST_TIMEOUT_SECS = 5
 
 export interface BluelinkTokens {
   accessToken: string
@@ -305,6 +305,7 @@ export class Bluelink {
   protected logger: any
   protected loginFailure: boolean
   protected loginRequiredWebview: boolean
+  protected refreshLoginPromise: Promise<void> | undefined
   protected carOptions: CarOption[]
   protected distanceUnit: string
   protected lastCommandSent: number | undefined
@@ -320,6 +321,7 @@ export class Bluelink {
     this.tokens = undefined
     this.loginFailure = false
     this.loginRequiredWebview = false
+    this.refreshLoginPromise = undefined
     this.carOptions = []
     this.debugLastRequest = undefined
     this.tempLookup = undefined
@@ -350,8 +352,14 @@ export class Bluelink {
 
   protected async refreshLogin(force?: boolean) {
     if (!this.cache) return // we have no cache - likely failed on first load - ignore
+    if (this.refreshLoginPromise) {
+      await this.refreshLoginPromise
+      return
+    }
     // if we are here we have logged in successfully at least once and can refresh if supported
-    if (force || !this.tokenValid()) {
+    if (!(force || !this.tokenValid())) return
+
+    this.refreshLoginPromise = (async () => {
       let tokens = undefined
       if (typeof (this as any).refreshTokens === 'function') {
         // @ts-ignore - this is why we check the sub-class has this as its not always implemented
@@ -365,12 +373,19 @@ export class Bluelink {
 
       if (!tokens) this.loginFailure = true
       else {
+        this.loginFailure = false
         this.tokens = tokens as BluelinkTokens
         if (this.cache) {
           this.cache.token = this.tokens
           this.saveCache()
         }
       }
+    })()
+
+    try {
+      await this.refreshLoginPromise
+    } finally {
+      this.refreshLoginPromise = undefined
     }
   }
 
@@ -396,15 +411,17 @@ export class Bluelink {
   }
 
   protected getTimeZone(): string {
-    const offset = new Date().getTimezoneOffset()
-    const o = Math.abs(offset)
-    return (offset < 0 ? '+' : '-') + ('0' + Math.floor(o / 60)).slice(-1)
+    const utcOffsetMinutes = new Date().getTimezoneOffset() * -1
+    const absoluteMinutes = Math.abs(utcOffsetMinutes)
+    const hours = Math.floor(absoluteMinutes / 60)
+      .toString()
+      .padStart(2, '0')
+    const minutes = (absoluteMinutes % 60).toString().padStart(2, '0')
+    return `${utcOffsetMinutes >= 0 ? '+' : '-'}${hours}:${minutes}`
   }
 
   protected getTimeZoneFull(): string {
-    const offset = new Date().getTimezoneOffset()
-    const o = Math.abs(offset)
-    return (offset < 0 ? '+' : '-') + ('0' + Math.floor(o / 60)) + ':00'
+    return this.getTimeZone()
   }
 
   protected getApiDomain(lookup: string, domains: Record<string, string>, _default: string): string {
@@ -853,6 +870,9 @@ export class Bluelink {
       if (!props.noRetry && checkResponse.retry && !props.noAuth) {
         // re-auth and call ourselves
         if (this.cache) await this.refreshLogin(true) // only refresh login if we have a cache - i.e not first login
+        if (this.loginFailure) {
+          return { resp: req.response, json: json, cookies: this.nextRequestCookies(req) }
+        }
         return await this.request({
           ...props,
           noRetry: true,
