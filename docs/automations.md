@@ -51,7 +51,7 @@ Use iOS Shortcuts automations to run Bluelocke commands automatically.
   <p><strong>Recommended shortcut:</strong> Use <strong>Auto Lock - Safe</strong> first. It checks whether the vehicle is unlocked and gives you a chance to confirm before locking.</p>
   <div class="automation-actions">
     <a class="automation-btn" href="https://www.icloud.com/shortcuts/280c50ea17d249b0bc2f253e88026c44" target="_blank" rel="noopener noreferrer">Install Auto Lock - Safe</a>
-    <a class="automation-btn" href="https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0" target="_blank" rel="noopener noreferrer">Install Auto Lock</a>
+    <a class="automation-btn" href="https://www.icloud.com/shortcuts/fc46321b1a5643bd9767322382cf45cc" target="_blank" rel="noopener noreferrer">Install Auto Lock</a>
     <a class="automation-btn" href="./shortcuts">Open Shortcuts Docs</a>
   </div>
 </div>
@@ -71,7 +71,7 @@ Use iOS Shortcuts automations to run Bluelocke commands automatically.
 
 Use the direct `Auto Lock` shortcut only if you deliberately want the automation to lock immediately without a confirmation prompt.
 
-- Shortcut: [https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0](https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0)
+- Shortcut: [https://www.icloud.com/shortcuts/fc46321b1a5643bd9767322382cf45cc](https://www.icloud.com/shortcuts/fc46321b1a5643bd9767322382cf45cc)
 - Risk: if your phone is left inside the vehicle and the automation runs, you can lock yourself out more easily than with the safe version.
 
 ## Fallback Trigger (If Needed)

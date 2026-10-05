@@ -88,7 +88,7 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
       <p class="shortcut-title">Auto Lock</p>
       <p class="shortcut-desc">Immediately locks when its automation runs. Only use this if you understand the lockout risk.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/fc46321b1a5643bd9767322382cf45cc" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 </div>
 
