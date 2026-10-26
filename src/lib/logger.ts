@@ -70,10 +70,23 @@ export class Logger {
     if (this.fm.fileExists(filepath)) {
       contents = this.fm.readString(filepath)
 
+      contents = contents.replace(/([?&]code=)[^&\s"\\]+/gi, '$1REDACTED')
+
       const attributes = [
         'Accesstoken',
         'Authorization',
         'Authentication',
+        'accessToken',
+        'cciAccessToken',
+        'exchangeableAccessToken',
+        'exchangeableRefreshToken',
+        'nonCcsToken',
+        'nonCcsRefreshToken',
+        'idToken',
+        'exchangeable-token',
+        'non-ccs-token',
+        'Cookie',
+        'Set-Cookie',
         'refreshToken',
         'refresh_token',
         'sid',
