@@ -10,7 +10,8 @@
     "prebuild": "npm run lint",
     "lint": "npm run prettier && eslint \"*.ts\" \"src/**/*.ts\" --fix",
     "watch": "source ./build.sh; build_and_watch",
-    "prettier": "prettier --log-level warn --write \"*.ts\" \"src/**/*.ts\""
+    "prettier": "prettier --log-level warn --write \"*.ts\" \"src/**/*.ts\"",
+    "test": "node --test tests/*.test.mjs"
   },
   "author": "",
   "license": "ISC",
@@ -31,5 +32,8 @@
     "rollup-plugin-polyfill-node": "^0.13.0",
     "tslib": "^2.8.1",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@noble/hashes": "1.8.0"
   }
 }

@@ -19,7 +19,7 @@ const config = {
     plugins: [
       terser({
         output: {
-          comments: false,
+          comments: /^!/,
         },
       }),
       addFileIconSettings(),
