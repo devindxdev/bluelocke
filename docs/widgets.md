@@ -78,6 +78,8 @@ Here is what each value represents in plain language:
 - `12V`: Health/charge level of the auxiliary 12V battery.
 - `Charging Info` (EV/PHEV): Charging state and estimated completion time.
 
+Some vehicles do not report a 12V percentage. When no reading is available, widgets show `12V --`.
+
 ## Refresh Behavior
 
 Widgets are designed to stay responsive while keeping battery usage reasonable:
@@ -86,4 +88,4 @@ Widgets are designed to stay responsive while keeping battery usage reasonable:
 - Refreshes automatically based on configured intervals
 - Can trigger deeper remote refreshes if enabled
 
-You can adjust refresh timing in app settings under `Advanced Widget Settings`.
+Refresh timing is managed automatically; there are no polling intervals to configure in Settings.

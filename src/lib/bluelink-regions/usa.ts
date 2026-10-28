@@ -1,3 +1,4 @@
+import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
   BluelinkTokens,
@@ -123,51 +124,37 @@ export class BluelinkUSA extends Bluelink {
     return undefined
   }
 
-  protected async getCar(): Promise<BluelinkCar | undefined> {
-    let vin = this.vin
-    if (!vin && this.cache) {
-      vin = this.cache.car.vin
-    }
-
+  protected async getCars(): Promise<BluelinkCar[]> {
     const resp = await this.request({
       url: this.apiDomain + `ac/v2/enrollment/details/${this.config.auth.username}`,
       validResponseFunction: this.requestResponseValid,
     })
 
     if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      throw Error(error)
+      throw Error('Failed to retrieve vehicles. Please try again.')
     }
-
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.enrolledVehicleDetails.length > 0) {
-      let vehicle = resp.json.enrolledVehicleDetails[0].vehicleDetails
-      if (vin) {
-        for (const v of resp.json.enrolledVehicleDetails) {
-          if (v.vehicleDetails.vin === vin) {
-            vehicle = v.vehicleDetails
-            break
-          }
-        }
-      }
-
-      this.carVin = vehicle.vin
-      this.carId = vehicle.regid
-      return {
-        id: vehicle.regid,
-        vin: vehicle.vin,
-        nickName: vehicle.nickName,
+    const vehicles = resp.json?.enrolledVehicleDetails
+    if (!Array.isArray(vehicles)) throw Error('Failed to retrieve vehicle list. Please try again.')
+    return vehicles
+      .map((entry: any) => entry.vehicleDetails)
+      .map((vehicle: any) => ({
+        id: String(vehicle.regid ?? ''),
+        vin: vehicle.vin || '',
+        photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
+        nickName: vehicle.nickName || '',
         modelName: vehicle.modelCode,
-        modelYear: vehicle.modelYear,
+        modelYear: String(vehicle.modelYear ?? ''),
         odometer: vehicle.odometer ? vehicle.odometer : 0,
         // colour and trim dont exist in US implementation
         // modelColour: vehicle.exteriorColor,
         // modelTrim: vehicle.trim,
-      }
-    }
-    const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-    if (this.config.debugLogging) this.logger.log(error)
-    throw Error(error)
+      }))
+      .filter((vehicle: BluelinkCar) => vehicle.id.length > 0)
+  }
+
+  protected async activateCar(car: BluelinkCar) {
+    this.carVin = car.vin
+    this.carId = car.id
   }
 
   protected returnCarStatus(status: any, forceUpdate: boolean, location?: Location): BluelinkStatus {
@@ -209,7 +196,6 @@ export class BluelinkUSA extends Bluelink {
 
     const remainingChargeTimeMins =
       status?.evStatus?.remainTime2?.atc?.value ?? (this.cache ? this.cache.status.remainingChargeTimeMins : 0)
-    const reportedRange = status?.evStatus?.drvDistance?.[0]?.rangeByFuel?.evModeRange?.value
     const fuelLevel = this.getFuelLevelFromStatus(status) ?? (this.cache ? this.cache.status.fuelLevel : undefined)
     const supportsChargeCommands = Boolean(
       typeof status?.evStatus?.remainTime2?.atc?.value === 'number' ||
@@ -224,19 +210,13 @@ export class BluelinkUSA extends Bluelink {
       isPluggedIn: status?.evStatus?.batteryPlugin > 0 ? true : false,
       chargingPower: chargingPower,
       remainingChargeTimeMins: remainingChargeTimeMins,
-      // sometimes range back as zero? if so ignore and use cache
-      range:
-        typeof reportedRange === 'number' && reportedRange > 0
-          ? reportedRange
-          : this.cache
-            ? this.cache.status.range
-            : 0,
+      range: this.getRangeFromStatus(status, true),
       locked: status?.doorLock ?? (this.cache ? this.cache.status.locked : false),
       climate: status?.airCtrlOn ?? (this.cache ? this.cache.status.climate : false),
       soc: status?.evStatus?.batteryStatus ?? (this.cache ? this.cache.status.soc : 0),
       fuelLevel: fuelLevel,
       supportsChargeCommands: supportsChargeCommands,
-      twelveSoc: status.battery && status.battery.batSoc ? status.battery.batSoc : 0,
+      twelveSoc: this.getTwelveVoltSocFromStatus(status),
       odometer: status.odometer ? status.odometer : 0,
       location: location ? location : this.cache ? this.cache.status.location : undefined,
       chargeLimit:

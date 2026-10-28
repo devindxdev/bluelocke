@@ -8,7 +8,9 @@ import {
   getBluelinkResponseLogger,
 } from './lib/bluelink-regions/base'
 import { getTable, Div, P, Img, quickOptions, DivChild, Spacer, destructiveConfirm } from 'lib/scriptable-utils'
-import { loadConfigScreen, deleteConfig, setConfig, ClimateSeatSetting } from 'config'
+import { deleteConfig, setConfig, ClimateSeatSetting } from 'config'
+import { loadConfigScreen } from './settings'
+import { VehicleSelectionError } from './lib/vehicle-selection'
 import { loadAboutScreen, doDowngrade } from 'about'
 import { Version } from 'lib/version'
 import { deleteWidgetCache } from 'widget'
@@ -89,11 +91,10 @@ export async function createApp(config: Config, bl: Bluelink) {
   const cachedStatus = bl.getCachedStatus()
   if (!cachedStatus || cachedStatus.status.lastStatusCheck < Date.now() + MIN_API_REFRESH_TIME) {
     // non blocking refresh of Auth then status call
-    bl.refreshAuth().then(async () => {
-      bl.getStatus(false, true).then(async (status) => {
-        updateStatus(status)
-      })
-    })
+    bl.refreshAuth()
+      .then(() => bl.getStatus(false, true))
+      .then((status) => updateStatus(status))
+      .catch((error) => logger.log(`Background status refresh failed: ${error}`))
   }
 
   // fetch app icon
@@ -111,7 +112,7 @@ export async function createApp(config: Config, bl: Bluelink) {
               loadAboutScreen(bl)
             } else if (opt === 'Never Ask Again') {
               config.promptForUpdate = false
-              setConfig(config)
+              setConfig({ ...getConfig(), promptForUpdate: false })
             }
           },
         })
@@ -181,8 +182,16 @@ const settings = (bl: Bluelink) => {
       }),
     ],
     {
-      onTap: () => {
-        loadConfigScreen(bl)
+      onTap: async () => {
+        await loadConfigScreen(bl)
+        try {
+          updateStatus(bl.getCachedStatus())
+        } catch (error) {
+          if (!(error instanceof VehicleSelectionError)) throw error
+          Safari.open(URLScheme.forRunningScript())
+          return
+        }
+        setState({ appIcon: await bl.getCarImage() })
       },
       onTripleTap() {
         quickOptions(['Share Debug Logs', 'Reset All Settings', 'Downgrade to Previous Version', 'Cancel'], {

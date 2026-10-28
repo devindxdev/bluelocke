@@ -9,13 +9,13 @@ nav_order: 10
 
 - Open Scriptable and run `bluelocke` once manually.
 - Confirm login/config are valid.
-- Check widget poll settings in advanced widget config.
+- Open the app and refresh the vehicle status. Widget refresh intervals are managed automatically.
 
 ## Script fails after working before
 
 - Re-run setup and confirm credentials, region, and PIN.
 - Force a status refresh from the app UI.
-- If still failing, enable debug logging and inspect logs.
+- If still failing, turn on **Diagnostic logging** under **Settings > Help & Support > Troubleshooting**. View logs under **Help & updates**.
 
 ## Siri command not recognized
 

@@ -1,3 +1,4 @@
+import { appNavigation } from './lib/app-ui'
 import { getTable, Div, P, Spacer, quickOptions, OK } from 'lib/scriptable-utils'
 import { GithubRelease, Version } from 'lib/version'
 import { getAppLogger, getSiriLogger } from './lib/util'
@@ -238,7 +239,7 @@ const { present, connect, setState } = getTable<{
   name: 'About App',
 })
 
-export async function loadAboutScreen(bl?: Bluelink) {
+export async function loadAboutScreen(bl?: Bluelink, fromSettings = false) {
   // load version async
   const version = new Version('devindxdev', 'bluelocke')
   version.getRelease().then((release) => setState({ release: release }))
@@ -249,6 +250,7 @@ export async function loadAboutScreen(bl?: Bluelink) {
       currentVersion: version.getCurrentVersion(),
     },
     render: () => [
+      ...(fromSettings ? [appNavigation({ isRoot: false, back: () => {} }, { dismissOnBack: true })] : []),
       pageTitle(),
       appDescription(),
       appWebsite(),

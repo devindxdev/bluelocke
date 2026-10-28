@@ -9,7 +9,7 @@ Bluelocke is a Scriptable app for iOS that lets you monitor and control Hyundai,
 - Siri and Shortcuts support, including text-command workflows
 - Automation support (for example walk-away lock patterns)
 - Auto-update flow from GitHub releases
-- Vehicle image overrides by trim/color for supported Tucson variants
+- Vehicle image overrides by trim/color for supported Tucson variants, with API photos as a fallback
 
 ## Documentation
 
@@ -55,6 +55,17 @@ npm run build
 ```bash
 npm run lint
 ```
+
+### Checks
+
+```bash
+npm run test:app-ui
+npm run test:vehicle-status
+npm run test:vehicle-selection
+npm run test:vehicle-images
+```
+
+The UI checks exercise Settings navigation and saved preferences with simulated Scriptable APIs. To review Settings, run `node scripts/preview-app-ui.mjs /absolute/path/preview.html`. The preview reuses the Settings renderer; final fonts and selection behaviour are supplied by iOS.
 
 ## License
 

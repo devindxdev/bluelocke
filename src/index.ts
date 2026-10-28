@@ -12,7 +12,9 @@ import {
 import { createApp } from 'app'
 import { getAppLogger, getSiriLogger } from './lib/util'
 import { processSiriRequest } from 'siri'
-import { getConfig, loadConfigScreen, configExists } from 'config'
+import { getConfig, configExists } from 'config'
+import { loadConfigScreen } from './settings'
+import { VehicleSelectionError } from './lib/vehicle-selection'
 import { confirm, quickOptions } from './lib/scriptable-utils'
 
 function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean): string {
@@ -28,7 +30,7 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
   if (!configExists() && (config.runsWithSiri || config.runsInWidget)) return
   if (!configExists()) {
     await loadConfigScreen()
-    return
+    if (!configExists()) return
   }
 
   const logger = getAppLogger()
@@ -40,6 +42,7 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
     // main app handles refreshing auth in non blocking way
     bl = await initRegionalBluelink(blConfig, config.runsWithSiri || config.runsInWidget ? true : false)
   } catch (e) {
+    if (e instanceof VehicleSelectionError && e.reason === 'cancelled') return
     const error = e instanceof Error ? e.message : e
     const errorMessage = `Error Initalizing Bluelink: ${error}`
     const errorMessageShort = errorMessage.replace(/\{.*\}/, '')

@@ -1,0 +1,261 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { uiHarness } from './ui-harness.mjs'
+
+const plain = (value) => JSON.parse(JSON.stringify(value))
+
+test('Settings has five destinations, explains autosave, and has no Save button', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadConfigScreen(h.bl)
+  await h.flush()
+  assert.deepEqual(
+    plain(
+      h
+        .texts()
+        .filter((text) => ['Vehicle', 'Climate', 'Appearance & Units', 'Account', 'Help & Support'].includes(text)),
+    ),
+    ['Account', 'Vehicle', 'Climate', 'Appearance & Units', 'Help & Support'],
+  )
+  assert.ok(h.texts().includes('Changes save automatically.'))
+  for (const removed of [
+    'Save',
+    'Charge Limit Profiles',
+    'Advanced Widget Settings',
+    'Optional Custom Climates',
+    'Hide default climate options',
+    'Enable prompting for app updates',
+  ]) {
+    assert.ok(!h.texts().includes(removed))
+  }
+  h.top().close()
+  await opening
+  assert.equal(h.writes, 0)
+})
+
+test('first-run account details save progressively and Continue waits for a complete account', async () => {
+  const h = uiHarness({ account: false })
+  const opening = h.screens.loadConfigScreen()
+  assert.ok(h.texts().includes('Welcome to Bluelocke'))
+  await assert.rejects(h.tap('Continue'), /No enabled action/)
+  h.choices.push('canada')
+  await h.tap('Region')
+  h.alerts.push({ text: 'driver@example.test' })
+  await h.tap('Email or username')
+  assert.equal(h.config.getConfig().auth.username, 'driver@example.test')
+  assert.equal(h.config.configExists(), false)
+  h.top().close()
+  await opening
+  const reopening = h.screens.loadConfigScreen()
+  assert.ok(h.texts().includes('driver@example.test'))
+  h.alerts.push({ text: 'password' }, { text: '1234' })
+  await h.tap('Password')
+  await assert.rejects(h.tap('Continue'), /No enabled action/)
+  await h.tap('Vehicle PIN')
+  assert.equal(h.config.configExists(), true)
+  await h.tap('Continue')
+  await reopening
+})
+
+test('display name edits directly from Vehicle and saves on Done without another page', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadCarSettingsScreen(h.bl)
+  h.alerts.push({ text: ' My Tucson ' })
+  await h.tap('Display name')
+  assert.equal(h.config.getConfig().displayNameOverride, 'My Tucson')
+  assert.ok(h.texts().includes('My Tucson'))
+  assert.equal(h.tables.length, 1)
+  h.alerts.push({ text: 'Discard this', button: -1 })
+  await h.tap('Display name')
+  assert.equal(h.config.getConfig().displayNameOverride, 'My Tucson')
+  h.alerts.push({ text: '' })
+  await h.tap('Display name')
+  assert.equal(h.config.getConfig().displayNameOverride, '')
+  assert.ok(h.texts().includes('Use vehicle name'))
+  h.top().close()
+  await opening
+})
+
+test('nested pages use one native table and Back returns one level while Close exits the whole Settings view', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadConfigScreen(h.bl)
+  const climate = h.tap('Climate')
+  await h.flush()
+  assert.ok(h.texts().includes('‹ Back'))
+  const warm = h.tap('Warm')
+  await h.flush()
+  h.alerts.push({ text: '23' })
+  await h.tap('Temperature (°C)')
+  assert.equal(h.config.getConfig().standardClimateConfig.warm.temp, 23)
+  await h.tap('‹ Back')
+  await warm
+  assert.ok(h.texts().includes('23°C · 15 minutes'))
+  await h.tap('‹ Back')
+  await climate
+  assert.ok(h.texts().includes('Appearance & Units'))
+  assert.ok(!h.texts().includes('‹ Back'))
+  assert.equal(h.tables.length, 1)
+  const appearance = h.tap('Appearance & Units')
+  await h.flush()
+  h.top().close()
+  await Promise.all([appearance, opening])
+  assert.equal(h.top(), undefined)
+})
+
+test('autosave updates only the changed field and preserves newer values saved elsewhere', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadAppearanceSettingsScreen()
+  h.config.setConfig({ ...h.config.getConfig(), widgetAppearance: 'dark', debugLogging: true })
+  h.choices.push('mi')
+  await h.tap('Distance')
+  const next = h.config.getConfig()
+  assert.equal(next.distanceUnit, 'mi')
+  assert.equal(next.widgetAppearance, 'dark')
+  assert.equal(next.debugLogging, true)
+  h.top().close()
+  await opening
+})
+
+test('changing temperature units immediately converts Warm and Cool while preserving other settings', async () => {
+  const h = uiHarness()
+  const current = h.config.getConfig()
+  current.standardClimateConfig.warm.temp = 22
+  current.standardClimateConfig.warm.durationMinutes = 23
+  current.standardClimateConfig.cool.temp = 19
+  h.config.setConfig(current)
+  const opening = h.screens.loadAppearanceSettingsScreen()
+  h.choices.push('F')
+  await h.tap('Temperature')
+  const next = h.config.getConfig()
+  assert.equal(next.tempType, 'F')
+  assert.equal(next.standardClimateConfig.warm.temp, 72)
+  assert.equal(next.standardClimateConfig.cool.temp, 66)
+  assert.equal(next.standardClimateConfig.warm.durationMinutes, 23)
+  assert.equal(next.climateTempWarm, 72)
+  h.top().close()
+  await opening
+})
+
+test('pickers mark the current option and cancellation or choosing it again does not write settings', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadAppearanceSettingsScreen()
+  await h.tap('Distance')
+  assert.deepEqual(plain(h.pickers[0].options), [
+    { label: '✓ Kilometres', value: 'km' },
+    { label: 'Miles', value: 'mi' },
+  ])
+  assert.equal(h.writes, 0)
+  h.choices.push('km')
+  await h.tap('Distance')
+  assert.equal(h.writes, 0)
+  h.top().close()
+  await opening
+})
+
+test('account edits invalidate authentication immediately while changing verification method does not', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadAccountSettingsScreen(h.bl)
+  h.choices.push('email')
+  await h.tap('Verification code')
+  assert.equal(h.invalidations, 0)
+  h.alerts.push({ text: 'other@example.test' })
+  await h.tap('Email or username')
+  assert.equal(h.invalidations, 1)
+  assert.equal(h.config.getConfig().auth.username, 'other@example.test')
+  assert.equal(h.config.getConfig().auth.password, 'password')
+  assert.equal(h.config.getConfig().mfaPreference, 'email')
+  assert.ok(h.config.getConfig().widgetConfig.standardPollPeriod > 0)
+  h.top().close()
+  await opening
+})
+
+test('invalid numbers stay in the editor and never replace the last saved climate value', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadStandardClimatePresetScreen('warm')
+  h.alerts.push({ text: '1.5' }, { button: -1 })
+  await h.tap('Duration (minutes)')
+  assert.ok(h.alertHistory.some((alert) => alert.message === 'Choose 1–30 whole minutes.'))
+  assert.equal(h.config.getConfig().standardClimateConfig.warm.durationMinutes, 15)
+  assert.equal(h.writes, 0)
+  h.alerts.push({ text: '99' }, { text: '21' })
+  await h.tap('Duration (minutes)')
+  assert.equal(h.config.getConfig().standardClimateConfig.warm.durationMinutes, 21)
+  assert.ok(h.texts().includes('21'))
+  h.top().close()
+  await opening
+})
+
+test('a failed autosave keeps the previous value visible and explains that the change was not saved', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadAppearanceSettingsScreen()
+  h.failWrites = true
+  h.choices.push('mi')
+  await h.tap('Distance')
+  assert.equal(h.config.getConfig().distanceUnit, 'km')
+  assert.ok(h.texts().includes('Kilometres'))
+  assert.equal(h.messages.at(-1).title, 'Could not save this change')
+  h.failWrites = false
+  h.choices.push('mi')
+  await h.tap('Distance')
+  assert.equal(h.config.getConfig().distanceUnit, 'mi')
+  h.top().close()
+  await opening
+})
+
+test('autosave retains Shortcut profiles and configured refresh defaults', async () => {
+  const h = uiHarness()
+  const config = h.config.getConfig()
+  config.customClimates = [{ name: 'Commute', temp: 22 }]
+  config.chargeLimits = [{ name: 'Existing trip', acPercent: 90, dcPercent: 80 }]
+  config.widgetConfig.remotePollPeriod = 6
+  h.config.setConfig(config)
+  const opening = h.screens.loadAppearanceSettingsScreen()
+  h.choices.push('mi')
+  await h.tap('Distance')
+  const next = h.config.getConfig()
+  assert.deepEqual(plain(next.customClimates), plain(config.customClimates))
+  assert.deepEqual(plain(next.chargeLimits), plain(config.chargeLimits))
+  assert.equal(next.widgetConfig.remotePollPeriod, 6)
+  h.top().close()
+  await opening
+})
+
+test('Vehicle settings shows the selection and applies a choice immediately', async () => {
+  const h = uiHarness()
+  const second = {
+    ...h.vehicle.car,
+    id: 'second',
+    vin: '',
+    nickName: 'Family',
+    modelName: 'Santa Fe',
+    modelYear: '2024',
+  }
+  h.config.setConfig({ ...h.config.getConfig(), selectedVehicle: { id: h.vehicle.car.id, label: '2022 Tucson' } })
+  h.bl.getAvailableVehicles = async () => [h.vehicle.car, second]
+  const changes = []
+  h.bl.changeVehicleForScript = async (id) => {
+    changes.push(id)
+    h.config.setConfig({
+      ...h.config.getConfig(),
+      selectedVehicle: { id, label: '2024 Santa Fe' },
+      displayNameOverride: '',
+    })
+  }
+  const opening = h.screens.loadCarSettingsScreen(h.bl)
+  assert.ok(h.texts().includes('2022 Tucson'))
+  h.choices.push('second')
+  await h.tap('Selected vehicle')
+  assert.deepEqual(changes, ['second'])
+  assert.ok(h.texts().includes('2024 Santa Fe'))
+  h.top().close()
+  await opening
+})
+
+test('Troubleshooting switches save immediately without exposing the multi-car switch', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadTroubleshootingScreen()
+  assert.ok(!h.texts().includes('Separate vehicle profiles'))
+  await h.tap('Diagnostic logging')
+  assert.equal(h.config.getConfig().debugLogging, true)
+  h.top().close()
+  await opening
+})

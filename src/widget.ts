@@ -10,15 +10,18 @@ import {
   tintSFSymbol,
 } from './lib/util'
 import { Bluelink, Status } from './lib/bluelink-regions/base'
-import { Config } from 'config'
+import { Config, getConfig } from 'config'
+import { scriptStorageKey, vehicleStorageScope } from './lib/vehicle-selection'
 import { Logger } from './lib/logger'
+import { getMediumWidgetGeometry, getMediumWidgetFooterLayout, getMediumWidgetImageFrame } from './lib/widget-layout'
+import { createWidgetPreviewStatus, VehicleImagePreviewOptions } from './lib/widget-preview-data'
+
+type WidgetAppearanceConfig = Pick<Config, 'widgetAppearance'>
+type WidgetPresentation = Pick<Bluelink, 'supportsChargingFeatures' | 'getDistanceUnit' | 'getVehicleDisplayName'>
 
 // Widget Config
 const DARK_BG_COLOR = '000000'
 const LIGHT_BG_COLOR = 'FFFFFF'
-
-const KEYCHAIN_WIDGET_REFRESH_KEY = 'bluelocke-widget'
-const LEGACY_KEYCHAIN_WIDGET_REFRESH_KEY = 'bluelink-widget-legacy'
 
 // Definition of Day/Night Hours
 const NIGHT_HOUR_START = 23
@@ -42,136 +45,7 @@ interface WidgetRefresh {
   status: Status
 }
 
-const WIDE_MEDIUM_WIDGET_WIDTH = 364
-const REGULAR_MEDIUM_WIDGET_WIDTH = 338
-const NARROW_MEDIUM_WIDGET_WIDTH = 329
-
-interface MediumWidgetGeometry {
-  widgetWidth: number
-  paddingTop: number
-  paddingLeft: number
-  paddingBottom: number
-  paddingRight: number
-  titleInset: number
-  titleFontSize: number
-  titleMinimumScaleFactor: number
-  titleRowHeight: number
-  titleBottomSpacer: number
-  carImageWidth: number
-  mediaRightSafetyInset: number
-  contentRowHeight: number
-  statsColumnWidth: number
-  contentGap: number
-  batteryInfoTopSpacer: number
-  statsTrailingInset: number
-  topMetricRowHeight: number
-  primaryMetricRowHeight: number
-  secondaryMetricRowHeight: number
-  rightMetricFontSize: number
-  batteryPercentFontSize: number
-  chargingFontSize: number
-  batteryIconSize: Size
-  chargingIconSize: number
-  footerTopSpacer: number
-  footerLeadingInset: number
-  footerTrailingInset: number
-  footerGroupTargetWidth: number
-  footerRowHeight: number
-  footerGap: number
-  footerIconSize: number
-  footerFontSize: number
-}
-
-interface MediumWidgetFooterLayout {
-  footerCellWidth: number
-  footerOuterLead: number
-  footerOuterTrail: number
-}
-
-function getMediumWidgetWidth(screenWidth: number): number {
-  if (screenWidth >= 428) return WIDE_MEDIUM_WIDGET_WIDTH
-  if (screenWidth >= 390) return REGULAR_MEDIUM_WIDGET_WIDTH
-  return NARROW_MEDIUM_WIDGET_WIDTH
-}
-
-function interpolateMediumValue(widgetWidth: number, wide: number, regular: number, narrow: number): number {
-  if (widgetWidth >= REGULAR_MEDIUM_WIDGET_WIDTH) {
-    const t = (widgetWidth - REGULAR_MEDIUM_WIDGET_WIDTH) / (WIDE_MEDIUM_WIDGET_WIDTH - REGULAR_MEDIUM_WIDGET_WIDTH)
-    return regular + (wide - regular) * t
-  }
-
-  const t = (widgetWidth - NARROW_MEDIUM_WIDGET_WIDTH) / (REGULAR_MEDIUM_WIDGET_WIDTH - NARROW_MEDIUM_WIDGET_WIDTH)
-  return narrow + (regular - narrow) * t
-}
-
-function interpolateMediumSize(widgetWidth: number, wide: Size, regular: Size, narrow: Size): Size {
-  return new Size(
-    Math.round(interpolateMediumValue(widgetWidth, wide.width, regular.width, narrow.width)),
-    Math.round(interpolateMediumValue(widgetWidth, wide.height, regular.height, narrow.height)),
-  )
-}
-
-function getMediumWidgetGeometry(screenWidth: number): MediumWidgetGeometry {
-  const widgetWidth = getMediumWidgetWidth(screenWidth)
-
-  return {
-    widgetWidth,
-    paddingTop: Math.round(interpolateMediumValue(widgetWidth, 20, 18, 18)),
-    paddingLeft: Math.round(interpolateMediumValue(widgetWidth, 5, 5, 5)),
-    paddingBottom: Math.round(interpolateMediumValue(widgetWidth, 20, 16, 16)),
-    paddingRight: Math.round(interpolateMediumValue(widgetWidth, 15, 12, 12)),
-    titleInset: Math.round(interpolateMediumValue(widgetWidth, 8, 0, 0)),
-    titleFontSize: Math.round(interpolateMediumValue(widgetWidth, 25, 23, 22)),
-    titleMinimumScaleFactor: interpolateMediumValue(widgetWidth, 0.8, 0.72, 0.68),
-    titleRowHeight: Math.round(interpolateMediumValue(widgetWidth, 32, 30, 29)),
-    titleBottomSpacer: Math.round(interpolateMediumValue(widgetWidth, 2, 3, 3)),
-    carImageWidth: Math.round(interpolateMediumValue(widgetWidth, 220, 176, 168)),
-    mediaRightSafetyInset: Math.round(interpolateMediumValue(widgetWidth, 0, 8, 10)),
-    contentRowHeight: Math.round(interpolateMediumValue(widgetWidth, 100, 92, 90)),
-    statsColumnWidth: Math.round(interpolateMediumValue(widgetWidth, 125, 108, 102)),
-    contentGap: Math.round(interpolateMediumValue(widgetWidth, 4, 3, 3)),
-    batteryInfoTopSpacer: Math.round(interpolateMediumValue(widgetWidth, 10, 9, 8)),
-    statsTrailingInset: Math.round(interpolateMediumValue(widgetWidth, 0, 4, 4)),
-    topMetricRowHeight: Math.round(interpolateMediumValue(widgetWidth, 20, 18, 18)),
-    primaryMetricRowHeight: Math.round(interpolateMediumValue(widgetWidth, 26, 24, 24)),
-    secondaryMetricRowHeight: Math.round(interpolateMediumValue(widgetWidth, 24, 22, 22)),
-    rightMetricFontSize: Math.round(interpolateMediumValue(widgetWidth, 17, 16, 15)),
-    batteryPercentFontSize: Math.round(interpolateMediumValue(widgetWidth, 15, 14, 13)),
-    chargingFontSize: Math.round(interpolateMediumValue(widgetWidth, 14, 12, 12)),
-    batteryIconSize: interpolateMediumSize(widgetWidth, new Size(32, 24), new Size(30, 22), new Size(28, 21)),
-    chargingIconSize: Math.round(interpolateMediumValue(widgetWidth, 28, 24, 23)),
-    footerTopSpacer: Math.round(interpolateMediumValue(widgetWidth, 8, 6, 6)),
-    footerLeadingInset: Math.round(interpolateMediumValue(widgetWidth, 0, 0, 0)),
-    footerTrailingInset: Math.round(interpolateMediumValue(widgetWidth, 0, 4, 4)),
-    footerGroupTargetWidth: Math.round(interpolateMediumValue(widgetWidth, 274, 236, 224)),
-    footerRowHeight: Math.round(interpolateMediumValue(widgetWidth, 24, 22, 22)),
-    footerGap: Math.round(interpolateMediumValue(widgetWidth, 5, 6, 6)),
-    footerIconSize: Math.round(interpolateMediumValue(widgetWidth, 18, 15, 14)),
-    footerFontSize: Math.round(interpolateMediumValue(widgetWidth, 12, 11, 10)),
-  }
-}
-
-function getMediumWidgetFooterLayout(
-  usableWidth: number,
-  footerLeadingInset: number,
-  footerTrailingInset: number,
-  footerGroupTargetWidth: number,
-  footerGap: number,
-): MediumWidgetFooterLayout {
-  const footerAvailable = Math.max(0, usableWidth - footerLeadingInset - footerTrailingInset)
-  const footerGroupWidth = Math.min(footerGroupTargetWidth, footerAvailable)
-  const footerCellWidth = Math.max(1, Math.floor((footerGroupWidth - footerGap * 2) / 3))
-  const footerUsedWidth = footerCellWidth * 3 + footerGap * 2
-  const footerCenteringSlack = Math.max(0, footerAvailable - footerUsedWidth)
-
-  return {
-    footerCellWidth,
-    footerOuterLead: footerLeadingInset + Math.floor(footerCenteringSlack / 2),
-    footerOuterTrail: footerTrailingInset + (footerCenteringSlack - Math.floor(footerCenteringSlack / 2)),
-  }
-}
-
-function isDarkMode(config: Config): boolean {
+function isDarkMode(config: WidgetAppearanceConfig): boolean {
   const appearance = (config.widgetAppearance || 'system').toLowerCase()
   switch (appearance) {
     case 'dark':
@@ -183,11 +57,11 @@ function isDarkMode(config: Config): boolean {
   }
 }
 
-function getBgColor(config: Config): Color {
+function getBgColor(config: WidgetAppearanceConfig): Color {
   return isDarkMode(config) ? new Color(DARK_BG_COLOR) : new Color(LIGHT_BG_COLOR)
 }
 
-function getPrimaryTextColor(config: Config): Color {
+function getPrimaryTextColor(config: WidgetAppearanceConfig): Color {
   return isDarkMode(config) ? Color.white() : Color.black()
 }
 
@@ -214,12 +88,15 @@ async function getWidgetIcon(iconKey: string, color: Color): Promise<Image> {
   return (await tintSFSymbol(iconName, SFSymbol.named(iconName).image, color)).image
 }
 
-function getEnergyPercent(status: Status, bl: Bluelink): number | undefined {
+function getEnergyPercent(
+  status: Status,
+  bl: Pick<WidgetPresentation, 'supportsChargingFeatures'>,
+): number | undefined {
   if (bl.supportsChargingFeatures()) return status.status.soc
   return typeof status.status.fuelLevel === 'number' ? status.status.fuelLevel : undefined
 }
 
-function getEnergyText(status: Status, bl: Bluelink): string {
+function getEnergyText(status: Status, bl: Pick<WidgetPresentation, 'supportsChargingFeatures'>): string {
   const energyPercent = getEnergyPercent(status, bl)
   if (bl.supportsChargingFeatures()) return `${status.status.soc.toString()}%`
   return typeof energyPercent === 'number' ? `Fuel ${energyPercent.toString()}%` : 'Fuel'
@@ -230,18 +107,12 @@ export function getWidgetLogger(): Logger {
   return WIDGET_LOGGER
 }
 
-function getCacheKey(write = false): string {
-  const scriptName = Script.name().replaceAll(' ', '')
-  const newCacheKey = `bluelocke-widget-${scriptName}`
-  const legacyScriptKey = `bluelink-widget-legacy-${scriptName}`
-  if (write || Keychain.contains(newCacheKey)) return newCacheKey
-  if (Keychain.contains(legacyScriptKey)) return legacyScriptKey
-  if (Keychain.contains(LEGACY_KEYCHAIN_WIDGET_REFRESH_KEY)) return LEGACY_KEYCHAIN_WIDGET_REFRESH_KEY
-  return KEYCHAIN_WIDGET_REFRESH_KEY
+function getCacheKey(config: Config = getConfig()): string {
+  return scriptStorageKey('widget-refresh', vehicleStorageScope(config))
 }
 
 export function deleteWidgetCache() {
-  Keychain.remove(getCacheKey(true))
+  Keychain.remove(getCacheKey())
 }
 
 async function waitForCommandSent(
@@ -315,10 +186,11 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
     DEFAULT_REMOTE_REFRESH_INTERVAL = DEFAULT_REMOTE_REFRESH_INTERVAL_DAY
   }
 
-  if (Keychain.contains(getCacheKey())) {
+  const cacheKey = getCacheKey(config)
+  if (Keychain.contains(cacheKey)) {
     cache = {
       ...DEFAULT_WIDGET_CACHE,
-      ...JSON.parse(Keychain.get(getCacheKey())),
+      ...JSON.parse(Keychain.get(cacheKey)),
     }
   }
   if (!cache) {
@@ -410,7 +282,7 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
     // we have no guarentee of network connection
   }
 
-  Keychain.set(getCacheKey(true), JSON.stringify(cache))
+  Keychain.set(cacheKey, JSON.stringify(cache))
   if (config.debugLogging)
     logger.log(
       `Current time: ${new Date().toLocaleString()}. cache: ${JSON.stringify(cache)}, Last Remote Check: ${new Date(lastRemoteCheck).toLocaleString()} Setting next widget refresh to ${nextRefresh.toLocaleString()}`,
@@ -454,14 +326,21 @@ export function createErrorWidget(message: string, config: Config) {
 
 export async function createMediumWidget(config: Config, bl: Bluelink) {
   const refresh = await refreshDataForWidgetWithTimeout(bl, config)
+  return await renderMediumWidget(config, bl, refresh, await bl.getCarImage())
+}
+
+async function renderMediumWidget(
+  config: WidgetAppearanceConfig,
+  bl: WidgetPresentation,
+  refresh: WidgetRefresh,
+  appIcon: Image,
+  screenWidth = Math.min(Device.screenSize().width, Device.screenSize().height),
+) {
   const status = refresh.status
   const primaryText = getPrimaryTextColor(config)
   const darkMode = isDarkMode(config)
-  const screenWidth = Math.min(Device.screenSize().width, Device.screenSize().height)
   const profile = getMediumWidgetGeometry(screenWidth)
 
-  // Prepare image
-  const appIcon = await bl.getCarImage()
   const title = bl.getVehicleDisplayName(status.car)
 
   // define widget and set date for when the next refresh should not occur before.
@@ -573,7 +452,7 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
 
       const batteryIconColor = batteryPercent > 70 ? Color.green() : Color.red()
       const batterySymbolElement = metricGroup.addImage(await getWidgetIcon('twelve-volt', batteryIconColor))
-      batterySymbolElement.imageSize = profile.batteryIconSize
+      batterySymbolElement.imageSize = new Size(profile.batteryIconSize.width, profile.batteryIconSize.height)
       const chargingIcon = getChargingIcon(isCharging, isPluggedIn, true)
       if (chargingIcon) {
         const chargingElement = metricGroup.addImage(await getTintedIconAsync(chargingIcon))
@@ -657,23 +536,20 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
   contentRow.layoutHorizontally()
   contentRow.size = new Size(usableWidth, profile.contentRowHeight)
 
-  const mediaWidth = Math.max(1, usableWidth - profile.statsColumnWidth - profile.contentGap)
+  const imageFrame = getMediumWidgetImageFrame(profile, appIcon.size)
+  const mediaWidth = imageFrame.mediaWidth
   const mediaStack = contentRow.addStack()
   mediaStack.layoutVertically()
   mediaStack.size = new Size(mediaWidth, profile.contentRowHeight)
-  const actualImageWidth = Math.max(1, Math.min(profile.carImageWidth, mediaWidth - profile.mediaRightSafetyInset))
-  const actualImageHeight = actualImageWidth / (appIcon.size.width / appIcon.size.height)
-  const leadingSlack = Math.max(0, mediaWidth - actualImageWidth - profile.mediaRightSafetyInset)
-
-  mediaStack.addSpacer()
+  mediaStack.addSpacer(imageFrame.top)
   const imageRow = mediaStack.addStack()
   imageRow.layoutHorizontally()
-  imageRow.size = new Size(mediaWidth, actualImageHeight)
-  imageRow.addSpacer(leadingSlack)
+  imageRow.size = new Size(mediaWidth, imageFrame.height)
+  imageRow.addSpacer(imageFrame.leading)
   const compactImageElement = imageRow.addImage(appIcon)
-  compactImageElement.imageSize = new Size(actualImageWidth, actualImageHeight)
+  compactImageElement.imageSize = new Size(imageFrame.width, imageFrame.height)
   if (profile.mediaRightSafetyInset > 0) imageRow.addSpacer(profile.mediaRightSafetyInset)
-  mediaStack.addSpacer()
+  mediaStack.addSpacer(imageFrame.top)
 
   contentRow.addSpacer(profile.contentGap)
 
@@ -708,13 +584,20 @@ export async function createMediumWidget(config: Config, bl: Bluelink) {
 
 export async function createSmallWidget(config: Config, bl: Bluelink) {
   const refresh = await refreshDataForWidgetWithTimeout(bl, config)
+  return await renderSmallWidget(config, bl, refresh, await bl.getCarImage())
+}
+
+async function renderSmallWidget(
+  config: WidgetAppearanceConfig,
+  bl: WidgetPresentation,
+  refresh: WidgetRefresh,
+  appIcon: Image,
+) {
   const status = refresh.status
   const supportsCharging = bl.supportsChargingFeatures()
   const energyPercent = getEnergyPercent(status, bl)
   const primaryText = getPrimaryTextColor(config)
 
-  // Prepare image
-  const appIcon = await bl.getCarImage()
   // define widget and set date for when the next refresh should not occur before.
   const widget = new ListWidget()
   widget.setPadding(20, 10, 15, 15)
@@ -784,7 +667,14 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
     fuelText.rightAlignText()
   }
 
-  // batteryPercentStack.addSpacer(5)
+  const auxBatteryStack = batteryInfoStack.addStack()
+  auxBatteryStack.addSpacer()
+  const twelveSoc = status.status.twelveSoc
+  const auxBatteryElement = auxBatteryStack.addText(`12V ${twelveSoc > 0 ? `${Math.floor(twelveSoc)}%` : '--'}`)
+  auxBatteryElement.font = Font.mediumSystemFont(12)
+  auxBatteryElement.textColor = primaryText
+  auxBatteryElement.lineLimit = 1
+  auxBatteryElement.rightAlignText()
 
   if (supportsCharging && isCharging) {
     const chargeComplete = getChargeCompletionString(lastSeen, remainingChargingTime, 'short', true)
@@ -828,6 +718,25 @@ export async function createSmallWidget(config: Config, bl: Bluelink) {
   // mainStack.addSpacer()
 
   return widget
+}
+
+export async function createVehicleImageWidgetPreview(
+  image: Image,
+  family: 'medium' | 'small',
+  options: VehicleImagePreviewOptions,
+): Promise<ListWidget> {
+  const status = createWidgetPreviewStatus()
+  const presentation: WidgetPresentation = {
+    supportsChargingFeatures: () => options.electric,
+    getDistanceUnit: () => options.distanceUnit,
+    getVehicleDisplayName: () => status.car.nickName,
+  }
+  const appearance: WidgetAppearanceConfig = { widgetAppearance: options.appearance }
+  const refresh = { status, nextRefresh: new Date() }
+  // Reuse the real widget renderers without a Bluelink client or any refresh/cache calls.
+  return family === 'small'
+    ? await renderSmallWidget(appearance, presentation, refresh, image)
+    : await renderMediumWidget(appearance, presentation, refresh, image, options.screenWidth)
 }
 
 export async function createHomeScreenCircleWidget(config: Config, bl: Bluelink) {
