@@ -1,6 +1,7 @@
 import { ONE_SECOND } from './date'
 import { wait } from './flow'
 import { MaybePromise } from './types/utilTypes'
+import { sanitizeLog } from '../log-sanitizer'
 
 type Opts<T> = {
   batchOperation: (entities: [T, ...T[]]) => MaybePromise<any>
@@ -53,7 +54,7 @@ class ThrottledBatchQueue<T> {
   }
 
   private debugLog(msg: any) {
-    if (this.debug) console.log(msg)
+    if (this.debug) console.log(sanitizeLog(msg))
   }
 
   /** Get a portion of the queue back as an array. If `maxEntitiesPerOperation`

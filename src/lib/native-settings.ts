@@ -2,6 +2,8 @@ import { quickOptions, confirm } from './scriptable-utils'
 import { FormOpts, Editing, FormStateShape, FieldOpts, FieldType } from './scriptable-utils/input/form/types'
 import { appHeader, appNavigation, appListRow, appSpace, appCaption, appSection, appSeparator } from './app-ui'
 import { presentSettingsPage, SettingsNavigation } from './settings-navigation'
+import { getAppLogger } from './util'
+import { sanitizeLog } from './log-sanitizer'
 
 type SettingsFormOpts<T extends FormStateShape> = Omit<FormOpts<T>, 'onSubmit' | 'submitButtonText'> & {
   onChange?: (changes: Editing<T>, values: Editing<T>) => void | Promise<void>
@@ -43,7 +45,12 @@ export function settingsForm<T extends FormStateShape>(opts: SettingsFormOpts<T>
       if (!Object.keys(changes).length) return true
       try {
         await opts.onChange?.(changes, next)
-      } catch {
+      } catch (error) {
+        try {
+          getAppLogger().log(`Could not save setting ${String(key)}: ${sanitizeLog(error)}`)
+        } catch {
+          // A logging/storage failure must not hide the recovery message.
+        }
         await confirm('Could not save this change', {
           message: 'Your previous setting is still in use. Please try again.',
           includeCancel: false,

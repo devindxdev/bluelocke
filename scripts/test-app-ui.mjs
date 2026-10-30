@@ -4,6 +4,33 @@ import { uiHarness } from './ui-harness.mjs'
 
 const plain = (value) => JSON.parse(JSON.stringify(value))
 
+test('fresh setup saves every account field without requiring a vehicle cache', async () => {
+  const h = uiHarness({ account: false })
+  const opening = h.screens.loadConfigScreen()
+  h.choices.push('kia')
+  await h.tap('Manufacturer')
+  assert.equal(h.config.getConfig().manufacturer, 'kia')
+  h.choices.push('usa')
+  await h.tap('Region')
+  h.choices.push('email')
+  await h.tap('Verification code')
+  h.alerts.push({ text: 'new-driver@example.test' }, { text: 'new-password' }, { text: '4321' })
+  await h.tap('Email or username')
+  await h.tap('Password')
+  await h.tap('Vehicle PIN')
+  assert.deepEqual(plain(h.config.getConfig().auth), {
+    username: 'new-driver@example.test',
+    password: 'new-password',
+    pin: '4321',
+    region: 'usa',
+  })
+  assert.equal(h.config.getConfig().mfaPreference, 'email')
+  assert.equal(h.config.configExists(), true)
+  assert.ok(!h.messages.some((message) => message.title === 'Could not save this change'))
+  await h.tap('Continue')
+  await opening
+})
+
 test('Settings has five destinations, explains autosave, and has no Save button', async () => {
   const h = uiHarness()
   const opening = h.screens.loadConfigScreen(h.bl)
@@ -153,19 +180,60 @@ test('pickers mark the current option and cancellation or choosing it again does
 
 test('account edits invalidate authentication immediately while changing verification method does not', async () => {
   const h = uiHarness()
+  const cacheKey = 'egmp-scriptable-bl-cache-Bluelocke'
+  const sessionKey = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+  h.keys.set(cacheKey, 'cached vehicle data')
+  h.keys.set(
+    sessionKey,
+    JSON.stringify({ ...JSON.parse(h.keys.get(sessionKey)), token: { accessToken: 'old-session' } }),
+  )
+  h.bl.deleteCache = () => {
+    throw new Error('Settings must not invalidate a second time')
+  }
   const opening = h.screens.loadAccountSettingsScreen(h.bl)
   h.choices.push('email')
   await h.tap('Verification code')
-  assert.equal(h.invalidations, 0)
+  assert.equal(h.keys.has(cacheKey), true)
+  assert.equal(JSON.parse(h.keys.get(sessionKey)).token.accessToken, 'old-session')
   h.alerts.push({ text: 'other@example.test' })
   await h.tap('Email or username')
-  assert.equal(h.invalidations, 1)
+  assert.equal(h.keys.has(cacheKey), false)
+  assert.equal(JSON.parse(h.keys.get(sessionKey)).token, undefined)
+  assert.ok(!h.messages.some((message) => message.title === 'Could not save this change'))
   assert.equal(h.config.getConfig().auth.username, 'other@example.test')
   assert.equal(h.config.getConfig().auth.password, 'password')
   assert.equal(h.config.getConfig().mfaPreference, 'email')
   assert.ok(h.config.getConfig().widgetConfig.standardPollPeriod > 0)
   h.top().close()
   await opening
+})
+
+test('an existing account can change manufacturer without an active client or status cache', async () => {
+  const h = uiHarness()
+  const opening = h.screens.loadAccountSettingsScreen()
+  h.choices.push('kia')
+  await h.tap('Manufacturer')
+  assert.equal(h.config.getConfig().manufacturer, 'kia')
+  assert.ok(!h.messages.some((message) => message.title === 'Could not save this change'))
+  h.top().close()
+  await opening
+})
+
+test('partial legacy account data can be completed and fresh/reset settings can be cleared repeatedly', async () => {
+  const h = uiHarness({ account: false })
+  h.keys.set('bluelocke:config:["Bluelocke"]', JSON.stringify({ auth: { region: 'canada' }, manufacturer: 'hyundai' }))
+  const opening = h.screens.loadConfigScreen()
+  h.choices.push('kia')
+  await h.tap('Manufacturer')
+  assert.equal(h.config.getConfig().manufacturer, 'kia')
+  assert.equal(h.config.getConfig().auth.username, '')
+  assert.equal(h.config.getConfig().auth.region, 'canada')
+  assert.ok(!h.messages.some((message) => message.title === 'Could not save this change'))
+  h.top().close()
+  await opening
+  assert.doesNotThrow(() => h.config.deleteConfig(true))
+  assert.doesNotThrow(() => h.config.deleteConfig(true))
+  assert.equal(h.config.configExists(), false)
 })
 
 test('invalid numbers stay in the editor and never replace the last saved climate value', async () => {
@@ -219,33 +287,12 @@ test('autosave retains Shortcut profiles and configured refresh defaults', async
   await opening
 })
 
-test('Vehicle settings shows the selection and applies a choice immediately', async () => {
+test('Vehicle settings keeps name and photo without a vehicle picker', async () => {
   const h = uiHarness()
-  const second = {
-    ...h.vehicle.car,
-    id: 'second',
-    vin: '',
-    nickName: 'Family',
-    modelName: 'Santa Fe',
-    modelYear: '2024',
-  }
-  h.config.setConfig({ ...h.config.getConfig(), selectedVehicle: { id: h.vehicle.car.id, label: '2022 Tucson' } })
-  h.bl.getAvailableVehicles = async () => [h.vehicle.car, second]
-  const changes = []
-  h.bl.changeVehicleForScript = async (id) => {
-    changes.push(id)
-    h.config.setConfig({
-      ...h.config.getConfig(),
-      selectedVehicle: { id, label: '2024 Santa Fe' },
-      displayNameOverride: '',
-    })
-  }
   const opening = h.screens.loadCarSettingsScreen(h.bl)
-  assert.ok(h.texts().includes('2022 Tucson'))
-  h.choices.push('second')
-  await h.tap('Selected vehicle')
-  assert.deepEqual(changes, ['second'])
-  assert.ok(h.texts().includes('2024 Santa Fe'))
+  assert.ok(h.texts().includes('Display name'))
+  assert.ok(h.texts().includes('Vehicle photo'))
+  assert.ok(!h.texts().includes('Selected vehicle'))
   h.top().close()
   await opening
 })

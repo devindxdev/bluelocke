@@ -1,3 +1,6 @@
+import { sanitizeLog } from './log-sanitizer'
+import { formatLogForDisplay } from './log-format'
+
 const SCRIPTABLE_DIR = '/var/mobile/Library/Mobile Documents/iCloud~dk~simonbs~Scriptable/Documents'
 const DEFAULT_MAX_SIZE = 100
 
@@ -25,7 +28,8 @@ export class Logger {
   }
 
   private rotateFileIfNeeded() {
-    if (this.fm.fileSize(this.filepath) > this.maxSize) {
+    if (this.fm.fileExists(this.filepath) && this.fm.fileSize(this.filepath) > this.maxSize) {
+      this.redact(this.filepath)
       const date = new Date()
       const df = new DateFormatter()
       df.dateFormat = 'yyyyMMddHHmmssZ'
@@ -48,10 +52,11 @@ export class Logger {
     return ''
   }
 
-  public log(input: string) {
+  public log(input: unknown) {
+    const entry = sanitizeLog(input)
     this.rotateFileIfNeeded()
     let currentData = this.readFile()
-    currentData = currentData + '\n' + this.formatLogEntry(input)
+    currentData = sanitizeLog(currentData) + '\n' + this.formatLogEntry(entry)
     this.writeFile(currentData)
   }
 
@@ -66,59 +71,29 @@ export class Logger {
   }
 
   private redact(filepath: string): string {
-    let contents = ''
-    if (this.fm.fileExists(filepath)) {
-      contents = this.fm.readString(filepath)
-
-      const attributes = [
-        'Accesstoken',
-        'Authorization',
-        'Authentication',
-        'refreshToken',
-        'refresh_token',
-        'sid',
-        'password',
-        'username',
-        'email',
-        'userId',
-        'loginId',
-        'pin',
-        'blueLinkServicePin',
-      ]
-
-      for (const attr of attributes) {
-        // Matches:
-        //   key":"value"
-        //   key=value&
-        //   \"key\":\"value\" (JSON-in-string)
-        //   key=...&
-        const regex = new RegExp(
-          `${attr}"\\s*:\\s*".*?"|${attr}=.*?&|\\\\?"${attr}\\\\?"\\s*:\\s*\\\\?".*?\\\\?"`,
-          'gi',
-        )
-        contents = contents.replaceAll(regex, (match) => {
-          if (match.includes('":') || match.includes('\\"')) {
-            // Handles both normal and escaped JSON
-            return match.startsWith('\\') ? `\\"${attr}\\":\\"REDACTED\\"` : `${attr}":"REDACTED"`
-          } else {
-            return `${attr}=REDACTED&`
-          }
-        })
+    const raw = this.readFile(filepath)
+    const sanitized = sanitizeLog(raw)
+    if (raw !== sanitized) {
+      try {
+        this.fm.writeString(filepath, sanitized)
+      } catch {
+        // Sharing the sanitized output must still work with read-only storage.
       }
     }
-
-    return contents
+    return sanitized
   }
 
   public read(): string {
-    return this.previousFilepath
-      ? `${this.readFile(this.previousFilepath)}\n${this.readFile(this.filepath)}`
-      : this.readFile(this.filepath)
+    return this.readAndRedact()
   }
 
   public readAndRedact(): string {
-    return this.previousFilepath
-      ? `${this.redact(this.previousFilepath)}\n${this.redact(this.filepath)}`
-      : this.redact(this.filepath)
+    const contents = this.previousFilepath
+      ? `${this.readFile(this.previousFilepath)}\n${this.readFile(this.filepath)}`
+      : this.readFile(this.filepath)
+    const sanitized = sanitizeLog(contents)
+    if (this.previousFilepath) this.redact(this.previousFilepath)
+    this.redact(this.filepath)
+    return formatLogForDisplay(sanitized)
   }
 }

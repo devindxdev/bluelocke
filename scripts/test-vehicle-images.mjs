@@ -1172,3 +1172,23 @@ test('regional photo fields and Kia USA image paths normalize to usable HTTP ima
     undefined,
   )
 })
+
+test('API photos reject cleartext/local endpoints, unsafe redirects and excessive image dimensions', async () => {
+  const h = harness()
+  for (const url of [
+    'http://images.example.test/photo.png',
+    'https://127.0.0.1/photo.png',
+    'https://printer.local/photo.png',
+    'https://user:secret@images.example.test/photo.png',
+  ]) {
+    assert.equal(await h.apiPhotos.loadApiVehiclePhoto(url, ['scope']), undefined)
+  }
+  assert.equal(h.requests.length, 0)
+  const url = 'https://images.example.test/oversized.png'
+  h.imageResponses.set(url, photo(100000, 100000))
+  assert.equal(await h.apiPhotos.loadApiVehiclePhoto(url, ['scope']), undefined)
+  const request = h.imageRequests.at(-1)
+  assert.equal(request.allowInsecureRequest, false)
+  assert.equal(request.onRedirect({ url: 'http://images.example.test/photo.png' }), null)
+  assert.equal(request.onRedirect({ url: 'https://127.0.0.1/photo.png' }), null)
+})

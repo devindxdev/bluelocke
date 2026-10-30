@@ -3,18 +3,19 @@ import { getConfig } from '../../configRegister'
 import { shortSwitch } from '../../flow'
 import PersistedLog from '../../io/PersistedLog'
 import { Align } from '../../types/utilTypes'
+import { sanitizeLog } from '../../../log-sanitizer'
 
 const warnError = async (error: unknown, context: string) => {
-  console.warn(error)
+  console.warn(sanitizeLog(error))
   const prompt = new Alert()
   prompt.title = `Error in ${context} (see log)`
-  prompt.message = String(error)
+  prompt.message = sanitizeLog(error)
   prompt.addAction('OK')
   const stacktrace = isObject(error) && 'stack' in error ? error.stack : undefined
   PersistedLog().log({
     type: 'Error',
     context,
-    error: JSON.stringify(error),
+    error: sanitizeLog(error),
     stacktrace,
   })
   await prompt.present()

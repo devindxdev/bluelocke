@@ -1,5 +1,6 @@
 import { isString } from './common'
 import { ICONS } from './icons'
+import { sanitizeLog } from '../log-sanitizer'
 
 export const capitalize = (str: string) => str.slice(0, 1).toUpperCase() + str.slice(1).toLowerCase()
 
@@ -58,7 +59,7 @@ export const splitByRegex = (str: string, regex: RegExp) => {
   return withUniqueDividers.split(uniqueRegexReplacer)
 }
 
-export const tidyLog = (message: any) => console.log(JSON.stringify(message, null, 2))
+export const tidyLog = (message: any) => console.log(sanitizeLog(message))
 
 export const extractLinks = (text: string) => {
   const matches = text.match(/[a-z-]+:\/\/\S*/gim)

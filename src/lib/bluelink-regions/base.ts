@@ -1,21 +1,15 @@
-import { Config, VehicleTypeOverride, getConfig, setConfig } from '../../config'
+import { Config, VehicleTypeOverride } from '../../config'
 import { defaultImage } from '../../resources/defaultImage'
 import { resolveVehicleImage } from '../../resources/vehicle-images'
 import { getCustomVehicleImage } from '../custom-vehicle-image'
 import { loadApiVehiclePhoto } from '../vehicle-photo'
 import { Logger } from '../logger'
+import { registerLogSecrets, sanitizeLog } from '../log-sanitizer'
 import { Buffer } from 'buffer'
-import { quickOptions } from '../scriptable-utils'
-import {
-  matchesVehicle,
-  selectedVehicle,
-  vehicleAccount,
-  vehicleChoices,
-  vehicleStorageScope,
-  scriptStorageKey,
-  VehicleSelectionError,
-} from '../vehicle-selection'
-
+import { AuthSessionStore, authIdentity } from '../auth-session'
+import { UserFacingError } from '../user-error'
+import { removeKeychainValue, scriptStorageKey } from '../storage'
+import { httpsUrl, sameOrigin } from '../secure-url'
 export const DEFAULT_STATUS_CHECK_INTERVAL = 3600 * 1000
 export const MAX_COMPLETION_POLLS = 20
 const BLUELINK_LOG_FILE = `${Script.name().replaceAll(' ', '')}-api.log`
@@ -34,14 +28,6 @@ export interface BluelinkTokens {
   additionalTokens?: Record<string, string>
 }
 
-export interface CarOption {
-  id: string
-  vin: string
-  nickName: string
-  modelName: string
-  modelYear: string
-}
-
 export interface BluelinkCar {
   id: string
   vin: string
@@ -50,6 +36,8 @@ export interface BluelinkCar {
   modelYear: string
   modelTrim?: string
   modelColour?: string
+  powertrain?: Exclude<VehicleTypeOverride, 'auto'>
+  generation?: number
   photoUrl?: string | null
   odometer?: number
   europeccs2?: number
@@ -125,6 +113,7 @@ export interface ClimateRequest {
   rearDefrost: boolean
   steering: boolean
   temp: number
+  tempType?: 'C' | 'F'
   durationMinutes: number
   seatClimateOption?: SeatClimate
 }
@@ -305,8 +294,6 @@ export class Bluelink {
   protected config: Config
   // @ts-ignore - cache is initalized in init
   protected cache: Cache
-  private activeRequests = 0
-  private changingVehicle = false
   protected vin: string | undefined
   protected statusCheckInterval: number
   protected apiHost: string
@@ -322,11 +309,12 @@ export class Bluelink {
   protected loginFailure: boolean
   protected loginRequiredWebview: boolean
   protected refreshLoginPromise: Promise<void> | undefined
-  protected carOptions: CarOption[]
   protected distanceUnit: string
   protected lastCommandSent: number | undefined
+  protected authSession: AuthSessionStore
 
   constructor(config: Config, vin?: string) {
+    registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
     this.config = config
     this.vin = vin
     this.apiDomain = DEFAULT_API_DOMAIN
@@ -334,11 +322,11 @@ export class Bluelink {
     this.statusCheckInterval = DEFAULT_STATUS_CHECK_INTERVAL
     this.additionalHeaders = {}
     this.authHeader = 'Authentication'
-    this.tokens = undefined
+    this.authSession = new AuthSessionStore(config)
+    this.tokens = this.authSession.read()
     this.loginFailure = false
     this.loginRequiredWebview = false
     this.refreshLoginPromise = undefined
-    this.carOptions = []
     this.debugLastRequest = undefined
     this.tempLookup = undefined
     this.authIdHeader = undefined
@@ -367,33 +355,66 @@ export class Bluelink {
   }
 
   protected async refreshLogin(force?: boolean) {
-    if (!this.cache) return // we have no cache - likely failed on first load - ignore
+    this.assertCurrentSession()
     if (this.refreshLoginPromise) {
       await this.refreshLoginPromise
       return
     }
     // if we are here we have logged in successfully at least once and can refresh if supported
-    if (!(force || !this.tokenValid())) return
+    if (!(force || !this.tokenValid() || this.authSession.authRequired())) return
 
     this.refreshLoginPromise = (async () => {
-      let tokens = undefined
-      if (typeof (this as any).refreshTokens === 'function') {
-        // @ts-ignore - this is why we check the sub-class has this as its not always implemented
-        tokens = await this.refreshTokens()
-        if (!tokens) {
-          tokens = await this.login() // fallback to normal login if refresh fails
-        }
-      } else {
-        tokens = await this.login()
+      if (this.authSession.authRequired() && (config.runsInWidget || config.runsWithSiri)) {
+        throw new UserFacingError(
+          'Open Bluelocke in Scriptable to finish signing in. Background verification is paused.',
+        )
       }
+      const owner = this.authSession.acquireLogin()
+      if (!owner) throw new UserFacingError('Sign-in is already in progress. Finish it in Scriptable, then try again.')
+      try {
+        const previous = this.tokens || this.cache?.token
+        const shared = this.authSession.read()
+        if (
+          shared &&
+          previous &&
+          shared.accessToken !== previous.accessToken &&
+          shared.expiry > Date.now() / 1000 + 30
+        ) {
+          this.tokens = shared
+          if (this.cache) this.cache.token = shared
+          this.loginFailure = false
+          await this.onAuthRefreshed()
+          return
+        }
+        let tokens: BluelinkTokens | undefined
+        if (previous && typeof (this as any).refreshTokens === 'function' && !this.authSession.authRequired()) {
+          // @ts-ignore - this is why we check the sub-class has this as its not always implemented
+          tokens = await this.refreshTokens()
+          if (!tokens) {
+            tokens = await this.login() // fallback to normal login if refresh fails
+          }
+        } else {
+          tokens = await this.login()
+        }
 
-      if (!tokens) this.loginFailure = true
-      else {
-        this.loginFailure = false
-        this.tokens = tokens as BluelinkTokens
-        if (this.cache) {
-          this.cache.token = this.tokens
-          this.saveCache()
+        if (!tokens) {
+          this.loginFailure = true
+          this.authSession.requireForegroundAuth()
+        } else {
+          this.loginFailure = false
+          // Keep authentication even if metadata/status loading fails afterwards.
+          this.saveAuthSession(tokens)
+          if (this.cache) {
+            this.cache.token = tokens
+            this.saveCache()
+          }
+          if (previous) await this.onAuthRefreshed()
+        }
+      } finally {
+        try {
+          this.authSession.releaseLogin(owner)
+        } catch {
+          /* A reset/changed account already revoked this lease. */
         }
       }
     })()
@@ -404,6 +425,18 @@ export class Bluelink {
       this.refreshLoginPromise = undefined
     }
   }
+
+  protected saveAuthSession(tokens: BluelinkTokens) {
+    this.authSession.write(tokens)
+    this.tokens = tokens
+  }
+
+  protected assertCurrentSession() {
+    this.authSession.assertCurrent()
+  }
+
+  protected async onAuthRefreshed(): Promise<void> {}
+  protected async onCacheLoaded(): Promise<void> {}
 
   protected getStamp(appId: string, cfbB64: string): string {
     const rawData = `${appId}:${Math.floor(Date.now() / 1000)}`
@@ -640,10 +673,6 @@ export class Bluelink {
     )
   }
 
-  public getCarOptions(): CarOption[] {
-    return this.carOptions
-  }
-
   public loginFailed(): boolean {
     return this.loginFailure
   }
@@ -653,11 +682,27 @@ export class Bluelink {
   }
 
   public getCachedStatus(): Status {
-    this.assertSelectedVehicle()
+    this.assertCurrentSession()
     return {
       car: this.cache.car,
       status: this.cache.status,
     }
+  }
+
+  protected async statusAfterCommand(id: string): Promise<BluelinkStatus> {
+    // The command has already been confirmed. A status refresh failure must not
+    // turn that success into a failed command or cause another remote request.
+    try {
+      const status = await this.getCarStatus(id, false)
+      this.assertCurrentSession()
+      this.cache.status = status
+      this.saveCache()
+    } catch (error) {
+      this.assertCurrentSession()
+      this.logger.log('Command completed, but the follow-up status refresh failed.')
+      this.logger.log(error)
+    }
+    return this.cache.status
   }
 
   public getVehicleDisplayName(car: BluelinkCar): string {
@@ -669,29 +714,24 @@ export class Bluelink {
   }
 
   public async getStatus(forceUpdate: boolean, noCache: boolean, location: boolean = false): Promise<Status> {
-    this.assertSelectedVehicle()
-    this.activeRequests++
-    try {
-      if (forceUpdate) {
-        // getCar first then save then get remote status
-        // widget remote refresh does not await for entire process to complete, and odometer in US is only on getCar calls, which need to complete and save to cache before sending remote status command
-        // the remote status command will update the API servers in backgound - hence next normal status check will get the updated status data
-        const car = await this.getCar()
-        if (car) this.cache.car = car
-        this.saveCache()
-        this.setLastCommandSent()
-        this.cache.status = await this.getCarStatus(this.cache.car.id, true, location)
-        this.saveCache()
-      } else if (noCache || this.cache.status.lastStatusCheck + this.statusCheckInterval < Date.now()) {
-        this.cache.status = await this.getCarStatus(this.cache.car.id, false, location)
-        this.saveCache()
-      }
-      return {
-        car: this.cache.car,
-        status: this.cache.status,
-      }
-    } finally {
-      this.activeRequests--
+    this.assertCurrentSession()
+    if (forceUpdate) {
+      // getCar first then save then get remote status
+      // widget remote refresh does not await for entire process to complete, and odometer in US is only on getCar calls, which need to complete and save to cache before sending remote status command
+      // the remote status command will update the API servers in backgound - hence next normal status check will get the updated status data
+      const car = await this.getCar()
+      if (car) this.cache.car = car
+      this.saveCache()
+      this.setLastCommandSent()
+      this.cache.status = await this.getCarStatus(this.cache.car.id, true, location)
+      this.saveCache()
+    } else if (noCache || this.cache.status.lastStatusCheck + this.statusCheckInterval < Date.now()) {
+      this.cache.status = await this.getCarStatus(this.cache.car.id, false, location)
+      this.saveCache()
+    }
+    return {
+      car: this.cache.car,
+      status: this.cache.status,
     }
   }
 
@@ -700,273 +740,178 @@ export class Bluelink {
     input: any,
     callback: (isComplete: boolean, didSucceed: boolean, input: any | undefined) => void,
   ) {
-    this.assertSelectedVehicle()
-    this.activeRequests++
-    try {
-      let promise: Promise<any> | undefined = undefined
-      let data: any | undefined = undefined
-      let didSucceed = false
-      switch (type) {
-        case 'status':
-          promise = this.getStatus(true, true)
-          break
-        case 'location':
-          promise = this.getStatus(true, true, true)
-          break
-        case 'lock':
-          promise = this.lock(this.cache.car.id)
-          break
-        case 'unlock':
-          promise = this.unlock(this.cache.car.id)
-          break
-        case 'startCharge':
-          if (!this.supportsChargingFeatures()) {
-            throw Error('Charging features are not supported for this vehicle')
-          }
-          promise = this.startCharge(this.cache.car.id)
-          break
-        case 'stopCharge':
-          if (!this.supportsChargingFeatures()) {
-            throw Error('Charging features are not supported for this vehicle')
-          }
-          promise = this.stopCharge(this.cache.car.id)
-          break
-        case 'chargeLimit': {
-          if (!this.supportsChargingFeatures()) {
-            throw Error('Charge limit features are not supported for this vehicle')
-          }
-          if (!input) {
-            throw Error('Must provide valid input for charge limit request!')
-          }
-          const inputChargeLimit = input as ChargeLimit
-          promise = this.setChargeLimit(this.cache.car.id, inputChargeLimit)
-          break
+    this.assertCurrentSession()
+    let promise: Promise<any> | undefined = undefined
+    let data: any | undefined = undefined
+    let didSucceed = false
+    switch (type) {
+      case 'status':
+        promise = this.getStatus(true, true)
+        break
+      case 'location':
+        promise = this.getStatus(true, true, true)
+        break
+      case 'lock':
+        promise = this.lock(this.cache.car.id)
+        break
+      case 'unlock':
+        promise = this.unlock(this.cache.car.id)
+        break
+      case 'startCharge':
+        if (!this.supportsChargingFeatures()) {
+          throw Error('Charging features are not supported for this vehicle')
         }
-        case 'climate': {
-          if (!input) {
-            throw Error('Must provide valid input for climate request!')
-          }
-          const inputClimate = input as ClimateRequest
-          promise = inputClimate.enable ? this.climateOn(this.cache.car.id, input) : this.climateOff(this.cache.car.id)
-          break
+        promise = this.startCharge(this.cache.car.id)
+        break
+      case 'stopCharge':
+        if (!this.supportsChargingFeatures()) {
+          throw Error('Charging features are not supported for this vehicle')
         }
-        default:
-          throw Error(`Unsupported request ${type}`)
+        promise = this.stopCharge(this.cache.car.id)
+        break
+      case 'chargeLimit': {
+        if (!this.supportsChargingFeatures()) {
+          throw Error('Charge limit features are not supported for this vehicle')
+        }
+        if (!input) {
+          throw Error('Must provide valid input for charge limit request!')
+        }
+        const inputChargeLimit = input as ChargeLimit
+        promise = this.setChargeLimit(this.cache.car.id, inputChargeLimit)
+        break
       }
-      let hasRequestCompleted = false
-      const timer = Timer.schedule(500, true, async () => {
-        if (!hasRequestCompleted) {
-          callback(false, false, undefined)
-        } else {
-          timer.invalidate()
-          if (this.config.debugLogging) this.logger.log(`Returning poll completion ${didSucceed}, data: ${data}`)
-          this.activeRequests--
-          callback(true, didSucceed, data)
+      case 'climate': {
+        if (!input) {
+          throw Error('Must provide valid input for climate request!')
         }
-      })
+        const inputClimate = input as ClimateRequest
+        promise = inputClimate.enable ? this.climateOn(this.cache.car.id, input) : this.climateOff(this.cache.car.id)
+        break
+      }
+      default:
+        throw Error(`Unsupported request ${type}`)
+    }
+    let hasRequestCompleted = false
+    const timer = Timer.schedule(500, true, async () => {
+      if (!hasRequestCompleted) {
+        callback(false, false, undefined)
+      } else {
+        timer.invalidate()
+        if (this.config.debugLogging) this.logger.log(`Returning poll completion ${didSucceed}, data: ${data}`)
+        callback(true, didSucceed, data)
+      }
+    })
 
-      try {
-        data = await promise
-        hasRequestCompleted = true
-        if (type === 'status' || type === 'location') {
-          didSucceed = true
-          data = data as Status
-        } else {
-          data = data as { isSuccess: boolean; data: BluelinkStatus }
-          didSucceed = data.isSuccess
-          data = data.data
-        }
-      } catch (error) {
-        const e = error as Error
-        hasRequestCompleted = true
-        didSucceed = false
-        data = e
+    try {
+      data = await promise
+      hasRequestCompleted = true
+      if (type === 'status' || type === 'location') {
+        didSucceed = true
+        data = data as Status
+      } else {
+        data = data as { isSuccess: boolean; data: BluelinkStatus }
+        didSucceed = data.isSuccess
+        data = data.data
       }
     } catch (error) {
-      this.activeRequests--
-      throw error
+      const e = error as Error
+      hasRequestCompleted = true
+      didSucceed = false
+      data = e
     }
   }
 
   protected getCacheKey(): string {
-    return scriptStorageKey('vehicle-cache', vehicleStorageScope(this.config))
+    return scriptStorageKey('vehicle-cache')
   }
 
   public getConfig() {
     return this.config
   }
 
-  public deleteCache(_all = false) {
-    Keychain.remove(this.getCacheKey())
+  public deleteCache(all = false) {
+    this.assertCurrentSession()
+    this.authSession.clear()
+    removeKeychainValue(this.getCacheKey())
+    if (all) removeKeychainValue('egmp-bluelink-cache')
   }
 
   protected saveCache() {
-    const selection = this.config.selectedVehicle
-    if (selection && this.cache && matchesVehicle(selection, this.cache.car)) {
-      Keychain.set(this.getCacheKey(), JSON.stringify(this.cache))
-    }
+    this.assertCurrentSession()
+    registerLogSecrets([
+      this.cache.token.accessToken,
+      this.cache.token.refreshToken,
+      this.cache.token.authId,
+      ...Object.values(this.cache.token.additionalTokens || {}),
+      this.cache.car.id,
+      this.cache.car.vin,
+      ...(this.cache.car.nickName !== this.cache.car.modelName ? [this.cache.car.nickName] : []),
+    ])
+    Keychain.set(
+      this.getCacheKey(),
+      JSON.stringify({
+        ...this.cache,
+        identity: authIdentity(this.config),
+        generation: this.authSession.generationId(),
+        script: Script.name(),
+      }),
+    )
   }
 
   protected cacheExists(): boolean {
     return Keychain.contains(this.getCacheKey())
   }
 
-  private emptyStatus(): BluelinkStatus {
-    return {
-      lastStatusCheck: 0,
-      lastRemoteStatusCheck: 0,
-      isCharging: false,
-      isPluggedIn: false,
-      chargingPower: 0,
-      remainingChargeTimeMins: 0,
-      range: 0,
-      locked: false,
-      climate: false,
-      soc: 0,
-      twelveSoc: 0,
-      odometer: 0,
-    }
-  }
-
-  private assertSelectedVehicle() {
-    const saved = getConfig()
-    const selection = this.config.selectedVehicle
-    if (this.changingVehicle) throw Error('Wait for the vehicle change to finish.')
-    if (
-      !selection ||
-      !this.cache ||
-      !matchesVehicle(selection, this.cache.car) ||
-      selection.account !== vehicleAccount(saved) ||
-      saved.auth.password !== this.config.auth.password ||
-      saved.auth.pin !== this.config.auth.pin ||
-      !saved.selectedVehicle ||
-      !matchesVehicle(saved.selectedVehicle, this.cache.car)
-    ) {
-      throw new VehicleSelectionError('changed')
-    }
-  }
-
-  public async getAvailableVehicles(): Promise<BluelinkCar[]> {
-    this.assertSelectedVehicle()
-    this.activeRequests++
-    try {
-      await this.refreshAuth()
-      const cars = await this.getCars()
-      this.carOptions = cars
-      return cars
-    } finally {
-      this.activeRequests--
-    }
-  }
-
-  public async changeVehicleForScript(id: string): Promise<void> {
-    this.assertSelectedVehicle()
-    if (this.activeRequests || this.refreshLoginPromise)
-      throw Error('Wait for the current request to finish before changing vehicles.')
-    this.changingVehicle = true
-    const previousCache = this.cache
-    const previousConfig = this.config
-    const previousKey = this.getCacheKey()
-    let staged = false
-    try {
-      await this.refreshAuth()
-      const cars = await this.getCars()
-      const car = cars.find((candidate) => candidate.id === id)
-      if (!car) throw new VehicleSelectionError('missing')
-      const sameVehicle = matchesVehicle(this.config.selectedVehicle!, car)
-      if (sameVehicle && car.id === previousCache.car.id) return
-      const next: Config = {
-        ...getConfig(),
-        selectedVehicle: selectedVehicle(car, this.config),
-        displayNameOverride: sameVehicle ? getConfig().displayNameOverride : '',
-        vehicleTypeOverride: sameVehicle ? getConfig().vehicleTypeOverride : 'auto',
-      }
-      // Never use the previous car's status as a parser fallback for the new one.
-      staged = true
-      this.cache = { token: { ...previousCache.token }, car, status: this.emptyStatus() }
-      this.config = next
-      this.tokens = this.cache.token
-      await this.activateCar(car)
-      this.cache.status = await this.getCarStatus(car.id, false)
-      this.saveCache()
-      setConfig(next)
-      if (previousKey !== this.getCacheKey()) {
-        try {
-          Keychain.remove(previousKey)
-        } catch (cleanupError) {
-          this.logger.log(`Could not remove previous vehicle cache: ${cleanupError}`)
-        }
-      }
-    } catch (error) {
-      if (staged && previousKey !== this.getCacheKey()) {
-        try {
-          Keychain.remove(this.getCacheKey())
-        } catch (cleanupError) {
-          this.logger.log(`Could not remove incomplete vehicle cache: ${cleanupError}`)
-        }
-      }
-      this.cache = previousCache
-      this.config = previousConfig
-      this.tokens = previousCache.token
-      if (staged) {
-        try {
-          await this.activateCar(previousCache.car)
-        } catch (restoreError) {
-          this.logger.log(`Could not restore vehicle session: ${restoreError}`)
-        }
-      }
-      throw error
-    } finally {
-      this.changingVehicle = false
-    }
-  }
-
   protected async loadCache(): Promise<Cache | undefined> {
-    const selection = this.config.selectedVehicle
-    if (
-      (!selection || selection.account !== vehicleAccount(this.config)) &&
-      (config.runsInWidget || config.runsWithSiri)
-    ) {
-      throw new VehicleSelectionError('required')
-    }
-    if (this.cacheExists()) {
-      const cached = JSON.parse(Keychain.get(this.getCacheKey())) as Cache
-      if (selection && selection.account === vehicleAccount(this.config) && matchesVehicle(selection, cached.car)) {
-        this.cache = cached
-        this.tokens = cached.token
-        await this.activateCar(cached.car)
-        // Older caches discarded the API photo URL. Fetch vehicle metadata once;
-        // this reads the account's vehicle list and does not wake the vehicle.
-        if (!Object.hasOwn(cached.car, 'photoUrl')) {
-          try {
-            cached.car = await this.getCar()
-            cached.car.photoUrl ??= null
-            this.saveCache()
-          } catch (error) {
-            if (error instanceof VehicleSelectionError) throw error
-            if (this.config.debugLogging) this.logger.log('Could not update cached vehicle photo metadata')
-          }
-        }
-        return cached
+    let cache: Cache | undefined = undefined
+    if (Keychain.contains(this.getCacheKey())) {
+      try {
+        const stored = JSON.parse(Keychain.get(this.getCacheKey()))
+        if (
+          stored?.identity === authIdentity(this.config) &&
+          stored?.script === Script.name() &&
+          stored?.generation === this.authSession.generationId() &&
+          stored?.token?.accessToken &&
+          stored?.car?.id &&
+          stored?.status
+        )
+          cache = stored
+      } catch {
+        /* Sign in again if a stored cache is damaged. */
       }
     }
-    const tokens = await this.login()
-    if (!tokens) {
-      this.loginFailure = true
-      return
-    }
-    this.tokens = tokens
-    const car = await this.getCar()
-    this.cache = { token: this.tokens, car, status: this.emptyStatus() }
-    await this.activateCar(car)
-    this.cache.status = await this.getCarStatus(car.id, false)
+    const hadCache = !!cache
+    if (!cache) {
+      // Authentication is independent of a complete vehicle/status snapshot.
+      await this.refreshLogin()
+      const tokens = this.tokens
+      if (!tokens || this.loginFailure) {
+        this.loginFailure = true
+        return
+      }
+      const car = await this.getCar()
+      if (!car) {
+        this.loginFailure = true
+        return
+      }
+      registerLogSecrets([car.id, car.vin, ...(car.nickName !== car.modelName ? [car.nickName] : [])])
+      cache = {
+        token: this.tokens!,
+        car: car,
+        status: await this.getCarStatus(car.id, false),
+      }
+    } else if (this.tokens) cache.token = this.tokens
+    this.cache = cache
+    this.tokens = cache.token
+    if (hadCache) await this.onCacheLoaded()
     this.saveCache()
     return this.cache
   }
 
   protected tokenValid(): boolean {
     // invalid if within 30 seconds of expiry
-    return Boolean(this.cache.token.expiry - 30 > Math.floor(Date.now() / 1000))
+    const tokens = this.tokens || this.cache?.token
+    return Boolean(tokens && tokens.expiry - 30 > Math.floor(Date.now() / 1000))
   }
 
   protected nextRequestCookies(req: Request): string {
@@ -981,6 +926,7 @@ export class Bluelink {
   }
 
   protected async request(props: RequestProps): Promise<{ resp: { [key: string]: any }; json: any; cookies: string }> {
+    this.assertCurrentSession()
     let requestTokens: BluelinkTokens | undefined = undefined
     if (!props.noAuth) {
       requestTokens = this.tokens ? this.tokens : this.cache.token
@@ -988,8 +934,19 @@ export class Bluelink {
     if (!props.noAuth && !requestTokens) {
       throw Error('No tokens available for request')
     }
+    if (requestTokens) {
+      registerLogSecrets([
+        requestTokens.accessToken,
+        requestTokens.refreshToken,
+        requestTokens.authCookie,
+        requestTokens.authId,
+        ...Object.values(requestTokens.additionalTokens || {}),
+      ])
+    }
 
+    httpsUrl(props.url)
     const req = new Request(props.url)
+    const usedAccessToken = requestTokens?.accessToken
     req.method = props.method ? props.method : props.data ? 'POST' : 'GET'
     req.headers = {
       Accept: 'application/json, text/plain, */*',
@@ -1023,16 +980,30 @@ export class Bluelink {
     if (props.data) {
       req.body = props.data
     }
-    if (props.noRedirect) {
-      // @ts-ignore - returning null is allowed
-      req.onRedirect = (_request) => {
+    // Never forward a credential-bearing request to another origin or HTTP.
+    // Auth redirects may visit only the region's configured HTTPS hosts, using
+    // a fresh GET with no password body or custom authentication headers.
+    // @ts-ignore - Scriptable permits returning null to stop a redirect.
+    req.onRedirect = (next: Request) => {
+      if (props.noRedirect) return null
+      try {
+        const target = httpsUrl(next.url)
+        if (sameOrigin(props.url, next.url)) return next
+        if (!props.noAuth || !props.notJSON) return null
+        const regional = (this as any).apiConfig
+        const allowed = [httpsUrl(this.apiDomain).hostname, regional?.authHost, regional?.newApiDomain]
+        if (!allowed.includes(target.hostname)) return null
+        const redirect = new Request(next.url)
+        redirect.method = 'GET'
+        redirect.headers = { Accept: 'text/html,application/json' }
+        redirect.allowInsecureRequest = false
+        return redirect
+      } catch {
         return null
       }
     }
-    // Widget executions have a strict Scriptable timeout budget.
-    // Keep network requests short and fall back to cached data when possible.
     if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
-    req.allowInsecureRequest = true
+    req.allowInsecureRequest = false
     this.debugLastRequest = {
       url: props.url,
       method: req.method,
@@ -1044,6 +1015,7 @@ export class Bluelink {
     try {
       if (this.config.debugLogging) this.logger.log(`Sending request ${JSON.stringify(this.debugLastRequest)}`)
       const json = !props.notJSON ? await req.loadJSON() : await req.loadString()
+      this.assertCurrentSession()
       if (this.config.debugLogging) {
         this.logger.log(
           `response ${JSON.stringify(req.response)} data: ${!props.notJSON ? JSON.stringify(json) : 'not JSON'}`,
@@ -1063,9 +1035,21 @@ export class Bluelink {
       }
 
       const checkResponse = props.validResponseFunction(req.response, json)
+      const statusCode = Number(req.response?.statusCode)
+      if (statusCode === 429 || statusCode >= 500) {
+        throw new UserFacingError(
+          'The vehicle service is temporarily unavailable. Your session has been kept; try again later.',
+        )
+      }
       if (!props.noRetry && checkResponse.retry && !props.noAuth) {
         // re-auth and call ourselves
-        if (this.cache) await this.refreshLogin(true) // only refresh login if we have a cache - i.e not first login
+        const latest = this.authSession.read()
+        if (latest && latest.accessToken !== usedAccessToken && latest.expiry > Date.now() / 1000 + 30) {
+          this.tokens = latest
+          if (this.cache) this.cache.token = latest
+          this.loginFailure = false
+          await this.onAuthRefreshed()
+        } else await this.refreshLogin(true)
         if (this.loginFailure) {
           return { resp: req.response, json: json, cookies: this.nextRequestCookies(req) }
         }
@@ -1076,9 +1060,10 @@ export class Bluelink {
       }
       return { resp: req.response, json: json, cookies: this.nextRequestCookies(req) }
     } catch (error) {
+      if (error instanceof UserFacingError) throw error
       const errorString = `Failed to send request to ${props.url}, request ${JSON.stringify(this.debugLastRequest)} - error ${error}`
       if (this.config.debugLogging) this.logger.log(error)
-      throw Error(errorString)
+      throw Error(sanitizeLog(errorString))
     }
   }
 
@@ -1225,42 +1210,10 @@ export class Bluelink {
     throw Error('Not Implemented')
   }
 
-  protected async getCar(noRetry = false): Promise<BluelinkCar> {
-    const cars = await this.getCars(noRetry)
-    this.carOptions = cars
-    if (!cars.length) throw Error('No vehicles are available on this account.')
-    const selection = this.config.selectedVehicle
-    const pinned = selection && selection.account === vehicleAccount(this.config) ? selection : undefined
-    let car = pinned ? cars.find((candidate) => matchesVehicle(pinned, candidate)) : undefined
-    if (pinned && !car) throw new VehicleSelectionError('missing')
-    if (!car) {
-      if (config.runsInWidget || config.runsWithSiri) throw new VehicleSelectionError('required')
-      if (cars.length === 1) car = cars[0]
-      else {
-        const id = await quickOptions(vehicleChoices(cars), {
-          title: 'Choose this script’s vehicle',
-          message: 'For another car, duplicate this script and choose its vehicle separately.',
-        })
-        if (id === null) throw new VehicleSelectionError('cancelled')
-        car = cars.find((candidate) => candidate.id === id)
-      }
-    }
-    if (!car) throw new VehicleSelectionError('missing')
-    const nextSelection = selectedVehicle(car, this.config)
-    if (JSON.stringify(selection) !== JSON.stringify(nextSelection)) {
-      // Keep the caller's config in sync with the choice made during first login.
-      Object.assign(this.config, { selectedVehicle: nextSelection })
-      setConfig({ ...getConfig(), selectedVehicle: nextSelection })
-    }
-    await this.activateCar(car)
-    return car
-  }
-
-  protected async getCars(_noRetry = false): Promise<BluelinkCar[]> {
+  protected async getCar(): Promise<BluelinkCar | undefined> {
+    // implemented in country specific sub-class
     throw Error('Not Implemented')
   }
-
-  protected async activateCar(_car: BluelinkCar): Promise<void> {}
 
   protected async lock(_id: string): Promise<{ isSuccess: boolean; data: BluelinkStatus }> {
     // implemented in country specific sub-class

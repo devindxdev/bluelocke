@@ -14,7 +14,8 @@ import { getAppLogger, getSiriLogger } from './lib/util'
 import { processSiriRequest } from 'siri'
 import { getConfig, configExists } from 'config'
 import { loadConfigScreen } from './settings'
-import { VehicleSelectionError } from './lib/vehicle-selection'
+import { sanitizeLog } from './lib/log-sanitizer'
+import { getUserErrorMessage, UserFacingError } from './lib/user-error'
 import { confirm, quickOptions } from './lib/scriptable-utils'
 
 function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean): string {
@@ -42,15 +43,14 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
     // main app handles refreshing auth in non blocking way
     bl = await initRegionalBluelink(blConfig, config.runsWithSiri || config.runsInWidget ? true : false)
   } catch (e) {
-    if (e instanceof VehicleSelectionError && e.reason === 'cancelled') return
     const error = e instanceof Error ? e.message : e
-    const errorMessage = `Error Initalizing Bluelink: ${error}`
-    const errorMessageShort = errorMessage.replace(/\{.*\}/, '')
+    const errorMessage = sanitizeLog(`Error Initalizing Bluelink: ${error}`)
+    const publicMessage = getUserErrorMessage(e)
     logger.log(errorMessage)
     if (config.runsWithSiri) getSiriLogger().log(errorMessage)
     if (!config.runsWithSiri && !config.runsInWidget) {
       await quickOptions(['Ok', 'Settings', 'Share Debug Logs'], {
-        title: errorMessageShort,
+        title: publicMessage,
         onOptionSelect: async (opt) => {
           if (opt === 'Ok') return
           switch (opt) {
@@ -83,9 +83,9 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
       })
     } else {
       if (config.runsInWidget) {
-        Script.setWidget(createErrorWidget(errorMessage, blConfig))
+        Script.setWidget(createErrorWidget(e, blConfig))
       } else {
-        Script.setShortcutOutput(errorMessage)
+        Script.setShortcutOutput(publicMessage)
         // @ts-ignore - undocumented api
         App.close()
       }
@@ -94,7 +94,7 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
     return
   }
 
-  // deal with login failure, multiple car selection - main app only
+  // deal with login failure - main app only
   if (!bl || bl.loginFailed()) {
     if (config.runsWithSiri || config.runsInWidget) {
       const errorMessage =
@@ -103,7 +103,7 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
           : 'Something went wrong initializing Bluelink.'
       if (config.runsWithSiri) getSiriLogger().log(errorMessage)
       if (config.runsInWidget) {
-        Script.setWidget(createErrorWidget(errorMessage, blConfig))
+        Script.setWidget(createErrorWidget(new UserFacingError(errorMessage), blConfig))
       } else {
         Script.setShortcutOutput(errorMessage)
         // @ts-ignore - undocumented api

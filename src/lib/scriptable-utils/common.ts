@@ -2,6 +2,7 @@
 // Also home for random utils that don't fit elsewhere.
 
 import { AnyObj, Falsy, MapFn, NotUndefined } from './types/utilTypes'
+import { sanitizeLog } from '../log-sanitizer'
 
 //
 // TYPEGUARDS / TYPE UTILS
@@ -115,7 +116,7 @@ export const safeArrLookup = <T extends NotUndefined<any>>(arr: T[], index: numb
   if (val === undefined) {
     const errorMsg = `Array lookup failed in "${callingFn}", no value at index ${index}`
 
-    console.error(errorMsg)
+    console.error(sanitizeLog(errorMsg))
     throw new ErrorWithPayload(errorMsg, { arr })
   }
   return val
@@ -130,14 +131,14 @@ export const safeObjLookup = <K extends string | number, O extends Record<K, Not
   if (!Object.hasOwn(obj, key)) {
     const errorMsg = `Object lookup failed in "${callingFn}", key "${key}" does not exist`
 
-    console.error(errorMsg)
+    console.error(sanitizeLog(errorMsg))
     throw new ErrorWithPayload(errorMsg, { obj })
   }
   const val = obj[key]
   if (val === undefined) {
     const errorMsg = `Object lookup failed in "${callingFn}", value of key "${key}" is undefined.`
 
-    console.error(errorMsg)
+    console.error(sanitizeLog(errorMsg))
     throw new ErrorWithPayload(errorMsg, { obj })
   }
   return val as NotUndefined<O[K]>

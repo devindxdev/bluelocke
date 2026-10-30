@@ -1,4 +1,5 @@
 import { safeArrLookup } from './common'
+import { sanitizeLog } from '../log-sanitizer'
 import {
   AnyObj,
   Identity,
@@ -55,7 +56,9 @@ export const not = (val: any) => !val
 export const cycle = <T>(currentValue: T, cycleOptions: T[], isEqual: ObjComparison<T> = (a, b) => a === b) => {
   const currIndex = cycleOptions.findIndex((opt) => isEqual(opt, currentValue))
   if (currIndex === -1) {
-    console.warn(`Current value ${String(currentValue)} not found in cycle options, returning first option`)
+    console.warn(
+      sanitizeLog(`Current value ${String(currentValue)} not found in cycle options, returning first option`),
+    )
     return safeArrLookup(cycleOptions, 0, 'cycle.1')
   }
   const isLast = currIndex === cycleOptions.length - 1
@@ -111,16 +114,12 @@ const getPerformanceMeasurers = ({
     if (duration < threshold && !logAllMeasurements) return
 
     console.warn(
-      JSON.stringify(
-        {
-          'Performance measure exceeded threshold': name,
-          threshold,
-          actual: duration,
-          metadata,
-        },
-        null,
-        2,
-      ),
+      sanitizeLog({
+        'Performance measure exceeded threshold': name,
+        threshold,
+        actual: duration,
+        metadata,
+      }),
     )
   }
   return { start, stop }

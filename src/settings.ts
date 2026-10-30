@@ -11,14 +11,13 @@ import {
   getStandardClimateConfig,
 } from './config'
 import { Bluelink } from './lib/bluelink-regions/base'
-import { confirm, destructiveConfirm, quickOptions } from './lib/scriptable-utils'
+import { confirm, destructiveConfirm } from './lib/scriptable-utils'
 import { settingsForm } from './lib/native-settings'
 import { presentSettingsPage } from './lib/settings-navigation'
 import { appHeader, appNavigation, appCaption, appListRow, appSeparator, appSpace } from './lib/app-ui'
 import { loadVehicleImageSettings } from './lib/vehicle-image-editor'
 import { loadAboutScreen, doDowngrade } from './about'
 import { deleteWidgetCache } from './widget'
-import { vehicleChoices, vehicleAccount } from './lib/vehicle-selection'
 
 const REGIONS = ['canada', 'usa', 'europe', 'india', 'australia']
 const MANUFACTURERS = ['hyundai', 'kia', 'genesis']
@@ -73,7 +72,7 @@ export async function loadConfigScreen(bl?: Bluelink) {
       detail: 'Sign-in and connected service',
       open: () => loadAccountSettingsScreen(bl),
     },
-    { title: 'Vehicle', detail: 'Selected vehicle, name, and photo', open: () => loadCarSettingsScreen(bl) },
+    { title: 'Vehicle', detail: 'Display name and vehicle photo', open: () => loadCarSettingsScreen(bl) },
     { title: 'Climate', detail: 'Warm and Cool', open: () => loadClimateSettingsScreen() },
     {
       title: 'Appearance & Units',
@@ -93,7 +92,7 @@ type AccountSettings = Pick<
   'username' | 'password' | 'pin' | 'region' | 'manufacturer' | 'mfaPreference'
 >
 
-export async function loadAccountSettingsScreen(bl?: Bluelink, firstRun = false) {
+export async function loadAccountSettingsScreen(_bl?: Bluelink, firstRun = false) {
   return settingsForm<AccountSettings>({
     title: firstRun ? 'Welcome to Bluelocke' : 'Account',
     subtitle: 'Sign in with your connected vehicle account. Changes save automatically.',
@@ -112,17 +111,8 @@ export async function loadAccountSettingsScreen(bl?: Bluelink, firstRun = false)
         },
         mfaPreference: values.mfaPreference ?? current.mfaPreference,
       }
-      const accountChanged =
-        current.manufacturer !== next.manufacturer ||
-        current.auth.region !== next.auth.region ||
-        current.auth.username !== next.auth.username ||
-        current.auth.password !== next.auth.password
-      if (vehicleAccount(current) !== vehicleAccount(next)) next.selectedVehicle = undefined
-      // On error screens there may be no active client. Clear that profile's
-      // cache too, so the next launch cannot reuse the previous account token.
-      const hadAccount = configExists()
+      // setConfig invalidates authentication/status once when credentials change.
       setConfig(next)
-      if (accountChanged && hadAccount) (bl ?? new Bluelink(current)).deleteCache()
     },
     isFormValid: ({ username, password, pin, region, manufacturer }) =>
       !!(username?.trim() && password && pin?.trim() && region && manufacturer),
@@ -150,32 +140,6 @@ export async function loadAccountSettingsScreen(bl?: Bluelink, firstRun = false)
 
 export async function loadCarSettingsScreen(bl?: Bluelink) {
   return settingsMenu('Vehicle', () => [
-    {
-      title: 'Selected vehicle',
-      detail: getConfig().selectedVehicle?.label || 'Choose a vehicle for this script',
-      open: async () => {
-        if (!bl) {
-          await confirm('Choose a vehicle on next launch?', {
-            message: 'Reopen this script to choose again. Your account and preferences will be kept.',
-            confirmButtonTitle: 'Choose again',
-            onConfirm: () => setConfig({ ...getConfig(), selectedVehicle: undefined }),
-          })
-          return
-        }
-        try {
-          const cars = await bl.getAvailableVehicles()
-          const id = await quickOptions(vehicleChoices(cars), {
-            title: 'Selected vehicle',
-            message: 'This script and its widgets use one vehicle. Duplicate the script for another car.',
-          })
-          if (id === null) return
-          await bl.changeVehicleForScript(id)
-          deleteWidgetCache()
-        } catch (error) {
-          await confirm('Could not change vehicle', { message: String(error), includeCancel: false })
-        }
-      },
-    },
     {
       title: 'Display name',
       detail: getConfig().displayNameOverride || 'Use vehicle name',

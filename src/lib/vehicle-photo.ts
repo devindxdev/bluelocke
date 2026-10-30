@@ -1,5 +1,6 @@
 import Url from 'url'
-import { scriptStorageKey } from './vehicle-selection'
+import { scriptStorageKey } from './storage'
+import { httpsUrl } from './secure-url'
 
 function photoUrl(value: unknown, baseUrl?: string): string | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined
@@ -7,8 +8,9 @@ function photoUrl(value: unknown, baseUrl?: string): string | undefined {
   if (!/^https?:\/\//i.test(text) && !(baseUrl && /^(\/|\.\.?\/)/.test(text))) return undefined
   try {
     const resolved = baseUrl ? Url.resolve(baseUrl, text) : text
-    const parsed = Url.parse(resolved)
-    if (!['https:', 'http:'].includes(parsed.protocol || '') || !parsed.hostname || parsed.auth) return undefined
+    const parsed = httpsUrl(resolved)
+    const host = parsed.hostname || ''
+    if (!host.includes('.') || /^[\d.]+$/.test(host) || /:|\.(local|localhost|internal)$/.test(host)) return undefined
     return resolved
   } catch {
     return undefined
@@ -35,7 +37,8 @@ function usableImage(image: Image | null | undefined): image is Image {
     Number.isFinite(image.size.width) &&
     Number.isFinite(image.size.height) &&
     image.size.width > 0 &&
-    image.size.height > 0
+    image.size.height > 0 &&
+    image.size.width * image.size.height <= 64_000_000
   )
 }
 
@@ -75,6 +78,9 @@ export async function loadApiVehiclePhoto(
     // Image hosts receive no account credentials or API authentication headers.
     const request = new Request(normalizedUrl)
     request.method = 'GET'
+    request.allowInsecureRequest = false
+    // @ts-ignore - Scriptable permits null to reject an unsafe redirect.
+    request.onRedirect = (next: Request) => (photoUrl(next.url) ? next : null)
     if (timeout) request.timeoutInterval = timeout
     image = await request.loadImage()
     if (!usableImage(image)) return cached

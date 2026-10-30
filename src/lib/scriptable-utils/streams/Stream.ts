@@ -1,6 +1,7 @@
 import ThrottledBatchQueue from '../ThrottledBatchQueue'
 import { AnyObj, Identity, StreamCallback } from '../types/utilTypes'
 import { StreamConstructorOpts } from './types'
+import { sanitizeLog } from '../../log-sanitizer'
 
 type UpdateCallback<D extends AnyObj> = (previousData: D, updatedData: D) => any
 type CallbackWithOpts<D extends AnyObj> = {
@@ -72,7 +73,8 @@ export default class Stream<DataType extends AnyObj> {
 
   private runCallbacks(previousData: DataType, updatedData: DataType) {
     for (const { callback, id } of this.updateCallbacks) {
-      if (this.showStreamDataUpdateDebug) console.log(`Running stream "${this.name}" update callback with ID "${id}"`)
+      if (this.showStreamDataUpdateDebug)
+        console.log(sanitizeLog(`Running stream "${this.name}" update callback with ID "${id}"`))
       callback(previousData, updatedData)
     }
   }

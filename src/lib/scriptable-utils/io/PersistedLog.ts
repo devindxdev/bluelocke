@@ -1,7 +1,7 @@
-import { isString } from '../common'
 import { getConfig } from '../configRegister'
 import { formatDate } from '../date'
 import persisted from './persisted'
+import { sanitizeLog } from '../../log-sanitizer'
 
 const trimLogLength = (log: string) => {
   const lines = log.split('\n')
@@ -18,14 +18,14 @@ const getIO = (filename: string) =>
   })
 
 const log = async (val: any, { ignoreLineLimit = false } = {}, filename: string) => {
-  const stringEntry = isString(val) ? val : JSON.stringify(val, null, 2)
+  const stringEntry = sanitizeLog(val)
   const io = getIO(filename)
   const currData = await io.getData()
   const NOW = new Date()
   const timestamp = `${formatDate(NOW, 'YYYYMMDD')}, ${formatDate(NOW, 'HHMM')}`
   const device = Device.isPhone() ? 'phone' : 'iPad'
   const newEntry = `${timestamp} (${device}): ${stringEntry}`
-  const updatedLog = [currData, newEntry].filter(Boolean).join('\n')
+  const updatedLog = [sanitizeLog(currData), newEntry].filter(Boolean).join('\n')
   await io.write({
     data: ignoreLineLimit ? updatedLog : trimLogLength(updatedLog),
   })
@@ -34,7 +34,7 @@ const log = async (val: any, { ignoreLineLimit = false } = {}, filename: string)
 export default (filename: string = getConfig('PERSISTED_LOG_FILENAME')) => {
   return {
     log: (val: any) => log(val, {}, filename),
-    get: () => getIO(filename).getData(),
+    get: async () => sanitizeLog(await getIO(filename).getData()),
     clear: () => getIO(filename).reset(),
     filename: filename,
   }

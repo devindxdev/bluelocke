@@ -10,9 +10,10 @@ import {
   tintSFSymbol,
 } from './lib/util'
 import { Bluelink, Status } from './lib/bluelink-regions/base'
-import { Config, getConfig } from 'config'
-import { scriptStorageKey, vehicleStorageScope } from './lib/vehicle-selection'
+import { Config } from 'config'
 import { Logger } from './lib/logger'
+import { removeKeychainValue } from './lib/storage'
+import { getUserErrorMessage } from './lib/user-error'
 import { getMediumWidgetGeometry, getMediumWidgetFooterLayout, getMediumWidgetImageFrame } from './lib/widget-layout'
 import { createWidgetPreviewStatus, VehicleImagePreviewOptions } from './lib/widget-preview-data'
 
@@ -107,12 +108,12 @@ export function getWidgetLogger(): Logger {
   return WIDGET_LOGGER
 }
 
-function getCacheKey(config: Config = getConfig()): string {
-  return scriptStorageKey('widget-refresh', vehicleStorageScope(config))
+function getCacheKey(): string {
+  return `bluelocke-widget-${Script.name().replaceAll(' ', '')}`
 }
 
 export function deleteWidgetCache() {
-  Keychain.remove(getCacheKey())
+  removeKeychainValue(getCacheKey())
 }
 
 async function waitForCommandSent(
@@ -186,7 +187,7 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
     DEFAULT_REMOTE_REFRESH_INTERVAL = DEFAULT_REMOTE_REFRESH_INTERVAL_DAY
   }
 
-  const cacheKey = getCacheKey(config)
+  const cacheKey = getCacheKey()
   if (Keychain.contains(cacheKey)) {
     cache = {
       ...DEFAULT_WIDGET_CACHE,
@@ -294,8 +295,9 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
   }
 }
 
-export function createErrorWidget(message: string, config: Config) {
+export function createErrorWidget(error: unknown, config: Config) {
   const widget = new ListWidget()
+  widget.url = URLScheme.forRunningScript()
   widget.setPadding(20, 10, 15, 15)
 
   const mainStack = widget.addStack()
@@ -314,7 +316,7 @@ export function createErrorWidget(message: string, config: Config) {
 
   mainStack.addSpacer()
 
-  const messageElement = mainStack.addText(message)
+  const messageElement = mainStack.addText(getUserErrorMessage(error))
   messageElement.textColor = getPrimaryTextColor(config)
   messageElement.font = Font.systemFont(15)
   messageElement.minimumScaleFactor = 0.5

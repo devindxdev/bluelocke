@@ -21,12 +21,12 @@ The app screen is designed for quick common actions and status visibility.
 Open **Settings** from the main screen. Settings has five destinations:
 
 - **Account** — manufacturer, region, credentials, PIN, and verification method
-- **Vehicle** — selected vehicle, display name, and vehicle photo
+- **Vehicle** — display name and vehicle photo
 - **Climate** — temperature, duration, defrost, and seat settings for Warm and Cool
 - **Appearance & Units** — widget appearance, distance, and temperature units
 - **Help & Support** — updates, diagnostics, vehicle detection, and recovery options
 
-Settings save automatically when you change a switch, pick an option, or tap **Done** in a text field. **Cancel** keeps the previous field value. Nested Settings pages use **‹ Back**; Scriptable’s **Close** exits Settings. Account setup keeps partial progress, but continues to sign-in only once the required details are complete. Vehicle selection is applied after the new status loads successfully. Vehicle photos are saved separately after image confirmation.
+Settings save automatically when you change a switch, pick an option, or tap **Done** in a text field. **Cancel** keeps the previous field value. Nested Settings pages use **‹ Back**; Scriptable’s **Close** exits Settings. Account setup keeps partial progress, but continues to sign-in only once the required details are complete. Vehicle photos are saved separately after image confirmation.
 
 Widget refresh intervals are managed automatically. Charge profiles, custom climate builders, and update-prompt toggles are not part of everyday settings. Existing saved charge and climate profiles remain available in the app and Shortcuts.
 

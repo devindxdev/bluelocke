@@ -9,6 +9,7 @@ import {
   queueNextApiResponseCapture,
 } from 'lib/bluelink-regions/base'
 import { getWidgetLogger } from 'widget'
+import { validateReleaseAssetUrl, allowedReleaseRedirect } from './lib/update-security'
 
 const SCRIPTABLE_DIR = '/var/mobile/Library/Mobile Documents/iCloud~dk~simonbs~Scriptable/Documents'
 const logger = getAppLogger()
@@ -97,6 +98,7 @@ async function presentDebugContentViewer(
     <html>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'" />
         <style>
           :root {
             color-scheme: light dark;
@@ -212,23 +214,46 @@ export function doDowngrade(appFile = `${Script.name()}.js`) {
   }
 }
 
-async function doUpgrade(url: string, appFile = `${Script.name()}.js`) {
-  const req = new Request(url)
-  const data = await req.load()
-  if (req.response.statusCode === 200) {
-    const fm = FileManager.iCloud()
-    // try to backup current script - log errors, script could have been renamed for example
-    try {
-      if (fm.fileExists(`${SCRIPTABLE_DIR}/${appFile}.backup`)) {
-        fm.remove(`${SCRIPTABLE_DIR}/${appFile}.backup`)
-      }
-      fm.move(`${SCRIPTABLE_DIR}/${appFile}`, `${SCRIPTABLE_DIR}/${appFile}.backup`)
-    } catch (e) {
-      logger.log(`Failed to backup current script: ${e}`)
+export async function doUpgrade(url: string, appFile = `${Script.name()}.js`) {
+  const fm = FileManager.iCloud()
+  const destination = `${SCRIPTABLE_DIR}/${appFile}`
+  const backup = `${destination}.backup`
+  const staged = `${destination}.${UUID.string()}.download`
+  try {
+    if (/[/\\]/.test(appFile) || !appFile.endsWith('.js')) throw Error('Invalid script filename.')
+    const req = new Request(validateReleaseAssetUrl(url))
+    req.allowInsecureRequest = false
+    // @ts-ignore - Scriptable allows null to block a redirect.
+    req.onRedirect = (next: Request) => (allowedReleaseRedirect(next.url) ? next : null)
+    const data = await req.load()
+    const source = data.toRawString()
+    if (
+      req.response.statusCode !== 200 ||
+      !source ||
+      source.length < 1000 ||
+      source.length > 2_000_000 ||
+      /^\s*</.test(source)
+    )
+      throw Error('The downloaded update is not a usable script.')
+    fm.write(staged, data)
+    if (fm.fileExists(destination)) {
+      if (fm.fileExists(backup)) fm.remove(backup)
+      fm.copy(destination, backup)
+      fm.remove(destination)
     }
-    fm.write(`${SCRIPTABLE_DIR}/${appFile}`, data)
-  } else {
-    OK('Download Error', { message: `Failed to download release: ${req.response.statusCode}` })
+    try {
+      fm.move(staged, destination)
+    } catch (error) {
+      if (!fm.fileExists(destination) && fm.fileExists(backup)) fm.copy(backup, destination)
+      throw error
+    }
+    return true
+  } catch (error) {
+    logger.log(`Update installation failed: ${error}`)
+    await OK('Update could not be installed', { message: 'Your current script has been kept. Please try again later.' })
+    return false
+  } finally {
+    if (fm.fileExists(staged)) fm.remove(staged)
   }
 }
 
@@ -462,7 +487,7 @@ const upgrade = connect(({ state: { currentVersion, release } }) => {
           title: `Confirm Install - App will update "${appFile}" and auto-close`,
           onOptionSelect: async (opt) => {
             if (opt === 'Install') {
-              await doUpgrade(release.url, appFile)
+              if (!(await doUpgrade(release.url, appFile))) return
               Script.complete()
               // @ts-ignore - undocumented api
               App.close()

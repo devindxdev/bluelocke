@@ -1,3 +1,4 @@
+import { singleQueryParam } from '../secure-url'
 import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
@@ -11,7 +12,6 @@ import {
   MAX_COMPLETION_POLLS,
 } from './base'
 import { Config } from '../../config'
-import Url from 'url'
 
 interface ControlToken {
   expiry: number
@@ -100,7 +100,7 @@ export class BluelinkIndia extends Bluelink {
     ) {
       return { valid: true, retry: false }
     }
-    return { valid: false, retry: true }
+    return { valid: false, retry: resp.statusCode === 401 || resp.statusCode === 403 }
   }
 
   private getTempCode(temp: number): string {
@@ -154,8 +154,7 @@ export class BluelinkIndia extends Bluelink {
       throw Error(error)
     }
 
-    const params = Url.parse(redirectUrl, true).query
-    const authCode = params.code
+    const authCode = singleQueryParam(redirectUrl, 'code')
     if (!authCode) {
       const error = `Failed to extract auth code ${JSON.stringify(respSignin.resp)}`
       if (this.config.debugLogging) this.logger.log(error)
@@ -163,7 +162,7 @@ export class BluelinkIndia extends Bluelink {
     }
 
     // Get access token
-    const tokenData = `grant_type=authorization_code&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect&code=${authCode}`
+    const tokenData = `grant_type=authorization_code&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect&code=${encodeURIComponent(authCode)}`
     const respTokens = await this.request({
       url: `${this.apiDomain}/api/v1/user/oauth2/token`,
       noAuth: true,
@@ -227,13 +226,16 @@ export class BluelinkIndia extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
-    if (!this.cache.token.refreshToken) {
+    const currentTokens = this.tokens || this.cache?.token
+    if (!currentTokens) return undefined
+
+    if (!currentTokens.refreshToken) {
       if (this.config.debugLogging) this.logger.log('No refresh token - cannot refresh')
       return undefined
     }
 
     const stamp = this.getStamp(this.apiConfig.appId, this.apiConfig.authCfb)
-    const refreshData = `grant_type=refresh_token&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&refresh_token=${this.cache.token.refreshToken}`
+    const refreshData = `grant_type=refresh_token&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&refresh_token=${currentTokens.refreshToken}`
 
     if (this.config.debugLogging) this.logger.log('Refreshing tokens')
     const resp = await this.request({
@@ -259,7 +261,7 @@ export class BluelinkIndia extends Bluelink {
       return {
         authCookie: '',
         accessToken,
-        refreshToken: this.cache.token.refreshToken, // maintain existing refresh token
+        refreshToken: currentTokens.refreshToken, // maintain existing refresh token
         expiry: Math.floor(Date.now() / 1000) + Number(resp.json.expires_in),
         authId: await this.getDeviceId(),
       }
@@ -293,7 +295,11 @@ export class BluelinkIndia extends Bluelink {
     return undefined
   }
 
-  protected async getCars(): Promise<BluelinkCar[]> {
+  protected async getCar(): Promise<BluelinkCar | undefined> {
+    let vin = this.vin
+    if (!vin && this.cache) {
+      vin = this.cache.car.vin
+    }
     const resp = await this.request({
       url: this.apiDomain + `/api/v1/spa/vehicles`,
       validResponseFunction: this.requestResponseValid,
@@ -301,28 +307,39 @@ export class BluelinkIndia extends Bluelink {
     })
 
     if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      throw Error('Failed to retrieve vehicles. Please try again.')
+      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      throw Error(error)
     }
-    const vehicles = resp.json?.resMsg?.vehicles
-    if (!Array.isArray(vehicles)) throw Error('Failed to retrieve vehicle list. Please try again.')
-    return vehicles
-      .map((vehicle: any) => ({
-        id: String(vehicle.vehicleId ?? ''),
-        vin: vehicle.vin || '',
+
+    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.resMsg.vehicles.length > 0) {
+      let vehicle = resp.json.resMsg.vehicles[0]
+      if (vin) {
+        for (const v of resp.json.resMsg.vehicles) {
+          if (v.vin === vin) {
+            vehicle = v
+            break
+          }
+        }
+      }
+
+      this.europeccs2 = vehicle.ccuCCS2ProtocolSupport
+      return {
+        id: vehicle.vehicleId,
+        vin: vehicle.vin,
         photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickname || '',
+        nickName: vehicle.nickname,
         modelName: vehicle.vehicleName,
-        modelYear: String(vehicle.year ?? ''),
+        modelYear: vehicle.year,
         odometer: 0, // not available here
         modelColour: vehicle.detailInfo?.outColor,
         modelTrim: vehicle.detailInfo?.saleCarmdlCd,
         europeccs2: vehicle.ccuCCS2ProtocolSupport,
-      }))
-      .filter((vehicle: BluelinkCar) => vehicle.id.length > 0)
-  }
-
-  protected async activateCar(car: BluelinkCar) {
-    this.europeccs2 = car.europeccs2
+      }
+    }
+    const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    throw Error(error)
   }
 
   protected returnCarStatus(maint: any, loc: any, status: any, updateTime: number): BluelinkStatus {
@@ -470,7 +487,7 @@ export class BluelinkIndia extends Bluelink {
     if (this.requestResponseValid(resp.resp, resp.json).valid) {
       const controlToken = `Bearer ${resp.json.controlToken}`
       const expiry = Date.now() + Number(resp.json.expiresTime) * 1000
-      if (this.config.debugLogging) this.logger.log(`expiry: ${expiry}, control token: ${controlToken}`)
+      if (this.config.debugLogging) this.logger.log(`Control token received; expiry: ${expiry}`)
       this.controlToken = { expiry, token: controlToken }
       return this.controlToken.token
     }

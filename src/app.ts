@@ -10,9 +10,9 @@ import {
 import { getTable, Div, P, Img, quickOptions, DivChild, Spacer, destructiveConfirm } from 'lib/scriptable-utils'
 import { deleteConfig, setConfig, ClimateSeatSetting } from 'config'
 import { loadConfigScreen } from './settings'
-import { VehicleSelectionError } from './lib/vehicle-selection'
 import { loadAboutScreen, doDowngrade } from 'about'
 import { Version } from 'lib/version'
+import { UserFacingError } from './lib/user-error'
 import { deleteWidgetCache } from 'widget'
 import { getAppLogger, getSiriLogger } from './lib/util'
 import { getWidgetLogger } from 'widget'
@@ -183,14 +183,17 @@ const settings = (bl: Bluelink) => {
     ],
     {
       onTap: async () => {
+        const previous = getConfig()
         await loadConfigScreen(bl)
-        try {
-          updateStatus(bl.getCachedStatus())
-        } catch (error) {
-          if (!(error instanceof VehicleSelectionError)) throw error
+        const current = getConfig()
+        if (
+          previous.manufacturer !== current.manufacturer ||
+          JSON.stringify(previous.auth) !== JSON.stringify(current.auth)
+        ) {
           Safari.open(URLScheme.forRunningScript())
           return
         }
+        updateStatus(bl.getCachedStatus())
         setState({ appIcon: await bl.getCarImage() })
       },
       onTripleTap() {
@@ -747,7 +750,11 @@ async function doAsyncUpdate(props: doAsyncUpdateProps) {
                   Color.red(),
                   0,
                 ),
-            text: didSucceed ? props.successText : props.failureText,
+            text: didSucceed
+              ? props.successText
+              : data instanceof UserFacingError
+                ? data.publicMessage
+                : props.failureText,
           },
         },
       })
@@ -767,7 +774,8 @@ async function doAsyncUpdate(props: doAsyncUpdateProps) {
 
       // log error on failure
       if (!didSucceed) {
-        logger.log(`Failed to complete request ${JSON.stringify(data)}`)
+        logger.log(`Failed to complete ${props.command} request`)
+        logger.log(data)
       }
     } else {
       // continue to rotate icon indicating ongoing update

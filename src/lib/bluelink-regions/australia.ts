@@ -1,3 +1,4 @@
+import { singleQueryParam } from '../secure-url'
 import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
@@ -11,7 +12,6 @@ import {
   MAX_COMPLETION_POLLS,
 } from './base'
 import { Config } from '../../config'
-import Url from 'url'
 import { isNotEmptyObject } from '../util'
 
 interface ControlToken {
@@ -109,7 +109,7 @@ export class BluelinkAustralia extends Bluelink {
     ) {
       return { valid: true, retry: false }
     }
-    return { valid: false, retry: true }
+    return { valid: false, retry: resp.statusCode === 401 || resp.statusCode === 403 }
   }
 
   protected async login(): Promise<BluelinkTokens | undefined> {
@@ -166,8 +166,7 @@ export class BluelinkAustralia extends Bluelink {
       throw Error(error)
     }
 
-    const loginParams = Url.parse(loginRedirectUrl, true).query
-    const loginAuthCode = loginParams.code
+    const loginAuthCode = singleQueryParam(loginRedirectUrl, 'code')
     if (!loginAuthCode) {
       const error = `Failed to extract auth code ${JSON.stringify(respLogin.resp)}`
       if (this.config.debugLogging) this.logger.log(error)
@@ -190,7 +189,7 @@ export class BluelinkAustralia extends Bluelink {
     // }
 
     // get tokens
-    const tokenData = `client_id=${this.apiConfig.clientId}&grant_type=authorization_code&code=${loginAuthCode}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
+    const tokenData = `client_id=${this.apiConfig.clientId}&grant_type=authorization_code&code=${encodeURIComponent(loginAuthCode)}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
     const respTokens = await this.request({
       url: `${this.apiDomain}/api/v1/user/oauth2/token`,
       noAuth: true,
@@ -218,11 +217,14 @@ export class BluelinkAustralia extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
-    if (!this.cache.token.refreshToken) {
+    const currentTokens = this.tokens || this.cache?.token
+    if (!currentTokens) return undefined
+
+    if (!currentTokens.refreshToken) {
       if (this.config.debugLogging) this.logger.log('No refresh token - cannot refresh')
       return undefined
     }
-    const refreshData = `client_id=${this.apiConfig.clientId}&grant_type=refresh_token&refresh_token=${this.cache.token.refreshToken}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
+    const refreshData = `client_id=${this.apiConfig.clientId}&grant_type=refresh_token&refresh_token=${currentTokens.refreshToken}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
 
     if (this.config.debugLogging) this.logger.log('Refreshing tokens')
     const resp = await this.request({
@@ -240,7 +242,7 @@ export class BluelinkAustralia extends Bluelink {
       return {
         authCookie: '',
         accessToken: `Bearer ${resp.json.access_token}`,
-        refreshToken: this.cache.token.refreshToken, // we never recieve a new refresh token
+        refreshToken: currentTokens.refreshToken, // we never recieve a new refresh token
         expiry: Math.floor(Date.now() / 1000) + Number(resp.json.expires_in), // we only get a expireIn not a actual date
         authId: await this.getDeviceId(),
       }
@@ -275,7 +277,12 @@ export class BluelinkAustralia extends Bluelink {
     return undefined
   }
 
-  protected async getCars(): Promise<BluelinkCar[]> {
+  protected async getCar(): Promise<BluelinkCar | undefined> {
+    let vin = this.vin
+    if (!vin && this.cache) {
+      vin = this.cache.car.vin
+    }
+
     const resp = await this.request({
       url: this.apiDomain + `/api/v1/spa/vehicles`,
       validResponseFunction: this.requestResponseValid,
@@ -285,28 +292,40 @@ export class BluelinkAustralia extends Bluelink {
     })
 
     if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      throw Error('Failed to retrieve vehicles. Please try again.')
+      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      throw Error(error)
     }
-    const vehicles = resp.json?.resMsg?.vehicles
-    if (!Array.isArray(vehicles)) throw Error('Failed to retrieve vehicle list. Please try again.')
-    return vehicles
-      .map((vehicle: any) => ({
-        id: String(vehicle.vehicleId ?? ''),
-        vin: vehicle.vin || '',
+
+    const vehicles = Array.isArray(resp?.json?.resMsg?.vehicles) ? resp.json.resMsg.vehicles : []
+    if (this.requestResponseValid(resp.resp, resp.json).valid && vehicles.length > 0) {
+      let vehicle = vehicles[0]
+      if (vin) {
+        for (const v of vehicles) {
+          if (v.vin === vin) {
+            vehicle = v
+            break
+          }
+        }
+      }
+
+      this.europeccs2 = vehicle.ccuCCS2ProtocolSupport
+      return {
+        id: vehicle.vehicleId,
+        vin: vehicle.vin,
         photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickname || '',
+        nickName: vehicle.nickname,
         modelName: vehicle.vehicleName,
-        modelYear: String(vehicle.year ?? ''),
+        modelYear: vehicle.year,
         odometer: 0, // not available here
         modelColour: vehicle?.detailInfo?.outColor,
         modelTrim: vehicle?.detailInfo?.saleCarmdlCd,
         europeccs2: vehicle.ccuCCS2ProtocolSupport,
-      }))
-      .filter((vehicle: BluelinkCar) => vehicle.id.length > 0)
-  }
-
-  protected async activateCar(car: BluelinkCar) {
-    this.europeccs2 = car.europeccs2
+      }
+    }
+    const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    throw Error(error)
   }
 
   protected returnCarStatus(status: any, updateTime: number): BluelinkStatus {

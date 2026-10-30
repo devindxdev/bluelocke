@@ -14,6 +14,7 @@ import {
 import { Config } from '../../config'
 import { isNotEmptyObject } from '../util'
 import { textInput } from '../scriptable-utils/'
+import { UserFacingError } from '../user-error'
 
 const DEFAULT_API_DOMAIN = 'mybluelink.ca'
 const API_DOMAINS: Record<string, string> = {
@@ -29,6 +30,8 @@ interface MFAResponse {
   otpKey?: string
   email: string
   phone?: string
+  sentAt?: number
+  otpValidationKey?: string
 }
 
 function canPromptForCanadaMfa(): boolean {
@@ -45,7 +48,7 @@ export class BluelinkCanada extends Bluelink {
     this.apiDomain = `https://${this.apiHost}/tods/api/`
     this.statusCheckInterval = statusCheckInterval || DEFAULT_STATUS_CHECK_INTERVAL
     this.additionalHeaders = {
-      deviceid: UUID.string(), // native scriptable UUID method
+      deviceid: this.authSession.getDeviceId('deviceid', () => UUID.string()),
       from: config.manufacturer === 'hyundai' ? 'SPA' : 'CWP',
       client_id: 'HATAHSPACA0232141ED9722C67715A0B',
       client_secret: 'CLISCR01AHSPA',
@@ -94,66 +97,30 @@ export class BluelinkCanada extends Bluelink {
   }
 
   protected getAdditionalHeaders(): Record<string, string> {
-    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.deviceid) {
-      this.additionalHeaders.deviceid = this.cache.token.additionalTokens.deviceid
-    }
+    const tokens = this.tokens || this.cache?.token
+    const deviceid = tokens?.additionalTokens?.deviceid
+    if (deviceid) this.additionalHeaders.deviceid = deviceid
     return this.additionalHeaders
   }
 
-  private regenerateDeviceId(): void {
-    this.additionalHeaders.deviceid = UUID.string()
-    if (this.cache && this.cache.token) {
-      this.cache.token.additionalTokens = {
-        ...(this.cache.token.additionalTokens || {}),
-        deviceid: this.additionalHeaders.deviceid,
-      }
-      this.saveCache()
-    }
-  }
-
   private hasRecentMfaRequest(): boolean {
-    if (!Keychain.contains(CANADA_MFA_REQUEST_KEY)) return false
-    const rawValue = Keychain.get(CANADA_MFA_REQUEST_KEY)
-    const requestedAt = Number.parseInt(rawValue, 10)
-    if (!Number.isFinite(requestedAt)) {
-      Keychain.remove(CANADA_MFA_REQUEST_KEY)
-      return false
-    }
-    if (Date.now() - requestedAt > CANADA_MFA_REQUEST_COOLDOWN_MS) {
-      Keychain.remove(CANADA_MFA_REQUEST_KEY)
-      return false
-    }
-    return true
+    const legacy = Keychain.contains(CANADA_MFA_REQUEST_KEY) ? Number(Keychain.get(CANADA_MFA_REQUEST_KEY)) : 0
+    const sentAt = Math.max(this.authSession.getMfaSentAt(), Number.isFinite(legacy) ? legacy : 0)
+    return Date.now() - sentAt < CANADA_MFA_REQUEST_COOLDOWN_MS
   }
 
-  private markMfaRequestStarted(): void {
-    Keychain.set(CANADA_MFA_REQUEST_KEY, Date.now().toString())
-  }
-
-  private clearMfaRequestStarted(): void {
-    if (Keychain.contains(CANADA_MFA_REQUEST_KEY)) Keychain.remove(CANADA_MFA_REQUEST_KEY)
+  private pendingMfa(): (MFAResponse & { sentAt: number; authCookie: string }) | undefined {
+    const pending = this.authSession.readMfa<MFAResponse & { sentAt: number; authCookie: string }>()
+    return pending?.otpKey && Date.now() - pending.sentAt < 10 * 60 * 1000 ? pending : undefined
   }
 
   private requestResponseValid(
     resp: Record<string, any>,
     payload: Record<string, any>,
   ): { valid: boolean; retry: boolean } {
-    if (Object.hasOwn(payload, 'responseHeader') && payload.responseHeader.responseCode == 0) {
-      return { valid: true, retry: false }
-    }
-    if (Object.hasOwn(payload, 'responseHeader') && payload.responseHeader.responseCode == 1) {
-      // check failure
-      if (
-        Object.hasOwn(payload, 'error') &&
-        Object.hasOwn(payload.error, 'errorDesc') &&
-        (payload.error.errorDesc.toLocaleString().includes('expired') ||
-          payload.error.errorDesc.toLocaleString().includes('deleted') ||
-          payload.error.errorDesc.toLocaleString().includes('ip validation'))
-      ) {
-        return { valid: false, retry: true }
-      }
-    }
-    return { valid: false, retry: false }
+    if (payload?.responseHeader?.responseCode == 0) return { valid: true, retry: false }
+    const code = String(payload?.error?.errorCode || '')
+    return { valid: false, retry: resp.statusCode === 401 || ['7403', '7602', '7606'].includes(code) }
   }
 
   protected async getSessionCookie(): Promise<string> {
@@ -206,138 +173,98 @@ export class BluelinkCanada extends Bluelink {
     otpRequest: MFAResponse,
     authCookie: string,
   ): Promise<BluelinkTokens | undefined> {
+    this.authSession.requireForegroundAuth()
     if (!canPromptForCanadaMfa()) {
-      if (this.config.debugLogging) {
-        this.logger.log('Canada MFA required in non-interactive context; skipping OTP send until app is opened.')
-      }
-      return undefined
+      throw new UserFacingError('Open Bluelocke in Scriptable to enter your verification code.')
     }
-
-    if (this.hasRecentMfaRequest()) {
-      if (this.config.debugLogging) {
-        this.logger.log('Canada MFA request already sent recently; suppressing duplicate OTP send.')
-      }
-      return undefined
-    }
-
-    this.markMfaRequestStarted()
-
     const notifyBySms = this.config.mfaPreference === 'sms' && otpRequest.phone
-    const sendOtpResp = await this.request({
-      url: this.apiDomain + 'mfa/sendotp',
-      data: JSON.stringify({
-        otpMethod: notifyBySms ? 'M' : 'E',
-        mfaApiCode: '0107',
-        userAccount: otpRequest.email,
-        userPhone: notifyBySms ? otpRequest.phone : '',
-        userInfoUuid: otpRequest.requestId,
-      }),
-      validResponseFunction: this.requestResponseValid,
-      headers: {},
-      noAuth: true,
-    })
-    if (!this.requestResponseValid(sendOtpResp.resp, sendOtpResp.json).valid) {
-      this.clearMfaRequestStarted()
-      this.regenerateDeviceId()
-      const error = `MFA Send Failed: ${JSON.stringify(sendOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
+    let pending = this.pendingMfa()
+    if (!pending) {
+      if (this.hasRecentMfaRequest()) {
+        throw new UserFacingError(
+          'A verification code was recently requested. Wait two minutes before trying again in Scriptable.',
+        )
+      }
+      this.authSession.markMfaSent()
+      Keychain.set(CANADA_MFA_REQUEST_KEY, String(Date.now()))
+      const sent = await this.request({
+        url: this.apiDomain + 'mfa/sendotp',
+        data: JSON.stringify({
+          otpMethod: notifyBySms ? 'M' : 'E',
+          mfaApiCode: '0107',
+          userAccount: otpRequest.email,
+          userPhone: notifyBySms ? otpRequest.phone : '',
+          userInfoUuid: otpRequest.requestId,
+        }),
+        validResponseFunction: this.requestResponseValid,
+        noAuth: true,
+      })
+      const otpKey = sent.json?.result?.otpKey
+      if (!this.requestResponseValid(sent.resp, sent.json).valid || !otpKey) {
+        this.logger.log(`MFA send failed: ${JSON.stringify(sent.json)}`)
+        throw new UserFacingError('Unable to send a verification code. Wait two minutes, then try again in Scriptable.')
+      }
+      pending = { ...otpRequest, otpKey, sentAt: Date.now(), authCookie }
+      this.authSession.writeMfa(pending)
     }
-
-    const otpKey = sendOtpResp.json.result && sendOtpResp.json.result.otpKey
-    if (!otpKey) {
-      this.clearMfaRequestStarted()
-      this.regenerateDeviceId()
-      const error = `MFA Send Failed: missing otpKey ${JSON.stringify(sendOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
+    if (!pending.otpValidationKey) {
+      const otpCode = await textInput('Enter the verification code already sent to you.', {
+        submitText: 'Enter Code',
+        flavor: 'number',
+      })
+      if (!otpCode)
+        throw new UserFacingError('Verification cancelled. Reopen Bluelocke in Scriptable to enter the existing code.')
+      const validated = await this.request({
+        url: this.apiDomain + 'mfa/validateotp',
+        data: JSON.stringify({ otpNo: otpCode, userAccount: username, otpKey: pending.otpKey, mfaApiCode: '0107' }),
+        validResponseFunction: this.requestResponseValid,
+        noAuth: true,
+      })
+      if (
+        !this.requestResponseValid(validated.resp, validated.json).valid ||
+        !validated.json?.result?.verifiedOtp ||
+        !validated.json?.result?.otpValidationKey
+      ) {
+        this.logger.log(`MFA verification failed: ${JSON.stringify(validated.json)}`)
+        throw new UserFacingError(
+          'The verification code could not be confirmed. Reopen Scriptable to enter the code again.',
+        )
+      }
+      pending.otpValidationKey = validated.json.result.otpValidationKey
+      this.authSession.writeMfa(pending)
     }
-    otpRequest.otpKey = otpKey
-
-    const otpCode = await textInput(`MFA code sent via ${notifyBySms ? 'sms' : 'email'}.`, {
-      submitText: 'Enter Code',
-      flavor: 'number',
-    })
-    if (!otpCode) {
-      this.clearMfaRequestStarted()
-      if (this.config.debugLogging) this.logger.log('MFA Verify Failed / Cancelled')
-      return undefined
-    }
-
-    if (this.config.debugLogging) this.logger.log(`MFA Code entered: ${otpCode}`)
-    const validateOtpResp = await this.request({
-      url: this.apiDomain + 'mfa/validateotp',
-      data: JSON.stringify({
-        otpNo: otpCode,
-        userAccount: username,
-        otpKey: otpRequest.otpKey,
-        mfaApiCode: '0107',
-      }),
-      validResponseFunction: this.requestResponseValid,
-      headers: {},
-      noAuth: true,
-    })
-    if (!this.requestResponseValid(validateOtpResp.resp, validateOtpResp.json).valid) {
-      this.clearMfaRequestStarted()
-      this.regenerateDeviceId()
-      const error = `MFA Verify Failed: ${JSON.stringify(validateOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
-    }
-
-    const otpValidationKey = validateOtpResp.json.result && validateOtpResp.json.result.otpValidationKey
-    if (!otpValidationKey) {
-      this.clearMfaRequestStarted()
-      this.regenerateDeviceId()
-      const error = `MFA Verify Failed: missing otpValidationKey ${JSON.stringify(validateOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
-    }
-
-    if (!validateOtpResp.json.result.verifiedOtp) {
-      this.clearMfaRequestStarted()
-      this.regenerateDeviceId()
-      const error = `MFA Verify Failed: OTP was not verified ${JSON.stringify(validateOtpResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
-    }
-
-    const genTokenResp = await this.request({
+    const generated = await this.request({
       url: this.apiDomain + 'mfa/genmfatkn',
       data: JSON.stringify({
         userAccount: username,
-        otpEmail: otpRequest.email,
+        otpEmail: pending.email,
         mfaApiCode: '0107',
-        otpValidationKey: otpValidationKey,
+        otpValidationKey: pending.otpValidationKey,
         mfaYn: 'Y',
       }),
       validResponseFunction: this.requestResponseValid,
-      headers: {},
       noAuth: true,
     })
-    if (this.requestResponseValid(genTokenResp.resp, genTokenResp.json).valid) {
-      this.clearMfaRequestStarted()
-      const token = genTokenResp.json.result.token
-      const deviceid = this.getAdditionalHeaders().deviceid || ''
-      return {
-        accessToken: token.accessToken,
-        refreshToken: token.refreshToken,
-        expiry: Math.floor(Date.now() / 1000) + Number(token.expireIn),
-        authCookie: authCookie,
-        additionalTokens: {
-          deviceid: deviceid,
-        },
-      }
+    if (!this.requestResponseValid(generated.resp, generated.json).valid) {
+      this.logger.log(`MFA token generation failed: ${JSON.stringify(generated.json)}`)
+      throw new UserFacingError('Verification could not finish. Try again in Scriptable; your existing code is kept.')
     }
-
-    this.clearMfaRequestStarted()
-    this.regenerateDeviceId()
-    const error = `MFA token generation failed: ${JSON.stringify(genTokenResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-    if (this.config.debugLogging) this.logger.log(error)
-    return undefined
+    const token = generated.json.result.token
+    const tokens: BluelinkTokens = {
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      expiry: Math.floor(Date.now() / 1000) + Number(token.expireIn),
+      authCookie: pending.authCookie,
+      additionalTokens: { deviceid: this.getAdditionalHeaders().deviceid || '' },
+    }
+    this.saveAuthSession(tokens)
+    this.authSession.clearMfa()
+    return tokens
   }
 
   protected async login(): Promise<BluelinkTokens | undefined> {
+    const pending = this.pendingMfa()
+    if (pending && canPromptForCanadaMfa()) return this.mfa(this.config.auth.username, pending, pending.authCookie)
     // get cookie
     const cookieValue = await this.getSessionCookie()
     const resp = await this.request({
@@ -370,6 +297,7 @@ export class BluelinkCanada extends Bluelink {
       Object.hasOwn(resp.json.error, 'errorCode') &&
       resp.json.error.errorCode === '7110'
     ) {
+      this.authSession.requireForegroundAuth()
       if (!canPromptForCanadaMfa()) {
         if (this.config.debugLogging) {
           this.logger.log('Canada MFA required during widget/shortcut login; not sending OTP outside the main app.')
@@ -380,28 +308,17 @@ export class BluelinkCanada extends Bluelink {
       return await this.mfa(this.config.auth.username, otpRequest, cookieValue)
     }
 
-    this.regenerateDeviceId()
     const error = `Login Failed: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     return undefined
   }
 
-  protected async setCar(id: string) {
-    const resp = await this.request({
-      url: this.apiDomain + 'vhcllst',
-      data: JSON.stringify({
-        vehicleId: id,
-      }),
-      validResponseFunction: this.requestResponseValid,
-    })
-    if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      const error = `Failed to set car ${id}: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      throw Error(error)
+  protected async getCar(): Promise<BluelinkCar | undefined> {
+    let vin = this.vin
+    if (!vin && this.cache) {
+      vin = this.cache.car.vin
     }
-  }
 
-  protected async getCars(): Promise<BluelinkCar[]> {
     const resp = await this.request({
       url: this.apiDomain + 'vhcllst',
       method: 'POST',
@@ -409,26 +326,35 @@ export class BluelinkCanada extends Bluelink {
     })
 
     if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      throw Error('Failed to retrieve vehicles. Please try again.')
+      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      throw Error(error)
     }
-    const vehicles = resp.json?.result?.vehicles
-    if (!Array.isArray(vehicles)) throw Error('Failed to retrieve vehicle list. Please try again.')
-    return vehicles
-      .map((vehicle: any) => ({
-        id: String(vehicle.vehicleId ?? ''),
-        vin: vehicle.vin || '',
+
+    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.result.vehicles.length > 0) {
+      let vehicle = resp.json.result.vehicles[0]
+      if (vin) {
+        for (const v of resp.json.result.vehicles) {
+          if (v.vin === vin) {
+            vehicle = v
+            break
+          }
+        }
+      }
+      return {
+        id: vehicle.vehicleId,
+        vin: vehicle.vin,
         photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickName || '',
+        nickName: vehicle.nickName,
         modelName: vehicle.modelName,
-        modelYear: String(vehicle.modelYear ?? ''),
+        modelYear: vehicle.modelYear,
         modelColour: vehicle.exteriorColor,
         modelTrim: vehicle.trim,
-      }))
-      .filter((vehicle: BluelinkCar) => vehicle.id.length > 0)
-  }
-
-  protected async activateCar(car: BluelinkCar) {
-    await this.setCar(car.id)
+      }
+    }
+    const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    throw Error(error)
   }
 
   protected returnCarStatus(

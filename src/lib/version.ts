@@ -1,4 +1,5 @@
 import version from '../version.json'
+import { validateReleaseAssetUrl } from './update-security'
 
 const ASSET_BINARY = 'bluelocke.js'
 
@@ -73,9 +74,16 @@ export class Version {
 
     let asseturl = ''
     const response = await request.loadJSON()
+    if (request.response.statusCode !== 200 || typeof response.tag_name !== 'string' || !Array.isArray(response.assets))
+      throw Error('Could not validate the GitHub release.')
     for (const asset of response.assets) {
       if (asset.name === ASSET_BINARY) {
-        asseturl = asset.browser_download_url
+        asseturl = validateReleaseAssetUrl(
+          asset.browser_download_url,
+          this.githubUser,
+          this.githubRepoName,
+          response.tag_name,
+        )
       }
     }
 

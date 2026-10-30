@@ -1,6 +1,8 @@
 import type { ClimateRequest } from 'lib/bluelink-regions/base'
 
-import { scriptStorageKey, SelectedVehicle } from './lib/vehicle-selection'
+import { scriptStorageKey, removeKeychainValue } from './lib/storage'
+import { registerLogSecrets } from './lib/log-sanitizer'
+import { AuthSessionStore, authIdentity } from './lib/auth-session'
 
 const KEYCHAIN_BLUELINK_CONFIG_KEY = 'egmp-bluelink-config'
 
@@ -89,7 +91,6 @@ export interface Config {
   widgetAppearance: 'system' | 'dark' | 'white'
   mfaPreference: 'sms' | 'email'
   debugLogging: boolean
-  selectedVehicle?: SelectedVehicle
   promptForUpdate: boolean
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
@@ -124,7 +125,6 @@ export interface FlattenedConfig {
   allowWidgetRemoteRefresh: boolean
   widgetAppearance: 'system' | 'dark' | 'white'
   debugLogging: boolean
-  selectedVehicle?: SelectedVehicle
   promptForUpdate: boolean
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
@@ -231,13 +231,22 @@ export function configExists(): boolean {
 }
 
 export function deleteConfig(all = false) {
+  new AuthSessionStore(getConfig()).clear()
+  removeKeychainValue(`egmp-scriptable-bl-cache-${Script.name().replaceAll(' ', '')}`)
+  removeKeychainValue(scriptStorageKey('vehicle-cache'))
   // A tombstone prevents a reset script from importing old shared credentials again.
   Keychain.set(scriptStorageKey('config'), 'null')
-  Keychain.remove(`egmp-scriptable-config-${Script.name().replaceAll(' ', '')}`)
-  if (all) Keychain.remove(KEYCHAIN_BLUELINK_CONFIG_KEY)
+  removeKeychainValue(`egmp-scriptable-config-${Script.name().replaceAll(' ', '')}`)
+  if (all) removeKeychainValue(KEYCHAIN_BLUELINK_CONFIG_KEY)
 }
 
 export function setConfig(config: Config) {
+  if (authIdentity(config) !== authIdentity(getConfig())) {
+    new AuthSessionStore(config).clear()
+    removeKeychainValue(`egmp-scriptable-bl-cache-${Script.name().replaceAll(' ', '')}`)
+    removeKeychainValue(scriptStorageKey('vehicle-cache'))
+  }
+  registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
   Keychain.set(scriptStorageKey('config'), JSON.stringify(config))
 }
 
@@ -261,12 +270,25 @@ export function getConfig(): Config {
   if (!config || !configValid(config)) {
     config = DEFAULT_CONFIG
   }
-  // Import account/preferences from older versions, never another script's car.
-  if (getCacheKey() !== scriptStorageKey('config')) config = { ...config, selectedVehicle: undefined }
+  // Ignore settings from the retired vehicle picker while preserving account/preferences.
+  delete (config as Config & { selectedVehicle?: unknown }).selectedVehicle
+  delete (config as Config & { multiCar?: unknown }).multiCar
   const mergedConfig = {
     ...DEFAULT_CONFIG,
     ...config,
+    auth: {
+      username: String(config.auth.username ?? ''),
+      password: String(config.auth.password ?? ''),
+      pin: String(config.auth.pin ?? ''),
+      region: String(config.auth.region ?? ''),
+    },
   }
+  registerLogSecrets([
+    mergedConfig.auth.username,
+    mergedConfig.auth.password,
+    mergedConfig.auth.pin,
+    mergedConfig.displayNameOverride,
+  ])
   const widgetAppearanceRaw = (mergedConfig.widgetAppearance || 'system').toLocaleLowerCase()
   const vehicleTypeOverrideRaw = (mergedConfig.vehicleTypeOverride || 'auto').toLocaleLowerCase() as VehicleTypeOverride
   return {
@@ -366,6 +388,7 @@ export function buildStandardClimateRequest(config: Config, preset: 'warm' | 'co
     rearDefrost: presetConfig.rearDefrost,
     steering: presetConfig.steering,
     temp: presetConfig.temp,
+    tempType: config.tempType,
     durationMinutes: presetConfig.durationMinutes,
     ...(seatClimateOption && { seatClimateOption }),
   }

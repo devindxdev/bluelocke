@@ -17,6 +17,8 @@ nav_order: 10
 - Force a status refresh from the app UI.
 - If still failing, turn on **Diagnostic logging** under **Settings > Help & Support > Troubleshooting**. View logs under **Help & updates**.
 
+Successful sign-ins are saved independently of vehicle/status loading. A temporary vehicle API failure should not discard your login. Widgets and Shortcuts never send verification codes: when verification is required, open the script in Scriptable. Canada and Kia US keep a pending verification challenge so cancelling and reopening can reuse the existing code. A short resend cooldown prevents repeated code requests.
+
 ## Siri command not recognized
 
 - Ensure text is passed as Shortcut input to `Run Script`.
@@ -28,6 +30,8 @@ nav_order: 10
 - Some API capabilities differ by market and model year.
 
 ## Getting support
+
+Debug and error logs remove credentials, authentication tokens, verification codes, cookies, account and vehicle identifiers, and location/contact details before saving or sharing. Historical logs are also sanitized when read through the app. Error codes, model information, and vehicle readings remain available for troubleshooting. Use the in-app **Share Debug Logs** action to share the sanitized output.
 
 Choose the path that fits the issue:
 

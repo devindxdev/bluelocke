@@ -12,6 +12,8 @@ import {
 } from './base'
 import { Config } from '../../config'
 import { isNotEmptyObject } from '../util'
+import { climateFahrenheit, remoteEngineDuration } from '../us-climate'
+import { UserFacingError } from '../user-error'
 
 const DEFAULT_API_DOMAIN = 'https://api.telematics.hyundaiusa.com/'
 const API_DOMAINS: Record<string, string> = {
@@ -22,6 +24,7 @@ const API_DOMAINS: Record<string, string> = {
 export class BluelinkUSA extends Bluelink {
   private carVin: string | undefined
   private carId: string | undefined
+  private carGeneration: number | undefined
 
   constructor(config: Config, statusCheckInterval?: number) {
     super(config)
@@ -62,7 +65,7 @@ export class BluelinkUSA extends Bluelink {
     if (Object.hasOwn(resp, 'statusCode') && resp.statusCode === 200) {
       return { valid: true, retry: false }
     }
-    return { valid: false, retry: true }
+    return { valid: false, retry: resp.statusCode === 401 || resp.statusCode === 403 }
   }
 
   private carHeaders(): Record<string, string> {
@@ -71,8 +74,9 @@ export class BluelinkUSA extends Bluelink {
       registrationId: this.cache ? this.cache.car.id : this.carId!,
       VIN: this.cache ? this.cache.car.vin : this.carVin!,
       'APPCLOUD-VIN': this.cache ? this.cache.car.vin : this.carVin!,
-      // Seemingly 2025 cars need to have a gen set to '3'
-      gen: this.cache && this.cache.car ? (Number(this.cache.car.modelYear) >= 2025 ? '3' : '2') : '2',
+      gen: String(
+        this.cache?.car.generation ?? this.carGeneration ?? (Number(this.cache?.car.modelYear) >= 2025 ? 3 : 2),
+      ),
     }
   }
 
@@ -101,11 +105,14 @@ export class BluelinkUSA extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
+    const currentTokens = this.tokens || this.cache?.token
+    if (!currentTokens) return undefined
+
     if (this.config.debugLogging) this.logger.log('Refreshing tokens')
     const resp = await this.request({
       url: this.apiDomain + 'v2/ac/oauth/token/refresh',
       data: JSON.stringify({
-        refresh_token: this.cache.token.refreshToken,
+        refresh_token: currentTokens.refreshToken,
       }),
       noAuth: true,
       validResponseFunction: this.requestResponseValid,
@@ -124,37 +131,63 @@ export class BluelinkUSA extends Bluelink {
     return undefined
   }
 
-  protected async getCars(): Promise<BluelinkCar[]> {
+  protected async getCar(): Promise<BluelinkCar | undefined> {
+    let vin = this.vin
+    if (!vin && this.cache) {
+      vin = this.cache.car.vin
+    }
+
     const resp = await this.request({
       url: this.apiDomain + `ac/v2/enrollment/details/${this.config.auth.username}`,
       validResponseFunction: this.requestResponseValid,
     })
 
     if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      throw Error('Failed to retrieve vehicles. Please try again.')
+      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      throw Error(error)
     }
-    const vehicles = resp.json?.enrolledVehicleDetails
-    if (!Array.isArray(vehicles)) throw Error('Failed to retrieve vehicle list. Please try again.')
-    return vehicles
-      .map((entry: any) => entry.vehicleDetails)
-      .map((vehicle: any) => ({
-        id: String(vehicle.regid ?? ''),
-        vin: vehicle.vin || '',
+
+    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.enrolledVehicleDetails.length > 0) {
+      let vehicle = resp.json.enrolledVehicleDetails[0].vehicleDetails
+      if (vin) {
+        for (const v of resp.json.enrolledVehicleDetails) {
+          if (v.vehicleDetails.vin === vin) {
+            vehicle = v.vehicleDetails
+            break
+          }
+        }
+      }
+
+      this.carVin = vehicle.vin
+      this.carId = vehicle.regid
+      const generation = Number(vehicle.vehicleGeneration)
+      this.carGeneration = generation === 2 || generation === 3 ? generation : undefined
+      return {
+        id: vehicle.regid,
+        vin: vehicle.vin,
         photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickName || '',
+        nickName: vehicle.nickName,
         modelName: vehicle.modelCode,
-        modelYear: String(vehicle.modelYear ?? ''),
+        modelYear: vehicle.modelYear,
+        powertrain:
+          vehicle.evStatus === 'E'
+            ? 'ev'
+            : vehicle.evStatus === 'P'
+              ? 'phev'
+              : vehicle.evStatus === 'N'
+                ? 'ice'
+                : undefined,
+        generation: this.carGeneration,
         odometer: vehicle.odometer ? vehicle.odometer : 0,
         // colour and trim dont exist in US implementation
         // modelColour: vehicle.exteriorColor,
         // modelTrim: vehicle.trim,
-      }))
-      .filter((vehicle: BluelinkCar) => vehicle.id.length > 0)
-  }
-
-  protected async activateCar(car: BluelinkCar) {
-    this.carVin = car.vin
-    this.carId = car.id
+      }
+    }
+    const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    throw Error(error)
   }
 
   protected returnCarStatus(status: any, forceUpdate: boolean, location?: Location): BluelinkStatus {
@@ -246,8 +279,6 @@ export class BluelinkUSA extends Bluelink {
     throw Error(error)
   }
 
-  // US implementation does not seem to have a mechanism to check for succesful commands or not
-  // for now do nothing but return success until we get some logs and can work out what to do
   protected async pollForCommandCompletion(
     resp: {
       resp: Record<string, any>
@@ -279,14 +310,11 @@ export class BluelinkUSA extends Bluelink {
       }
 
       if (resp.json.status === 'SUCCESS') {
-        // fetch status from API as we dont get it in response.
-        const status = await this.getCarStatus(this.cache.car.id, false)
-        this.cache.status = status
-        this.saveCache()
+        const status = await this.statusAfterCommand(this.cache.car.id)
         if (this.config.debugLogging) this.logger.log(`Return poll success!! ${JSON.stringify(this.cache.status)}`)
         return {
           isSuccess: true,
-          data: this.cache.status,
+          data: status,
         }
       }
       attempts += 1
@@ -374,7 +402,12 @@ export class BluelinkUSA extends Bluelink {
     config: ClimateRequest,
     retryWithNoSeat = false,
   ): Promise<{ isSuccess: boolean; data: BluelinkStatus }> {
-    const api = 'ac/v2/evc/fatc/start'
+    const electric = await this.usesElectricClimate()
+    const api = electric ? 'ac/v2/evc/fatc/start' : 'ac/v2/rcs/rsc/start'
+    const supportsOptions = !electric || this.carHeaders().gen === '3'
+    const temperature = climateFahrenheit(config, this.config.tempType)
+    const seats = config.seatClimateOption
+    const hasSeats = !!seats && isNotEmptyObject(seats)
     const resp = await this.request({
       url: this.apiDomain + api,
       method: 'POST',
@@ -382,37 +415,49 @@ export class BluelinkUSA extends Bluelink {
         airCtrl: 1,
         defrost: config.frontDefrost,
         airTemp: {
-          value: config.temp.toString(),
-          unit: this.config.tempType === 'F' ? 1 : 0,
+          value: electric ? temperature.toString() : temperature,
+          unit: 1,
         },
-        ...(!retryWithNoSeat && {
-          igniOnDuration: config.durationMinutes, // not supported in US
-        }),
+        ...(supportsOptions &&
+          (!electric || !retryWithNoSeat) && {
+            igniOnDuration: electric ? config.durationMinutes : remoteEngineDuration(config.durationMinutes),
+          }),
         heating1: this.getHeatingValue(config.rearDefrost, config.steering),
-        ...(config.seatClimateOption &&
-          isNotEmptyObject(config.seatClimateOption) &&
+        ...(supportsOptions &&
           !retryWithNoSeat && {
             seatHeaterVentInfo: {
-              drvSeatHeatState: config.seatClimateOption.driver,
-              astSeatHeatState: config.seatClimateOption.passenger,
-              rlSeatHeatState: config.seatClimateOption.rearLeft,
-              rrSeatHeatState: config.seatClimateOption.rearRight,
+              drvSeatHeatState: seats?.driver ?? 0,
+              astSeatHeatState: seats?.passenger ?? 0,
+              rlSeatHeatState: seats?.rearLeft ?? 0,
+              rrSeatHeatState: seats?.rearRight ?? 0,
             },
           }),
+        // This endpoint calls the enrollment registration ID "vin" in its body.
+        ...(!electric && { Ims: 0, username: this.config.auth.username, vin: this.cache.car.id }),
       }),
       notJSON: true,
       headers: {
         ...this.carHeaders(),
       },
-      validResponseFunction: this.requestResponseValid,
+      validResponseFunction: this.climateResponseValid,
     })
-    if (this.requestResponseValid(resp.resp, resp.json).valid) {
+    const transactionId = this.climateTransactionId(resp.resp.headers)
+    if (this.climateResponseValid(resp.resp, resp.json).valid) {
       this.setLastCommandSent()
-      const transactionId = this.caseInsensitiveParamExtraction('tmsTid', resp.resp.headers)
       if (transactionId) return await this.pollForCommandCompletion(resp, transactionId)
-    } else {
-      // Kia/Hyundai US seems pretty particular with seat / duration settings, hence if fail retry without them,
-      if (!retryWithNoSeat) return this.climateOn(_id, config, true)
+      throw new UserFacingError(
+        'Climate request sent, but confirmation is unavailable. Check your vehicle before trying again.',
+      )
+    } else if (
+      !retryWithNoSeat &&
+      supportsOptions &&
+      (electric || hasSeats) &&
+      !transactionId &&
+      [400, 422].includes(resp.resp.statusCode)
+    ) {
+      // Only retry an explicitly rejected payload; never resend an accepted or
+      // ambiguous command. Engine-start duration is required and stays present.
+      return this.climateOn(_id, config, true)
     }
     const error = `Failed to send climateOn command: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
@@ -420,7 +465,7 @@ export class BluelinkUSA extends Bluelink {
   }
 
   protected async climateOff(_id: string): Promise<{ isSuccess: boolean; data: BluelinkStatus }> {
-    const api = 'ac/v2/evc/fatc/stop'
+    const api = (await this.usesElectricClimate()) ? 'ac/v2/evc/fatc/stop' : 'ac/v2/rcs/rsc/stop'
     const resp = await this.request({
       url: this.apiDomain + api,
       method: 'POST',
@@ -428,16 +473,60 @@ export class BluelinkUSA extends Bluelink {
         ...this.carHeaders(),
       },
       notJSON: true,
-      validResponseFunction: this.requestResponseValid,
+      validResponseFunction: this.climateResponseValid,
     })
-    if (this.requestResponseValid(resp.resp, resp.json).valid) {
+    if (this.climateResponseValid(resp.resp, resp.json).valid) {
       this.setLastCommandSent()
-      const transactionId = this.caseInsensitiveParamExtraction('tmsTid', resp.resp.headers)
+      const transactionId = this.climateTransactionId(resp.resp.headers)
       if (transactionId) return await this.pollForCommandCompletion(resp, transactionId)
+      throw new UserFacingError(
+        'Climate stop request sent, but confirmation is unavailable. Check your vehicle before trying again.',
+      )
     }
     const error = `Failed to send climateOff command: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     throw Error(error)
+  }
+
+  private async usesElectricClimate(): Promise<boolean> {
+    const override = this.config.vehicleTypeOverride
+    if (override && override !== 'auto') return override === 'ev'
+    if (!this.cache.car.powertrain) {
+      // Older caches predate powertrain metadata. Read enrollment rather
+      // than confusing a plug-in hybrid with an EV because both can charge.
+      const car = await this.getCar()
+      if (car && String(car.id) === String(this.cache.car.id) && car.vin === this.cache.car.vin) {
+        this.cache.car = car
+        this.saveCache()
+      } else {
+        throw Error('Unable to confirm climate vehicle details')
+      }
+    }
+    if (this.cache.car.powertrain) return this.cache.car.powertrain === 'ev'
+    const model = `${this.cache.car.modelName} ${this.cache.car.modelTrim || ''}`
+    if (/hybrid|phev|\bhev\b/i.test(model) || (this.cache.status.fuelLevel ?? 0) > 0) return false
+    return this.supportsChargingFeatures()
+  }
+
+  private climateTransactionId(headers: Record<string, string>): string | undefined {
+    return ['tmsTid', 'transactionId', 'Xid']
+      .map((key) => this.caseInsensitiveParamExtraction(key, headers || {}))
+      .find((value) => !!value)
+  }
+
+  private climateResponseValid(resp: Record<string, any>, data: any): { valid: boolean; retry: boolean } {
+    if (resp.statusCode === 401 || resp.statusCode === 403) return { valid: false, retry: true }
+    if (resp.statusCode !== 200) return { valid: false, retry: false }
+    let body = data
+    if (typeof body === 'string' && body.trim()) {
+      try {
+        body = JSON.parse(body)
+      } catch {
+        return { valid: false, retry: false }
+      }
+    }
+    const rejected = body && typeof body === 'object' && (Object.hasOwn(body, 'errorCode') || !!body.error)
+    return { valid: !rejected, retry: false }
   }
 
   protected async setChargeLimit(

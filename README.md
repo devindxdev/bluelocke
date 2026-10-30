@@ -45,6 +45,8 @@ Use GitHub issues for public bugs and feature requests:
 
 ### Build
 
+Requires Node.js 20 or newer.
+
 ```bash
 npm install
 npm run build
@@ -61,7 +63,12 @@ npm run lint
 ```bash
 npm run test:app-ui
 npm run test:vehicle-status
-npm run test:vehicle-selection
+npm run test:us-climate
+npm run test:vehicle-loading
+npm run test:logs
+npm run test:auth
+npm run test:user-errors
+npm run test:security
 npm run test:vehicle-images
 ```
 

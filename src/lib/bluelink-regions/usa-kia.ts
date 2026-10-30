@@ -1,4 +1,6 @@
 import { getVehiclePhotoUrl } from '../vehicle-photo'
+import { climateFahrenheit, remoteEngineDuration } from '../us-climate'
+import { UserFacingError } from '../user-error'
 import {
   Bluelink,
   BluelinkTokens,
@@ -16,12 +18,27 @@ import { textInput } from '../scriptable-utils/'
 import { returnMockedCarStatus, returnMockedCar } from './mock'
 
 const DEFAULT_API_DOMAIN = 'api.owners.kia.com'
-const LOGIN_EXPIRY = 24 * 60 * 60 * 1000
+const LOGIN_EXPIRY = 24 * 60 * 60
+const MFA_RESEND_COOLDOWN_MS = 2 * 60 * 1000
+const MFA_CHALLENGE_MAX_AGE_MS = 10 * 60 * 1000
 const MOCK_API = false
 
 interface MFAResponse {
   rmtoken: string
   sid?: string
+}
+
+interface PendingMfa {
+  sentAt: number
+  type: 'EMAIL' | 'SMS'
+  otpKey: string
+  xid: string
+  verifiedSid?: string
+  rmToken?: string
+}
+
+function canPromptForMfa(): boolean {
+  return !config.runsInWidget && !config.runsWithSiri
 }
 
 export class BluelinkUSAKia extends Bluelink {
@@ -37,8 +54,7 @@ export class BluelinkUSAKia extends Bluelink {
       offset: this.getTimeZone().slice(0, 3),
       appType: 'L',
       appVersion: '7.22.0',
-      // clientuuid will be overridden from cache if exists
-      clientuuid: UUID.string().toLocaleLowerCase(),
+      clientuuid: this.authSession.getDeviceId('clientuuid', () => UUID.string().toLocaleLowerCase()),
       clientId: 'SPACL716-APL',
       phonebrand: 'iPhone',
       osType: 'iOS',
@@ -47,8 +63,7 @@ export class BluelinkUSAKia extends Bluelink {
       to: 'APIGW',
       tokentype: 'A',
       'User-Agent': 'KIAPrimo_iOS/37 CFNetwork/1335.0.3.4 Darwin/21.6.0',
-      // deviceId will be overridden from cache if exists
-      deviceId: this.generateDeviceId(),
+      deviceId: this.authSession.getDeviceId('deviceId', () => this.generateDeviceId()),
       Host: DEFAULT_API_DOMAIN,
     }
 
@@ -67,14 +82,27 @@ export class BluelinkUSAKia extends Bluelink {
   }
 
   protected getAdditionalHeaders(): Record<string, string> {
-    // inject previous deviceId and clientuuid from cache if exists
-    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.deviceId) {
-      this.additionalHeaders.deviceId = this.cache.token.additionalTokens.deviceId
-    }
-    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.clientuuid) {
-      this.additionalHeaders.clientuuid = this.cache.token.additionalTokens.clientuuid
-    }
+    const remembered = this.tokens?.additionalTokens ?? this.cache?.token.additionalTokens
+    if (remembered?.deviceId) this.additionalHeaders.deviceId = remembered.deviceId
+    if (remembered?.clientuuid) this.additionalHeaders.clientuuid = remembered.clientuuid
     return this.additionalHeaders
+  }
+
+  protected async onAuthRefreshed(): Promise<void> {
+    const car = await this.getCar(true)
+    if (car && this.cache) {
+      this.cache.car = car
+      this.saveCache()
+    }
+  }
+
+  protected async onCacheLoaded(): Promise<void> {
+    const tokens = this.tokens ?? this.cache.token
+    // A renewed SID can survive an interrupted vehicle-list request. Recover
+    // its vehicle key before using an older completed status snapshot.
+    if (this.tokenValid() && (!tokens.authId || tokens.authId !== this.cache.car.id)) {
+      await this.onAuthRefreshed()
+    }
   }
 
   private getDateString(): string {
@@ -97,161 +125,175 @@ export class BluelinkUSAKia extends Bluelink {
     resp: Record<string, any>,
     data: Record<string, any>,
   ): { valid: boolean; retry: boolean } {
-    if (Object.hasOwn(resp, 'statusCode') && resp.statusCode !== 200) {
-      return { valid: false, retry: true }
+    const status = Number(resp?.statusCode ?? 200)
+    if (status === 401 || status === 403) return { valid: false, retry: true }
+    // Rate limits, outages and command failures do not invalidate a login.
+    if (status !== 200) return { valid: false, retry: false }
+    if (data?.status?.statusCode === 0 || data?.status?.statusCode === '0') return { valid: true, retry: false }
+    // Kia's explicit invalid-session responses, also used by the upstream
+    // Hyundai-Kia-Connect KiaUvoApiUSA implementation.
+    const expired =
+      Number(data?.status?.statusCode) === 1 &&
+      Number(data?.status?.errorType) === 1 &&
+      [1003, 1005].includes(Number(data?.status?.errorCode))
+    return { valid: false, retry: expired }
+  }
+
+  private getPendingMfa(): PendingMfa | undefined {
+    const pending = this.authSession.readMfa<PendingMfa>()
+    if (!pending) return undefined
+    if (
+      (pending.type !== 'EMAIL' && pending.type !== 'SMS') ||
+      !pending.otpKey ||
+      !pending.xid ||
+      !Number.isFinite(pending.sentAt) ||
+      Date.now() - pending.sentAt >= MFA_CHALLENGE_MAX_AGE_MS
+    ) {
+      this.authSession.clearMfa()
+      return undefined
     }
-    if (Object.hasOwn(data, 'status') && Object.hasOwn(data.status, 'statusCode') && data.status.statusCode === 0) {
-      return { valid: true, retry: false }
-    }
-    return { valid: false, retry: true }
+    return pending
+  }
+
+  private requireMfaInApp(): never {
+    this.authSession.requireForegroundAuth()
+    throw new UserFacingError('Open Bluelocke in Scriptable to finish Kia sign-in and enter your verification code.')
   }
 
   protected async mfa(type: 'EMAIL' | 'SMS', code: string, xid: string): Promise<BluelinkTokens | undefined> {
-    const mfaSendResp = await this.request({
-      url: this.apiDomain + 'cmm/sendOTP',
-      data: '{}',
-      headers: {
-        date: this.getDateString(),
-        otpkey: code,
-        notifytype: type,
-        xid: xid,
-      },
-      noAuth: true,
-      validResponseFunction: this.requestResponseValid,
-    })
-    if (!this.requestResponseValid(mfaSendResp.resp, mfaSendResp.json).valid) {
-      const error = `MFA Send Failed: ${JSON.stringify(mfaSendResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
-    }
+    this.authSession.requireForegroundAuth()
+    if (!canPromptForMfa()) return this.requireMfaInApp()
 
-    // prompt user for code
-    const mfaCode = await textInput(`MFA code sent via ${type.toLocaleLowerCase()}.`, {
-      submitText: 'Enter Code',
-      flavor: 'number',
-    })
-
-    if (!mfaCode) {
-      //  user cancelled most likely
-      if (this.config.debugLogging) this.logger.log(`MFA Verify Failed / Cancelled`)
-      return undefined
-    }
-
-    if (this.config.debugLogging) this.logger.log(`MFA Code entered: ${mfaCode}`)
-    if (mfaCode) {
-      const mfaVerifyResp = await this.request({
-        url: this.apiDomain + 'cmm/verifyOTP',
-        data: JSON.stringify({ otp: mfaCode }),
-        headers: {
-          date: this.getDateString(),
-          otpkey: code,
-          xid: xid,
-        },
+    let pending = this.getPendingMfa()
+    if (!pending || pending.otpKey !== code || pending.xid !== xid) {
+      const lastSent = this.authSession.getMfaSentAt()
+      if (lastSent && Date.now() - lastSent < MFA_RESEND_COOLDOWN_MS) {
+        throw new UserFacingError(
+          'A verification code was requested recently. Wait two minutes before requesting another.',
+        )
+      }
+      if (!code || !xid) {
+        throw new UserFacingError('Kia did not provide a verification challenge. Please try signing in later.')
+      }
+      pending = { sentAt: Date.now(), type, otpKey: code, xid }
+      // Record the send before the request: a timeout can still deliver a code.
+      this.authSession.markMfaSent()
+      this.authSession.writeMfa(pending)
+      const sent = await this.request({
+        url: this.apiDomain + 'cmm/sendOTP',
+        data: '{}',
+        headers: { date: this.getDateString(), otpkey: code, notifytype: type, xid },
         noAuth: true,
         validResponseFunction: this.requestResponseValid,
       })
-
-      if (this.requestResponseValid(mfaVerifyResp.resp, mfaVerifyResp.json).valid) {
-        return await this.login({
-          rmtoken: this.caseInsensitiveParamExtraction('rmtoken', mfaVerifyResp.resp.headers) || '',
-          sid: this.caseInsensitiveParamExtraction('sid', mfaVerifyResp.resp.headers) || '',
-        })
+      if (!this.requestResponseValid(sent.resp, sent.json).valid) {
+        this.authSession.clearMfa()
+        if (this.config.debugLogging) this.logger.log(`Kia MFA send failed: ${JSON.stringify(sent.json)}`)
+        throw new UserFacingError('Kia could not send a verification code. Wait two minutes before trying again.')
       }
-
-      const error = `MFA Verify Failed: ${JSON.stringify(mfaVerifyResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      return undefined
     }
+
+    if (pending.verifiedSid) return this.login({ sid: pending.verifiedSid, rmtoken: pending.rmToken || '' })
+    const mfaCode = await textInput(`Enter the verification code already sent via ${pending.type.toLowerCase()}.`, {
+      submitText: 'Enter Code',
+      flavor: 'number',
+    })
+    if (!mfaCode) {
+      throw new UserFacingError('Code entry cancelled. Reopen Bluelocke to enter the same verification code.')
+    }
+    const verified = await this.request({
+      url: this.apiDomain + 'cmm/verifyOTP',
+      data: JSON.stringify({ otp: mfaCode }),
+      headers: { date: this.getDateString(), otpkey: pending.otpKey, xid: pending.xid },
+      noAuth: true,
+      validResponseFunction: this.requestResponseValid,
+    })
+    if (!this.requestResponseValid(verified.resp, verified.json).valid) {
+      if (this.config.debugLogging) this.logger.log(`Kia MFA verification failed: ${JSON.stringify(verified.json)}`)
+      throw new UserFacingError('The verification code was not accepted. Reopen Bluelocke to try the code again.')
+    }
+    const sid = this.caseInsensitiveParamExtraction('sid', verified.resp.headers || {})
+    const remembered =
+      this.tokens?.additionalTokens ?? this.cache?.token.additionalTokens ?? this.authSession.read()?.additionalTokens
+    const rmToken =
+      this.caseInsensitiveParamExtraction('rmtoken', verified.resp.headers || {}) || remembered?.rmToken || ''
+    if (!sid) throw new UserFacingError('Kia could not complete verification. Please try signing in later.')
+    // Preserve a completed OTP step if the final login request times out.
+    this.authSession.writeMfa({ ...pending, verifiedSid: sid, rmToken })
+    return this.login({ sid, rmtoken: rmToken })
   }
 
   protected async login(mfaToken: MFAResponse | undefined = undefined): Promise<BluelinkTokens | undefined> {
-    /*
-      Kia US Login/Refresh process requires initial MFA to extract SID.
-      The rmtoken returned in the initial login appears to be long lived and can be used for subsequent logins without MFA,
-      However to do that the deviceId and clientuuid used in the initial login must also be reused.
-      Hence these are cached along with the rmtoken for future logins and used if exists in cache
-    */
-    // check for previous MFA token
-    if (!mfaToken && this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.rmToken) {
-      mfaToken = {
-        rmtoken: this.cache.token.additionalTokens.rmToken,
-      }
+    const pending = !mfaToken ? this.getPendingMfa() : undefined
+    if (pending) {
+      if (!canPromptForMfa()) return this.requireMfaInApp()
+      return this.mfa(pending.type, pending.otpKey, pending.xid)
     }
-
+    const remembered =
+      this.tokens?.additionalTokens ??
+      this.cache?.token.additionalTokens ??
+      this.authSession.read()?.additionalTokens ??
+      {}
+    const rememberedToken = mfaToken?.rmtoken || remembered.rmToken
     const resp = await this.request({
       url: this.apiDomain + 'prof/authUser',
       data: JSON.stringify({
         deviceKey: this.getAdditionalHeaders().deviceId,
         deviceType: 2,
         tncFlag: 1,
-        userCredential: {
-          userId: this.config.auth.username,
-          password: this.config.auth.password,
-        },
+        userCredential: { userId: this.config.auth.username, password: this.config.auth.password },
       }),
       headers: {
         date: this.getDateString(),
-        ...(mfaToken &&
-          mfaToken.rmtoken && {
-            rmtoken: mfaToken.rmtoken,
-          }),
-        ...(mfaToken &&
-          mfaToken.sid && {
-            sid: mfaToken.sid,
-          }),
+        ...(rememberedToken && { rmtoken: rememberedToken }),
+        ...(mfaToken?.sid && { sid: mfaToken.sid }),
       },
       noAuth: true,
       validResponseFunction: this.requestResponseValid,
     })
     if (this.requestResponseValid(resp.resp, resp.json).valid) {
-      const sid = this.caseInsensitiveParamExtraction('sid', resp.resp.headers)
-      const xid = this.caseInsensitiveParamExtraction('xid', resp.resp.headers)
-      if (!sid && xid && (!mfaToken || !mfaToken.sid)) {
-        // If no SID and we havent attempted MFA yet - try it, loging will be called again from MFA function
-        return await this.mfa(
-          resp.json.payload.phoneVerifyStatus && this.config.mfaPreference === 'sms' ? 'SMS' : 'EMAIL',
-          resp.json.payload.otpKey,
+      const sid = this.caseInsensitiveParamExtraction('sid', resp.resp.headers || {})
+      const xid = this.caseInsensitiveParamExtraction('xid', resp.resp.headers || {})
+      if (!sid && xid && !mfaToken?.sid) {
+        this.authSession.requireForegroundAuth()
+        if (!canPromptForMfa()) return this.requireMfaInApp()
+        return this.mfa(
+          resp.json?.payload?.phoneVerifyStatus && this.config.mfaPreference === 'sms' ? 'SMS' : 'EMAIL',
+          resp.json?.payload?.otpKey,
           xid,
         )
       }
-
-      // update tokens used in this session as we call getCar before we write the new tokens to cache
-      this.tokens = {
-        accessToken: sid || '',
-        refreshToken: '', // seemingly KIA us doesnt support refresh?
-        expiry: Math.floor(Date.now() / 1000) + Number(LOGIN_EXPIRY), // we also dont get an expiry?
-        ...(mfaToken && {
-          additionalTokens: {
-            rmToken: mfaToken.rmtoken,
-            deviceId: this.getAdditionalHeaders().deviceId || '',
-            clientuuid: this.getAdditionalHeaders().clientuuid || '',
-          },
-        }),
+      if (!sid) throw new UserFacingError('Kia did not complete sign-in. Please try again later.')
+      const headers = this.getAdditionalHeaders()
+      const tokens: BluelinkTokens = {
+        accessToken: sid,
+        refreshToken: '',
+        expiry: Math.floor(Date.now() / 1000) + LOGIN_EXPIRY,
+        additionalTokens: {
+          ...remembered,
+          rmToken: this.caseInsensitiveParamExtraction('rmtoken', resp.resp.headers || {}) || rememberedToken || '',
+          deviceId: headers.deviceId || '',
+          clientuuid: headers.clientuuid || '',
+        },
       }
-      const car = await this.getCar(true)
-      if (car) this.tokens.authId = car.id
-      return this.tokens
+      this.tokens = tokens
+      this.saveAuthSession(tokens)
+      this.authSession.clearMfa()
+      this.authSession.clearAuthRequired()
+      return tokens
     }
-
-    // if we reach here login failed - regenerate deviceId if we have it cached
-    if (
-      this.cache &&
-      this.cache.token &&
-      this.cache.token.additionalTokens &&
-      this.cache.token.additionalTokens.deviceId
-    ) {
-      this.cache.token.additionalTokens.deviceId = this.generateDeviceId()
-      this.cache.token.additionalTokens.clientuuid = UUID.string().toLocaleLowerCase()
-      this.saveCache()
-    }
-
-    const error = `Login Failed: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-    if (this.config.debugLogging) this.logger.log(error)
+    // Preserve the trusted device and remembered token on API failures.
+    if (this.config.debugLogging) this.logger.log(`Kia login failed: ${JSON.stringify(resp.json)}`)
     return undefined
   }
 
-  protected async getCars(noRetry = false): Promise<BluelinkCar[]> {
-    if (MOCK_API) return [returnMockedCar()]
+  protected async getCar(noRetry = false): Promise<BluelinkCar | undefined> {
+    if (MOCK_API) return returnMockedCar()
+    let vin = this.vin
+    if (!vin && this.cache) {
+      vin = this.cache.car.vin
+    }
+
     const resp = await this.request({
       url: this.apiDomain + 'ownr/gvl',
       headers: {
@@ -263,29 +305,44 @@ export class BluelinkUSAKia extends Bluelink {
     })
 
     if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      throw Error('Failed to retrieve vehicles. Please try again.')
+      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      throw Error(error)
     }
-    const vehicles = resp.json?.payload?.vehicleSummary
-    if (!Array.isArray(vehicles)) throw Error('Failed to retrieve vehicle list. Please try again.')
-    return vehicles
-      .map((vehicle: any) => ({
-        id: String(vehicle.vehicleKey ?? ''),
-        vin: vehicle.vin || '',
+
+    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.payload.vehicleSummary.length > 0) {
+      let vehicle = resp.json.payload.vehicleSummary[0]
+      if (vin) {
+        for (const v of resp.json.payload.vehicleSummary) {
+          if (v.vin === vin) {
+            vehicle = v
+            break
+          }
+        }
+      }
+
+      const car: BluelinkCar = {
+        id: vehicle.vehicleKey,
+        vin: vehicle.vin,
         photoUrl: getVehiclePhotoUrl(vehicle, 'https://owners.kia.com/') ?? null,
-        nickName: vehicle.nickName || '',
+        nickName: vehicle.nickName,
         modelName: vehicle.modelName,
-        modelYear: String(vehicle.modelYear ?? ''),
+        modelYear: vehicle.modelYear,
         odometer: vehicle.mileage,
         modelColour: vehicle.colorName,
         modelTrim: vehicle.trim,
-      }))
-      .filter((vehicle: BluelinkCar) => vehicle.id.length > 0)
-  }
-
-  protected async activateCar(car: BluelinkCar) {
-    // Kia uses the vehicle key in both request headers and status payloads.
-    if (this.tokens) this.tokens.authId = car.id
-    if (this.cache) this.cache.token.authId = car.id
+      }
+      const tokens = this.tokens ?? this.cache?.token
+      if (tokens) {
+        this.tokens = { ...tokens, authId: car.id }
+        this.saveAuthSession(this.tokens)
+        if (this.cache) this.cache.token = this.tokens
+      }
+      return car
+    }
+    const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
+    throw Error(error)
   }
 
   protected returnCarStatus(status: any, location?: Location): BluelinkStatus {
@@ -394,8 +451,7 @@ export class BluelinkUSAKia extends Bluelink {
           resp.json.payload.vehicleInfoList[0].lastVehicleInfo.vehicleStatusRpt.vehicleStatus,
           locationStatus,
         )
-      } else if (retry) {
-        // manage retry ourselves - just assume we need to re-auth
+      } else if (retry && this.requestResponseValid(resp.resp, resp.json).retry) {
         await this.refreshLogin(true)
         return await this.getCarStatus(_id, forceUpdate, location, false)
       }
@@ -475,7 +531,7 @@ export class BluelinkUSAKia extends Bluelink {
       if (complete) {
         return {
           isSuccess: true,
-          data: (await this.getStatus(true, true)).status, // do force update to get latest data after command success
+          data: await this.statusAfterCommand(id),
         }
       }
       attempts += 1
@@ -583,6 +639,8 @@ export class BluelinkUSAKia extends Bluelink {
     retryWithNoSeat = false,
   ): Promise<{ isSuccess: boolean; data: BluelinkStatus }> {
     const api = 'rems/start'
+    const temperature = climateFahrenheit(config, this.config.tempType)
+    const hasSeats = !!config.seatClimateOption && isNotEmptyObject(config.seatClimateOption)
     const resp = await this.request({
       url: this.apiDomain + api,
       data: JSON.stringify({
@@ -590,12 +648,14 @@ export class BluelinkUSAKia extends Bluelink {
           airCtrl: true,
           defrost: config.frontDefrost,
           airTemp: {
-            value: config.temp.toString(),
-            unit: this.config.tempType === 'F' ? 1 : 0,
+            value: temperature < 62 ? 'LOW' : temperature > 82 ? 'HIGH' : temperature.toString(),
+            unit: 1,
           },
           ignitionOnDuration: {
             unit: 4,
-            value: config.durationMinutes,
+            value: this.supportsChargingFeatures()
+              ? config.durationMinutes
+              : remoteEngineDuration(config.durationMinutes),
           },
           heatingAccessory: {
             steeringWheel: Number(config.steering),
@@ -623,9 +683,19 @@ export class BluelinkUSAKia extends Bluelink {
       this.setLastCommandSent()
       const transactionId = this.caseInsensitiveParamExtraction('Xid', resp.resp.headers)
       if (transactionId) return await this.pollForCommandCompletion(id, transactionId)
+      throw new UserFacingError(
+        'Climate request sent, but confirmation is unavailable. Check your vehicle before trying again.',
+      )
     } else {
-      // Kia/Hyundai US seems pretty particular with seat settings, hence if fail retry without them,
-      if (!retryWithNoSeat) return this.climateOn(id, config, true)
+      // Only remove optional seats after a payload rejection, not a server or
+      // connection failure where the command may already have been accepted.
+      if (
+        !retryWithNoSeat &&
+        hasSeats &&
+        [400, 422].includes(resp.resp.statusCode) &&
+        !this.caseInsensitiveParamExtraction('Xid', resp.resp.headers || {})
+      )
+        return this.climateOn(id, config, true)
     }
 
     const error = `Failed to send climateOn command: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
@@ -646,6 +716,9 @@ export class BluelinkUSAKia extends Bluelink {
       this.setLastCommandSent()
       const transactionId = this.caseInsensitiveParamExtraction('Xid', resp.resp.headers)
       if (transactionId) return await this.pollForCommandCompletion(id, transactionId)
+      throw new UserFacingError(
+        'Climate stop request sent, but confirmation is unavailable. Check your vehicle before trying again.',
+      )
     }
     const error = `Failed to send climateOff command: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)

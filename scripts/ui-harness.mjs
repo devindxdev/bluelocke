@@ -168,13 +168,19 @@ export function uiHarness({ dark = false, electric = false, account = true } = {
     Script: { name: () => 'Bluelocke' },
     Keychain: {
       contains: (key) => h.keys.has(key),
-      get: (key) => h.keys.get(key),
+      get: (key) => {
+        if (!h.keys.has(key)) throw new Error('Keychain key does not exist')
+        return h.keys.get(key)
+      },
       set: (key, value) => {
         if (h.failWrites) throw new Error('Storage unavailable')
         h.writes++
         h.keys.set(key, value)
       },
-      remove: (key) => h.keys.delete(key),
+      remove: (key) => {
+        if (!h.keys.has(key)) throw new Error('Keychain key does not exist')
+        h.keys.delete(key)
+      },
     },
     Font: new Proxy(
       {},
@@ -236,7 +242,12 @@ export function uiHarness({ dark = false, electric = false, account = true } = {
   const allowed = new Set([
     'src/about.ts',
     'src/config.ts',
-    'src/lib/vehicle-selection.ts',
+    'src/lib/storage.ts',
+    'src/lib/secure-url.ts',
+    'src/lib/update-security.ts',
+    'src/lib/auth-session.ts',
+    'src/lib/user-error.ts',
+    'src/lib/log-sanitizer.ts',
     'src/lib/vehicle-photo.ts',
     'src/settings.ts',
     'src/lib/app-ui.ts',

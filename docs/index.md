@@ -23,7 +23,7 @@ Bluelocke is a Scriptable app for iOS that lets you monitor and control your Hyu
 - [Siri / Shortcuts](./shortcuts)
 - [Automations](./automations)
 - [Control Center](./control-center)
-- [Multi Car](./multi-car)
+- [Vehicle Setup](./multi-car)
 - [Help / FAQ](./help)
 - [Auto Update](./auto-update)
 

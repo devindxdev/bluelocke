@@ -1,6 +1,7 @@
 import alert from '../input/alert'
 import { Container } from './elements/shapes'
 import { BaseRow } from './Row/base'
+import { sanitizeLog } from '../../log-sanitizer'
 
 export const reloadTableRows = (table: UITable, rows: (UITableRow | Container)[]) => {
   table.removeAllRows()
@@ -16,10 +17,10 @@ export const reloadTableRows = (table: UITable, rows: (UITableRow | Container)[]
 }
 
 export const catchTableError = async (error: any, tableName: string) => {
-  console.warn(error)
+  console.warn(sanitizeLog(error))
   await alert({
     title: `Error encountered in ${tableName} render`,
-    message: String(error),
+    message: sanitizeLog(error),
     buttons: { OK: {} },
   })
 }
