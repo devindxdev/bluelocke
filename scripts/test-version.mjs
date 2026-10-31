@@ -7,7 +7,7 @@ import ts from 'typescript'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 
-function runtime(current = 'v1.26.1-beta.1', latest = 'v1.26.0') {
+function runtime(current = 'v1.26.1-beta.1', latest = 'v1.26.0', sourceFile = 'src/lib/version.ts') {
   const calls = []
   const context = vm.createContext({
     Request: class {
@@ -31,7 +31,7 @@ function runtime(current = 'v1.26.1-beta.1', latest = 'v1.26.0') {
     },
   })
   const module = { exports: {} }
-  const code = ts.transpileModule(fs.readFileSync(path.join(ROOT, 'src/lib/version.ts'), 'utf8'), {
+  const code = ts.transpileModule(fs.readFileSync(path.join(ROOT, sourceFile), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText
   vm.runInContext(`(function(require,module,exports) {${code}\n})`, context)(
@@ -81,5 +81,15 @@ test('a patched installation does not prompt for its current release or older re
   for (const latest of ['v1.26.1', 'v1.26.0']) {
     const { Version } = runtime('v1.26.1', latest)
     assert.equal(await new Version('devindxdev', 'bluelocke').promptForUpdate(), false)
+  }
+})
+
+test('the actual v1.26.0 updater prompts for v1.27.0 while ignoring a v1.26.1 patch', async () => {
+  for (const [latest, expected] of [
+    ['v1.26.1', false],
+    ['v1.27.0', true],
+  ]) {
+    const { Version } = runtime('v1.26.0', latest, 'scripts/fixtures/v1.26.0-version.ts')
+    assert.equal(await new Version('devindxdev', 'bluelocke').promptForUpdate(), expected)
   }
 })

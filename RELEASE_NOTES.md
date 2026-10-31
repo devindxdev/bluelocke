@@ -1,6 +1,6 @@
-# Bluelocke v1.26.1
+# Bluelocke v1.27.0
 
-Stable release of the beta.4 build, with the v1.24.4 authentication implementation for other regions and the reviewed Hyundai Europe login and hybrid-status fixes from [PR #3](https://github.com/devindxdev/bluelocke/pull/3) by **mariancapota**. No additional login or security changes were introduced when promoting this release.
+Stable release of the beta.4 build, numbered v1.27.0 so the updater in v1.26.x recognizes a new minor release and prompts users, with the v1.24.4 authentication implementation for other regions and the reviewed Hyundai Europe login and hybrid-status fixes from [PR #3](https://github.com/devindxdev/bluelocke/pull/3) by **mariancapota**. No additional login or security changes were introduced when promoting this release.
 
 ## What changed
 
@@ -13,16 +13,16 @@ Stable release of the beta.4 build, with the v1.24.4 authentication implementati
 - Correct Hyundai US petrol climate start/stop routes, temperature conversion, and petrol duration limits. Preserve confirmed command success when a follow-up status refresh fails, and omit unsupported options on older Hyundai EVs.
 - Restore readable, indented API responses and debug logs. Redact sensitive account details, credentials, vehicle identifiers, and location data before viewing or sharing. Public errors do not display raw API requests.
 
-## Update to v1.26.1
+## Update to v1.27.0
 
-Open the information/About screen, or **Settings > Help & Support > Help & updates**, then choose **Click to Auto Install v1.26.1** and confirm installation.
+Open the information/About screen, or **Settings > Help & Support > Help & updates**, then choose **Click to Auto Install v1.27.0** and confirm installation.
 
-**Users on v1.26.0:** that version does not automatically prompt for patch releases. Open **Help & updates** manually to install v1.26.1.
+**Update prompts:** v1.27.0 is a minor-version update, so v1.26.x installations with update prompts enabled can show the update notification when you run Bluelocke in Scriptable. If prompts were disabled, open **Help & updates** manually.
 
-For a manual installation, download the attached **bluelocke.js**, replace all code in your existing Scriptable script, and save. **Keep the existing script name** to reuse its settings and cache. Run it once in Scriptable, complete any requested verification, and refresh your widgets. The About screen should show **v1.26.1**.
+For a manual installation, download the attached **bluelocke.js**, replace all code in your existing Scriptable script, and save. **Keep the existing script name** to reuse its settings and cache. Run it once in Scriptable, complete any requested verification, and refresh your widgets. The About screen should show **v1.27.0**.
 
 Custom photos are under **Settings > Vehicle > Vehicle photo**. For support, include your region, manufacturer, model/year, and fresh redacted debug logs from **Help & updates**.
 
 ## Validation
 
-All **318 automated tests** passed, with TypeScript, lint, production build, generated-script syntax, and a runtime dependency audit reporting zero known vulnerabilities. Coverage includes original authentication/cache behavior, the reviewed EU login/status code, Settings/setup, startup of the generated script, photo Save/cancel/retry, vehicle image fallback, US climate commands, and diagnostic redaction.
+All **319 automated tests** passed, with TypeScript, lint, production build, generated-script syntax, and a runtime dependency audit reporting zero known vulnerabilities. Coverage includes original authentication/cache behavior, the reviewed EU login/status code, Settings/setup, startup of the generated script, photo Save/cancel/retry, vehicle image fallback, US climate commands, and diagnostic redaction.

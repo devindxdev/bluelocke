@@ -29,9 +29,9 @@ nav_order: 10
 
 ## v1.24.4-based rebuild
 
-Version v1.26.1 uses the supplied v1.24.4 source for sign-in, verification, token refresh, device IDs, cache keys, and configuration. Keep the existing Scriptable script name to reuse its v1.24.4 settings and cache. Complete any requested verification in Scriptable.
+Version v1.27.0 uses the supplied v1.24.4 source for sign-in, verification, token refresh, device IDs, cache keys, and configuration. Keep the existing Scriptable script name to reuse its v1.24.4 settings and cache. Complete any requested verification in Scriptable.
 
-Hyundai Europe users on **v1.26.1** use the login and hybrid-status changes from [PR #3](https://github.com/devindxdev/bluelocke/pull/3). Other regions keep the v1.24.4 authentication implementation.
+Hyundai Europe users on **v1.27.0** use the login and hybrid-status changes from [PR #3](https://github.com/devindxdev/bluelocke/pull/3). Other regions keep the v1.24.4 authentication implementation.
 
 ## Getting support
 
