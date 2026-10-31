@@ -68,7 +68,7 @@ npm test
 npx tsc --noEmit
 ```
 
-The v1.26.1-beta.3 rebuild starts from the exact v1.24.4 release supplied by the user. Authentication regression checks compare the executable sign-in, verification, token-refresh, device-ID, and cache methods against fingerprints from that release. Settings and first-time setup match the v1.26.0 UI, including autosave, Continue, and Back navigation. The generated script is also tested directly to verify its entry points and original login route.
+The rebuild starts from the exact v1.24.4 release supplied by the user; v1.26.1-beta.4 adds the reviewed Hyundai Europe login and hybrid-status changes from PR #3. Authentication regression checks compare the executable sign-in, verification, token-refresh, device-ID, and cache methods against fingerprints from that release, with only the three reviewed EU authentication methods checked against PR #3 instead. Settings and first-time setup match the v1.26.0 UI, including autosave, Continue, and Back navigation. The generated script is also tested directly to verify its entry points and original login route.
 
 The modern Settings page can be previewed with `node scripts/preview-app-ui.mjs /absolute/path/settings.html`.
 

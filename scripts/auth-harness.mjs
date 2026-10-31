@@ -73,6 +73,7 @@ export function runtime({ background = false, siri = false, keys = new Map(), na
         }
       if (dep.endsWith('/vehicle-image-editor'))
         return { loadVehicleImageSettings: async (bl) => h.photoEdits.push(bl) }
+      if (dep.endsWith('/europe-status')) return load('src/lib/bluelink-regions/europe-status.ts')
       if (dep.endsWith('/vehicle-photo')) return { getVehiclePhotoUrl: () => undefined }
       if (dep.endsWith('/util')) return { isNotEmptyObject: (object) => !!object && Object.keys(object).length > 0 }
       const resolved = dep.startsWith('.')

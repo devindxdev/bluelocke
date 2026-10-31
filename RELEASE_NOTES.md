@@ -1,29 +1,26 @@
-# Bluelocke v1.26.1-beta.3
+# Bluelocke v1.26.1-beta.4 — Hyundai Europe test build
 
-Beta test build rebuilt from the supplied **v1.24.4** release, with the **v1.26.0 Settings UI** and the requested vehicle, climate, image, and diagnostic improvements. Login requests, verification, token refresh, device IDs, and cache storage use the v1.24.4 implementation.
+Includes the reviewed changes from [PR #3, “Fix Hyundai Europe login and hybrid status”](https://github.com/devindxdev/bluelocke/pull/3) by **mariancapota**, on top of beta.3. The reviewed PR head is **23d7d45a823d08de029ca35bd3142ba9b7c9c6f0**.
 
-## Included in this beta
+## Changes from beta.3
 
-- Modern Settings and first-time setup: Account, Vehicle, Climate, Appearance & Units, and Help & Support, with autosave, Continue, and Back navigation.
-- Custom photos from Photos or Files, framed directly in a live widget preview using drag, pinch, crop, and size/position controls. **Save** applies the photo and crop immediately inside the editor; no closing first or confirming “Use Image.” Save errors stay inline for retry.
-- Fuel range without an EV status section, including older Tucson models, with kilometre/mile conversion; alternate API fields restore 12V readings.
-- Image priority: custom photo, matching GitHub model/trim/color image, API-provided photo, existing default.
-- Correct Hyundai US petrol climate start/stop routes, US temperature conversion, and petrol duration limits. Confirmed commands remain successful when the follow-up status refresh fails. Older Hyundai EVs omit unsupported climate options.
-- Indented API responses and debug logs, with account details, credentials, vehicle identifiers, and location data redacted before viewing or sharing. Public errors do not show raw API requests.
+- Use the PR’s Hyundai Europe OneApp/CCI password login and token refresh, including its RSA password encryption and signed headers.
+- Handle EU hybrid/ICE status without a charging section, retain reported fuel and 12V readings, and correct the door-lock interpretation.
+- Preserve the modern Settings/setup, custom-photo editor with direct Save, image fallbacks, US climate fixes, and redacted diagnostics from beta.3.
 
-## Install or replace an earlier beta
+The EU login changes follow the PR as submitted. No extra TLS, callback, RSA, or shared authentication changes were added. Other regions retain their v1.24.4 login, verification, and cache implementation. Kia Europe’s existing login methods are preserved.
+
+## Review and validation
+
+No malicious behavior was found in the reviewed source. The new login requests target Hyundai-owned hosts; there are no added analytics destinations, remote code loaders, install hooks, or unrelated account-data writes. The pinned **@noble/hashes 1.8.0** dependency was checked against the npm registry and installed without running lifecycle scripts. Its license notice is retained in the generated script. The PR’s prebuilt script was not used; this asset was rebuilt from the reviewed source.
+
+All **318 automated tests** passed, together with TypeScript, lint, production build, generated-script syntax, and a runtime dependency audit with zero reported vulnerabilities. Tests cover the PR’s encryption, signed requests, login/refresh responses, hybrid/EV status, and log redaction, plus integration into the existing regional client and the beta.3 regression suite. Live Hyundai Europe login and native iOS behavior still need confirmation.
+
+## Install for testing
 
 1. Download the attached **bluelocke.js** asset.
-2. Open your existing Bluelocke script in Scriptable and replace **all** its code with the downloaded file’s contents, then save.
-3. **Keep the existing script name** to reuse its v1.24.4 settings and cache keys.
-4. Run it in Scriptable, finish any requested verification, then refresh your widgets. The About screen should show **v1.26.1-beta.3**.
+2. Replace all code in your existing Bluelocke Scriptable script and save.
+3. **Keep the existing script name** to reuse its settings and cache. Run it in Scriptable, with your account region set to **Europe**, and complete any instructions shown.
+4. Confirm **v1.26.1-beta.4** in About, then test status and your widgets/Shortcuts.
 
-Custom photos are under **Settings > Vehicle > Vehicle photo**. Tap **Save** inside the editor before closing. Scriptable’s own native Share control remains; its WebView API does not expose a way to replace that toolbar button.
-
-This prerelease requires manual installation. It does not replace the stable **v1.26.0** release or install through normal stable-update checks.
-
-## Testing and feedback
-
-Please test sign-in and verification, Settings/setup navigation, custom-photo Save/cancel/retry, widgets and Shortcuts, fuel range and 12V readings, and US climate commands where supported. Include your region, manufacturer, model/year, and the behavior you observed in feedback. Sanitized diagnostics are available through **Help & Support > Help & updates > Share Debug Logs**.
-
-Validation: **272 automated tests** passed, along with TypeScript, lint, the production build, and generated-script syntax checks. Tests cover the original authentication methods, Settings parity with v1.26.0, startup of the generated script, photo-save behavior, status parsing, climate payloads, and log redaction. Live vehicle-service behavior and native iOS controls still need tester confirmation.
+For feedback, include manufacturer, model/year, the login or refresh step that failed, and fresh redacted logs from **Help & Support > Help & updates**. Beta.3 remains available for users whose existing setup is working. This prerelease does not replace stable **v1.26.0** or install through normal stable-update checks.

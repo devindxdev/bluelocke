@@ -1,0 +1,15 @@
+{
+  "pullRequest": "https://github.com/devindxdev/bluelocke/pull/3",
+  "head": "23d7d45a823d08de029ca35bd3142ba9b7c9c6f0",
+  "authMethods": {
+    "login": "f8b78e8d12ad77c56b19c176700741854e8e85b7865c4c6b127243e3a6b49cad",
+    "HyundaiLogin": "9b00b105b2f3dd04e08bca0bdf4aa2866c773682b45ed1c9f041bbca4dc087d4",
+    "refreshTokens": "27727696a9d0df9789cc5a7ea0707904c2301fd5e41f2a26a72c9b491359bbbe"
+  },
+  "moduleHashes": {
+    "src/lib/bluelink-regions/europe-crypto.ts": "88cd8c3a22275e83b6874838894a8bd49ee7f8a69829135acd81a5a0db0955ab",
+    "src/lib/bluelink-regions/europe-fingerprint.ts": "69f33ef91eb360f539747407a5c747af683b2cf2ccb6a558c0746a6a92f5c6b3",
+    "src/lib/bluelink-regions/europe-status.ts": "b74a6949931ef69254342b9fccd170607d3477fbbd36e2f914b17e311f06a29c",
+    "src/lib/bluelink-regions/hyundai-europe-auth.ts": "3d0312100e8734421767933e3eca1daa0d80fb737b719ea4a62b1c6c20848972"
+  }
+}

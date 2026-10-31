@@ -7,11 +7,13 @@ import { runtime } from './auth-harness.mjs'
 
 const ROOT = path.resolve(import.meta.dirname, '..')
 const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/fixtures/v1.24.4-auth.json')))
+const euPr = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/fixtures/europe-pr-3.json')))
 const plain = (value) => JSON.parse(JSON.stringify(value))
 for (const [file, expected] of Object.entries(baseline.fingerprints)) {
-  test(`${file}: sign-in, verification, token refresh, and cache methods match v1.24.4`, () => {
+  test(`${file}: sign-in and cache methods match v1.24.4 except the reviewed EU PR methods`, () => {
     const actual = authFingerprints(fs.readFileSync(path.join(ROOT, file), 'utf8'))
-    assert.deepEqual(actual, expected)
+    const reviewed = file.endsWith('/europe.ts') ? { ...expected, ...euPr.authMethods } : expected
+    assert.deepEqual(actual, reviewed)
   })
 }
 
