@@ -6,7 +6,7 @@ import { loadApiVehiclePhoto } from '../vehicle-photo'
 import { Logger } from '../logger'
 import { registerLogSecrets, sanitizeLog } from '../log-sanitizer'
 import { Buffer } from 'buffer'
-import { AuthSessionStore, authIdentity, BACKGROUND_LOGIN_LEASE_MS, LOGIN_LEASE_MS } from '../auth-session'
+import { AuthSessionStore, authIdentity } from '../auth-session'
 import { UserFacingError } from '../user-error'
 import { removeKeychainValue, scriptStorageKey } from '../storage'
 import { httpsUrl, sameOrigin } from '../secure-url'
@@ -313,7 +313,6 @@ export class Bluelink {
   protected distanceUnit: string
   protected lastCommandSent: number | undefined
   protected authSession: AuthSessionStore
-  protected loginLeaseOwner: string | undefined
 
   constructor(config: Config, vin?: string) {
     registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
@@ -329,7 +328,6 @@ export class Bluelink {
     this.loginFailure = false
     this.loginRequiredWebview = false
     this.refreshLoginPromise = undefined
-    this.loginLeaseOwner = undefined
     this.debugLastRequest = undefined
     this.tempLookup = undefined
     this.authIdHeader = undefined
@@ -363,71 +361,39 @@ export class Bluelink {
       await this.refreshLoginPromise
       return
     }
-    // if we are here we have logged in successfully at least once and can refresh if supported
-    if (!(force || !this.tokenValid() || this.authSession.authRequired())) return
+    if (!(force || !this.tokenValid())) return
 
+    // v1.24.4 coordinates refreshes within this run. Persisted locks and
+    // foreground-auth flags from later releases no longer block sign-in.
     this.refreshLoginPromise = (async () => {
-      const background = config.runsInWidget || config.runsWithSiri
       const previous = this.tokens || this.cache?.token
-      if (this.authSession.authRequired() && (config.runsInWidget || config.runsWithSiri)) {
-        throw new UserFacingError(
-          'Open Bluelocke in Scriptable to finish signing in. Background verification is paused.',
-        )
+      const shared = this.authSession.read()
+      if (shared && previous && shared.accessToken !== previous.accessToken && shared.expiry > Date.now() / 1000 + 30) {
+        this.tokens = shared
+        if (this.cache) this.cache.token = shared
+        this.loginFailure = false
+        await this.onAuthRefreshed()
+        return
       }
-      const owner = this.authSession.acquireLogin(background ? BACKGROUND_LOGIN_LEASE_MS : LOGIN_LEASE_MS)
-      if (!owner)
-        throw new UserFacingError(
-          'Sign-in is already in progress in another run. Wait a moment, then reopen Bluelocke in Scriptable.',
-        )
-      this.loginLeaseOwner = owner
-      try {
-        const shared = this.authSession.read()
-        if (
-          shared &&
-          previous &&
-          shared.accessToken !== previous.accessToken &&
-          shared.expiry > Date.now() / 1000 + 30
-        ) {
-          this.tokens = shared
-          if (this.cache) this.cache.token = shared
-          this.loginFailure = false
-          await this.onAuthRefreshed()
-          return
+      let tokens: BluelinkTokens | undefined
+      if (previous && typeof (this as any).refreshTokens === 'function') {
+        // @ts-ignore - refreshTokens is optional for regional implementations.
+        tokens = await this.refreshTokens()
+        if (!tokens) tokens = await this.login()
+      } else {
+        tokens = await this.login()
+      }
+      if (!tokens) this.loginFailure = true
+      else {
+        this.loginFailure = false
+        this.saveAuthSession(tokens)
+        if (this.cache) {
+          this.cache.token = tokens
+          this.saveCache()
         }
-        let tokens: BluelinkTokens | undefined
-        if (previous && typeof (this as any).refreshTokens === 'function' && !this.authSession.authRequired()) {
-          // @ts-ignore - this is why we check the sub-class has this as its not always implemented
-          tokens = await this.refreshTokens()
-          if (!tokens) {
-            tokens = await this.login() // fallback to normal login if refresh fails
-          }
-        } else {
-          tokens = await this.login()
-        }
-
-        if (!tokens) {
-          this.loginFailure = true
-          this.authSession.requireForegroundAuth()
-        } else {
-          this.loginFailure = false
-          // Keep authentication even if metadata/status loading fails afterwards.
-          this.saveAuthSession(tokens)
-          if (this.cache) {
-            this.cache.token = tokens
-            this.saveCache()
-          }
-          if (previous) await this.onAuthRefreshed()
-        }
-      } finally {
-        this.loginLeaseOwner = undefined
-        try {
-          this.authSession.releaseLogin(owner)
-        } catch {
-          /* A reset/changed account already revoked this lease. */
-        }
+        if (previous) await this.onAuthRefreshed()
       }
     })()
-
     try {
       await this.refreshLoginPromise
     } finally {
@@ -443,7 +409,6 @@ export class Bluelink {
 
   protected assertCurrentSession() {
     this.authSession.assertCurrent()
-    if (this.loginLeaseOwner) this.authSession.renewLogin(this.loginLeaseOwner)
   }
 
   protected async onAuthRefreshed(): Promise<void> {}

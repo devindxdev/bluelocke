@@ -65,7 +65,7 @@ export class BluelinkUSA extends Bluelink {
     if (Object.hasOwn(resp, 'statusCode') && resp.statusCode === 200) {
       return { valid: true, retry: false }
     }
-    return { valid: false, retry: resp.statusCode === 401 || resp.statusCode === 403 }
+    return { valid: false, retry: true }
   }
 
   private carHeaders(): Record<string, string> {

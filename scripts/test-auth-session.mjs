@@ -418,7 +418,9 @@ test('adopting another client’s completed sign-in clears an earlier login fail
   assert.equal(bl.loginFailed(), true)
   const peer = runtime({ keys: h.keys })
   peer.token = token('peer-completed-signin')
-  await peer.client().initialize(true)
+  const signedInPeer = peer.client()
+  await signedInPeer.initialize()
+  await signedInPeer.refreshAuth(true)
   await bl.refreshAuth(true)
   assert.equal(bl.loginFailed(), false)
   assert.equal(bl.tokens.accessToken, 'peer-completed-signin')
@@ -538,149 +540,181 @@ test('API transport validates TLS and stops credential-bearing or downgraded red
   await assert.rejects(bl.request({ url: 'https://user:secret@api.example.test/status' }), /Unsafe/)
 })
 
-test('abandoned widget sign-in leases expire quickly and ordinary sign-in remains exclusive', () => {
-  const h = runtime()
-  h.saveAccount()
-  const { AuthSessionStore, BACKGROUND_LOGIN_LEASE_MS } = h.load('src/lib/auth-session.ts')
-  const first = new AuthSessionStore(h.settings.getConfig())
-  const owner = first.acquireLogin(BACKGROUND_LOGIN_LEASE_MS)
-  assert.ok(owner)
-  const second = new AuthSessionStore(h.settings.getConfig())
-  assert.equal(second.acquireLogin(), undefined)
-  h.now += 31_000
-  const replacement = second.acquireLogin()
-  assert.ok(replacement)
-  assert.notEqual(replacement, owner)
-  first.releaseLogin(owner)
-  assert.equal(new AuthSessionStore(h.settings.getConfig()).acquireLogin(), undefined)
-})
+// These fixtures use the persisted shapes shipped in the stable and beta
+// releases, rather than creating the source state with the new session store.
+function installedSession(h, release, { savedToken = token('installed-session'), completed = true } = {}) {
+  const config = h.settings.getConfig()
+  const identity = h.load('src/lib/auth-session.ts').authIdentity(config)
+  const generation = `installed-${release}`
+  const key = `bluelocke:auth-session:${JSON.stringify(['Blue locke'])}`
+  const leaseKey = `bluelocke:login-lease:${JSON.stringify(['Blue locke'])}`
+  const lease = { owner: 'killed-script', until: Number.MAX_SAFE_INTEGER }
+  h.keys.set(
+    key,
+    JSON.stringify({
+      identity,
+      generation,
+      token: savedToken,
+      devices: { deviceid: 'trusted-device', deviceId: 'trusted-kia-device', clientuuid: 'trusted-client' },
+      authRequired: true,
+      mfaSentAt: h.now,
+      mfa: { sentAt: h.now, otpKey: 'obsolete-challenge', verifiedSid: 'obsolete-sid' },
+      ...(release === 'v1.26.0' && { lease }),
+    }),
+  )
+  if (release === 'v1.26.1-beta.1') h.keys.set(leaseKey, JSON.stringify({ ...lease, generation, durationMs: 30000 }))
+  const cacheKey = `bluelocke:vehicle-cache:${JSON.stringify(['Blue locke'])}`
+  if (completed)
+    h.keys.set(
+      cacheKey,
+      JSON.stringify({
+        identity,
+        generation,
+        script: 'Blue locke',
+        token: savedToken,
+        car: FIRST_CAR,
+        status: { lastStatusCheck: h.now, range: 415, twelveSoc: 84 },
+      }),
+    )
+  return { key, leaseKey, cacheKey, identity, generation }
+}
 
-test('corrupt or implausibly far-future leases cannot block sign-in indefinitely', () => {
-  for (const until of [null, '999999999999999', Number.MAX_SAFE_INTEGER, Date.now() + 24 * 60 * 60 * 1000]) {
+for (const release of ['v1.26.0', 'v1.26.1-beta.1']) {
+  for (const mode of ['app', 'widget', 'shortcut']) {
+    for (const [manufacturer, region] of [
+      ['hyundai', 'canada'],
+      ['hyundai', 'usa'],
+      ['hyundai', 'europe'],
+      ['hyundai', 'india'],
+      ['hyundai', 'australia'],
+      ['kia', 'canada'],
+      ['kia', 'usa'],
+      ['kia', 'europe'],
+    ]) {
+      test(`${release} -> ${mode}, ${manufacturer} ${region}: preserves the working account and snapshot, retires old auth gates`, async () => {
+        const h = runtime({ background: mode === 'widget', siri: mode === 'shortcut' })
+        h.saveAccount({
+          manufacturer,
+          auth: { ...ACCOUNT, region, pin: '0123' },
+          widgetAppearance: 'dark',
+          displayNameOverride: 'My daily',
+        })
+        const installedConfig = h.keys.get(h.configKey)
+        const fixture = installedSession(h, release)
+        const bl = h.client()
+        await bl.initialize()
+        assert.equal(h.authCalls.length, 0)
+        assert.equal(h.metadataCalls.length, 0)
+        assert.equal(h.statusCalls.length, 0)
+        assert.equal(bl.tokens.accessToken, 'installed-session')
+        assert.deepEqual(plain(bl.tokens.additionalTokens), plain(token().additionalTokens))
+        assert.equal(bl.getCachedStatus().status.range, 415)
+        assert.equal(h.keys.get(h.configKey), installedConfig, 'Upgrade must not rewrite account/preferences')
+        const migrated = JSON.parse(h.keys.get(fixture.key))
+        assert.notEqual(migrated.generation, fixture.generation)
+        assert.deepEqual(plain(migrated.devices), {
+          deviceid: 'trusted-device',
+          deviceId: 'trusted-kia-device',
+          clientuuid: 'trusted-client',
+        })
+        for (const field of ['lease', 'authRequired', 'mfa', 'mfaSentAt']) assert.equal(migrated[field], undefined)
+        assert.equal(h.keys.has(fixture.leaseKey), false)
+        const next = runtime({ keys: h.keys, background: mode === 'widget', siri: mode === 'shortcut' })
+        await next.client().initialize()
+        assert.equal(JSON.parse(h.keys.get(fixture.key)).generation, migrated.generation, 'Migration runs once')
+        assert.equal(next.authCalls.length, 0)
+      })
+    }
+  }
+
+  for (const mode of ['app', 'widget', 'shortcut']) {
+    test(`${release} -> ${mode}: an expired session refreshes with its existing refresh token despite stale foreground flags`, async () => {
+      const h = runtime({ background: mode === 'widget', siri: mode === 'shortcut' })
+      h.saveAccount()
+      installedSession(h, release, { savedToken: token('expired', Math.floor(h.now / 1000) - 60) })
+      const bl = h.client()
+      let refreshes = 0
+      bl.refreshTokens = async () => {
+        refreshes++
+        assert.equal(bl.tokens.refreshToken, 'refresh-expired')
+        return token('renewed-after-update')
+      }
+      await bl.initialize(true)
+      assert.equal(refreshes, 1)
+      assert.equal(h.authCalls.length, 0)
+      assert.equal(bl.tokens.accessToken, 'renewed-after-update')
+      assert.equal(bl.getCachedStatus().status.range, 415)
+    })
+
+    test(`${release} -> ${mode}: a failed refresh falls back to the original login flow`, async () => {
+      const h = runtime({ background: mode === 'widget', siri: mode === 'shortcut' })
+      h.saveAccount()
+      installedSession(h, release, { savedToken: token('expired', Math.floor(h.now / 1000) - 60) })
+      const bl = h.client()
+      bl.refreshTokens = async () => undefined
+      await bl.initialize(true)
+      assert.equal(h.authCalls.length, 1)
+      assert.equal(bl.tokens.accessToken, 'session-token')
+    })
+
+    test(`${release} -> ${mode}: interrupted initial sign-in retries without the obsolete challenge or lock`, async () => {
+      const h = runtime({ background: mode === 'widget', siri: mode === 'shortcut' })
+      h.saveAccount()
+      installedSession(h, release, { savedToken: null, completed: false })
+      const bl = h.client()
+      await bl.initialize()
+      assert.equal(h.authCalls.length, 1)
+      assert.equal(bl.loginFailed(), false)
+      assert.equal(bl.tokens.accessToken, 'session-token')
+    })
+  }
+
+  test(`${release}: a valid session without a completed vehicle snapshot rebuilds it without signing in again`, async () => {
     const h = runtime()
     h.saveAccount()
-    const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
-    const store = new AuthSessionStore(h.settings.getConfig())
-    store.acquireLogin()
-    const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:login-lease:'))
-    const record = JSON.parse(h.keys.get(key))
-    record.until = until
-    h.keys.set(key, JSON.stringify(record))
-    assert.ok(new AuthSessionStore(h.settings.getConfig()).acquireLogin())
-  }
-})
-
-test('a recovered login lease rejects late results from its previous owner', async () => {
-  const h = runtime()
-  h.saveAccount()
-  const { AuthSessionStore, BACKGROUND_LOGIN_LEASE_MS } = h.load('src/lib/auth-session.ts')
-  const store = new AuthSessionStore(h.settings.getConfig())
-  const old = store.acquireLogin(BACKGROUND_LOGIN_LEASE_MS)
-  h.now += 31_000
-  const peer = new AuthSessionStore(h.settings.getConfig())
-  const replacement = peer.acquireLogin()
-  assert.ok(replacement)
-  assert.throws(() => store.renewLogin(old), /sign-in attempt has ended/)
-  const stale = h.client()
-  stale.loginLeaseOwner = old
-  assert.throws(() => stale.saveAuthSession(token('late-stale-session')), /sign-in attempt has ended/)
-  assert.equal(peer.read(), undefined)
-})
-
-test('authentication progress renews a background lease while an abandoned attempt expires', () => {
-  const h = runtime()
-  h.saveAccount()
-  const { AuthSessionStore, BACKGROUND_LOGIN_LEASE_MS } = h.load('src/lib/auth-session.ts')
-  const first = new AuthSessionStore(h.settings.getConfig())
-  const owner = first.acquireLogin(BACKGROUND_LOGIN_LEASE_MS)
-  h.now += 20_000
-  first.renewLogin(owner)
-  h.now += 20_000
-  const peer = new AuthSessionStore(h.settings.getConfig())
-  assert.equal(peer.acquireLogin(), undefined)
-  h.now += 11_000
-  assert.ok(peer.acquireLogin())
-})
-
-test('an in-flight authentication response cannot overwrite the session that recovered its abandoned lock', async () => {
-  const h = runtime({ background: true })
-  h.saveAccount()
-  const pending = deferred()
-  h.transport = () => pending.promise
-  const old = h.client()
-  old.login = async () => {
-    const result = await old.request({
-      url: 'https://example.test/signin',
-      noAuth: true,
-      validResponseFunction: () => ({ valid: true, retry: false }),
-    })
-    return result.json
-  }
-  const first = old.initialize()
-  assert.equal(h.requests.length, 1)
-  h.now += 31_000
-  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
-  const peer = new AuthSessionStore(h.settings.getConfig())
-  assert.ok(peer.acquireLogin())
-  peer.write(token('recovered-session'))
-  pending.resolve(token('late-stale-session'))
-  await assert.rejects(first, /sign-in attempt has ended/)
-  assert.equal(peer.read().accessToken, 'recovered-session')
-  assert.equal(peer.acquireLogin(), undefined, 'A late finally handler must not release the replacement lease')
-})
-
-for (const region of ['australia', 'usa']) {
-  test(`${region}: upgrading a working v1.26 session retires its stuck lock and preserves authentication and cached status`, async () => {
-    const h = runtime()
-    h.saveAccount({ auth: { ...ACCOUNT, region } })
-    const old = h.client()
-    await old.initialize()
-    const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
-    const record = JSON.parse(h.keys.get(key))
-    record.lease = { owner: 'interrupted-v126-run', until: h.now + 5 * 60 * 1000 }
-    h.keys.set(key, JSON.stringify(record))
-    const next = runtime({ keys: h.keys, background: true })
-    const upgraded = next.client()
-    await upgraded.initialize()
-    assert.equal(upgraded.tokens.accessToken, old.tokens.accessToken)
-    assert.equal(upgraded.getCachedStatus().status.range, 415)
-    assert.equal(next.authCalls.length, 0)
-    assert.equal(next.metadataCalls.length, 0)
-    assert.equal(next.statusCalls.length, 0)
-    assert.equal(JSON.parse(h.keys.get(key)).lease, undefined)
-    assert.throws(() => old.saveAuthSession(token('late-v126-login')), /reset/)
+    installedSession(h, release, { completed: false })
+    const bl = h.client()
+    await bl.initialize()
+    assert.equal(h.authCalls.length, 0)
+    assert.equal(h.metadataCalls.length, 1)
+    assert.equal(h.statusCalls.length, 1)
+    assert.equal(bl.tokens.accessToken, 'installed-session')
   })
 }
 
-test('concurrent session/device writes cannot erase an active sign-in lock', () => {
+test('simultaneous refreshes in one run still share the v1.24.4 refresh promise', async () => {
   const h = runtime()
   h.saveAccount()
-  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
-  const first = new AuthSessionStore(h.settings.getConfig())
-  first.read()
-  const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
-  const stale = JSON.parse(h.keys.get(key))
-  const owner = first.acquireLogin()
-  // Another process started reading this record before the lock was claimed,
-  // then saved a device/session update. It must not overwrite the lock.
-  h.keys.set(key, JSON.stringify({ ...stale, devices: { deviceId: 'remembered-device' } }))
-  const peer = new AuthSessionStore(h.settings.getConfig())
-  assert.equal(peer.acquireLogin(), undefined)
-  first.releaseLogin(owner)
-  assert.ok(peer.acquireLogin())
+  const bl = h.client()
+  await bl.initialize()
+  h.authCalls.length = 0
+  const pending = deferred()
+  bl.login = () => {
+    h.authCalls.push([])
+    return pending.promise
+  }
+  const first = bl.refreshAuth(true)
+  const second = bl.refreshAuth(true)
+  assert.equal(h.authCalls.length, 1)
+  pending.resolve(token('shared-renewal'))
+  await Promise.all([first, second])
+  assert.equal(bl.tokens.accessToken, 'shared-renewal')
 })
 
-test('a delayed session/device write cannot resurrect a completed sign-in lock', () => {
+test('migration revokes an old run so it cannot restore the retired sign-in state', async () => {
   const h = runtime()
   h.saveAccount()
-  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
-  const first = new AuthSessionStore(h.settings.getConfig())
-  const owner = first.acquireLogin()
+  const old = h.client()
+  await old.initialize()
   const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
-  const stale = JSON.parse(h.keys.get(key))
-  first.releaseLogin(owner)
-  h.keys.set(key, JSON.stringify({ ...stale, devices: { deviceId: 'remembered-device' } }))
-  assert.ok(new AuthSessionStore(h.settings.getConfig()).acquireLogin())
+  const record = JSON.parse(h.keys.get(key))
+  delete record.flow
+  record.lease = { owner: 'old-run', until: h.now + 300000 }
+  h.keys.set(key, JSON.stringify(record))
+  const next = runtime({ keys: h.keys })
+  await next.client().initialize()
+  assert.throws(() => old.saveAuthSession(token('late-old-login')), /reset/)
+  assert.throws(() => old.saveCache(), /reset/)
 })
 
 test('retiring a v1.26 lock never adopts a cache from a different account, script, or reset generation', async () => {
@@ -691,6 +725,7 @@ test('retiring a v1.26 lock never adopts a cache from a different account, scrip
     await old.initialize()
     const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
     const record = JSON.parse(h.keys.get(key))
+    delete record.flow
     record.lease = { owner: 'interrupted-v126-run', until: h.now + 5 * 60 * 1000 }
     h.keys.set(key, JSON.stringify(record))
     const cacheKey = old.getCacheKey()
@@ -773,7 +808,7 @@ test('Australia widgets renew saved sessions and reconnect with saved credential
   assert.equal(JSON.parse(h.keys.get(key)).lease, undefined)
 })
 
-test('a failed Australian authentication request releases the lock for the next attempt', async () => {
+test('a failed Australian authentication request can retry on the next launch', async () => {
   const h = runtime()
   h.saveAccount({ auth: { ...ACCOUNT, region: 'australia' } })
   const Regional = h.load('src/lib/bluelink-regions/australia.ts').BluelinkAustralia
@@ -781,6 +816,8 @@ test('a failed Australian authentication request releases the lock for the next 
     throw Error('The request timed out.')
   }
   await assert.rejects(new Regional(h.settings.getConfig()).superInit(h.settings.getConfig(), false), /timed out/)
-  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
-  assert.ok(new AuthSessionStore(h.settings.getConfig()).acquireLogin())
+  h.requests.length = 0
+  await assert.rejects(new Regional(h.settings.getConfig()).superInit(h.settings.getConfig(), false), /timed out/)
+  assert.equal(h.requests.length, 1)
+  assert.ok(![...h.keys.keys()].some((key) => key.startsWith('bluelocke:login-lease:')))
 })

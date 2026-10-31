@@ -3,8 +3,7 @@ import type { BluelinkTokens } from './bluelink-regions/base'
 import { scriptStorageKey } from './storage'
 import { UserFacingError } from './user-error'
 
-export const LOGIN_LEASE_MS = 5 * 60 * 1000
-export const BACKGROUND_LOGIN_LEASE_MS = 30 * 1000
+const AUTH_FLOW = 'v1.24.4'
 
 export function authIdentity(config: Config): string {
   // This record stays in Keychain; credentials never appear in a filename/log.
@@ -22,16 +21,7 @@ interface SessionRecord {
   generation: string
   token?: BluelinkTokens
   devices: Record<string, string>
-  authRequired?: boolean
-  mfa?: { sentAt: number }
-  mfaSentAt?: number
-}
-
-interface LoginLease {
-  generation: string
-  owner: string
-  until: number
-  durationMs?: number
+  flow?: string
 }
 
 function usableToken(token: any): token is BluelinkTokens {
@@ -40,7 +30,6 @@ function usableToken(token: any): token is BluelinkTokens {
 
 export class AuthSessionStore {
   private key = scriptStorageKey('auth-session')
-  private leaseKey = scriptStorageKey('login-lease')
   private generation: string
   constructor(private config: Config) {
     let previous: any
@@ -50,15 +39,24 @@ export class AuthSessionStore {
       /* Read as a fresh record. */
     }
     this.generation = previous ? previous.generation || 'legacy' : `${Date.now()}-${Math.random()}`
-    if (previous?.identity === authIdentity(config) && Object.hasOwn(previous, 'lease')) {
-      // v1.26 mixed its lock into a frequently rewritten session record. Retire
-      // that lock while retaining the verified account's tokens and snapshot.
-      // Rotating the generation also stops a delayed v1.26 run writing back.
+    if (previous?.identity === authIdentity(config) && previous.flow !== AUTH_FLOW) {
+      // Upgrade v1.26.0 and v1.26.1-beta.1 in place. Only the newer sign-in
+      // control state is retired; matching tokens, devices and status survive.
+      // A new generation prevents an older in-flight run restoring its gates.
       const previousGeneration = this.generation
       this.generation = `${Date.now()}-${Math.random()}`
-      delete previous.lease
-      previous.generation = this.generation
-      Keychain.set(this.key, JSON.stringify(previous))
+      Keychain.set(
+        this.key,
+        JSON.stringify({
+          identity: previous.identity,
+          generation: this.generation,
+          token: previous.token,
+          devices: previous.devices || {},
+          flow: AUTH_FLOW,
+        }),
+      )
+      const leaseKey = scriptStorageKey('login-lease')
+      if (Keychain.contains(leaseKey)) Keychain.remove(leaseKey)
       const cacheKey = scriptStorageKey('vehicle-cache')
       try {
         const cache = Keychain.contains(cacheKey) ? JSON.parse(Keychain.get(cacheKey)) : undefined
@@ -146,20 +144,7 @@ export class AuthSessionStore {
 
   private persist(record: SessionRecord, resetting = false) {
     if (!resetting) this.assertCurrent()
-    if (!resetting) {
-      const configKey = [
-        scriptStorageKey('config'),
-        `egmp-scriptable-config-${Script.name().replaceAll(' ', '')}`,
-        'egmp-bluelink-config',
-      ].find((key) => Keychain.contains(key))
-      if (configKey) {
-        const current = JSON.parse(Keychain.get(configKey))
-        if (!current?.auth || authIdentity(current) !== authIdentity(this.config)) {
-          throw new UserFacingError('Your sign-in details changed. Reopen Bluelocke in Scriptable to continue.')
-        }
-      }
-    }
-    Keychain.set(this.key, JSON.stringify(record))
+    Keychain.set(this.key, JSON.stringify({ ...record, flow: AUTH_FLOW }))
   }
 
   public read(): BluelinkTokens | undefined {
@@ -169,7 +154,7 @@ export class AuthSessionStore {
 
   public write(token: BluelinkTokens) {
     if (!usableToken(token)) throw Error('Sign-in did not return a usable session.')
-    this.persist({ ...this.record(), token, authRequired: false })
+    this.persist({ ...this.record(), token })
   }
 
   public clear() {
@@ -178,12 +163,13 @@ export class AuthSessionStore {
       { identity: authIdentity(this.config), generation: `${Date.now()}-${Math.random()}`, devices: {} },
       true,
     )
-    if (Keychain.contains(this.leaseKey)) Keychain.remove(this.leaseKey)
+    const leaseKey = scriptStorageKey('login-lease')
+    if (Keychain.contains(leaseKey)) Keychain.remove(leaseKey)
   }
 
   public getDeviceId(name: string, create: () => string): string {
     const record = this.record()
-    const value = record.devices[name] || record.token?.additionalTokens?.[name] || create()
+    const value = record.token?.additionalTokens?.[name] || record.devices[name] || create()
     if (record.devices[name] !== value) {
       record.devices[name] = value
       this.persist(record)
@@ -191,78 +177,9 @@ export class AuthSessionStore {
     return value
   }
 
-  public authRequired(): boolean {
-    return !!this.record().authRequired
-  }
-  public requireForegroundAuth() {
-    this.persist({ ...this.record(), authRequired: true })
-  }
-  public clearAuthRequired() {
-    this.persist({ ...this.record(), authRequired: false })
-  }
-
-  public acquireLogin(durationMs = LOGIN_LEASE_MS): string | undefined {
-    this.record()
-    const now = Date.now()
-    const lease = this.readLoginLease()
-    // A killed script cannot release its lease. Expired/malformed leases and
-    // timestamps made implausible by a clock change must be recoverable.
-    if (lease?.owner && Number.isFinite(lease.until) && lease.until > now && lease.until <= now + LOGIN_LEASE_MS)
-      return undefined
-    const owner = `${now}-${Math.random()}`
-    const duration = this.loginLeaseDuration(durationMs)
-    this.writeLoginLease({ generation: this.generation, owner, until: now + duration, durationMs: duration })
-    return this.readLoginLease()?.owner === owner ? owner : undefined
-  }
-
-  private readLoginLease(): LoginLease | undefined {
-    this.assertCurrent()
-    try {
-      const lease = Keychain.contains(this.leaseKey) ? JSON.parse(Keychain.get(this.leaseKey)) : undefined
-      return lease?.generation === this.generation ? lease : undefined
-    } catch {
-      return undefined
-    }
-  }
-
-  private writeLoginLease(lease: LoginLease) {
-    this.assertCurrent()
-    Keychain.set(this.leaseKey, JSON.stringify(lease))
-  }
-
-  private loginLeaseDuration(durationMs?: number): number {
-    return typeof durationMs === 'number' && Number.isFinite(durationMs)
-      ? Math.max(1000, Math.min(LOGIN_LEASE_MS, durationMs))
-      : LOGIN_LEASE_MS
-  }
-
-  public renewLogin(owner: string) {
-    const lease = this.readLoginLease()
-    if (lease?.owner !== owner) {
-      throw new UserFacingError('This sign-in attempt has ended. Reopen Bluelocke in Scriptable to continue.')
-    }
-    this.writeLoginLease({ ...lease, until: Date.now() + this.loginLeaseDuration(lease.durationMs) })
-  }
-
-  public releaseLogin(owner: string) {
-    if (this.readLoginLease()?.owner === owner) Keychain.remove(this.leaseKey)
-  }
-
-  public readMfa<T extends { sentAt: number }>(): T | undefined {
-    return this.record().mfa as T | undefined
-  }
-  public writeMfa<T extends { sentAt: number }>(mfa: T) {
-    this.persist({ ...this.record(), mfa })
-  }
-  public clearMfa() {
+  public setDeviceId(name: string, value: string) {
     const record = this.record()
-    delete record.mfa
+    record.devices[name] = value
     this.persist(record)
-  }
-  public getMfaSentAt(): number {
-    return this.record().mfaSentAt || 0
-  }
-  public markMfaSent() {
-    this.persist({ ...this.record(), mfaSentAt: Date.now() })
   }
 }

@@ -67,3 +67,19 @@ test('beta builds can recognize a newer stable release', async () => {
   const { Version } = runtime('v1.26.1-beta.1', 'v1.27.0')
   assert.equal(await new Version('devindxdev', 'bluelocke').promptForUpdate(), true)
 })
+
+for (const installed of ['v1.26.0', 'v1.26.1-beta.1']) {
+  test(`${installed} recognizes the v1.26.1 rollback release as an update`, async () => {
+    const { Version } = runtime(installed, 'v1.26.1')
+    const version = new Version('devindxdev', 'bluelocke')
+    assert.equal(await version.promptForUpdate(), true)
+    assert.equal(await version.getReleaseVersion(), 'v1.26.1')
+  })
+}
+
+test('a patched installation does not prompt for its current release or older releases', async () => {
+  for (const latest of ['v1.26.1', 'v1.26.0']) {
+    const { Version } = runtime('v1.26.1', latest)
+    assert.equal(await new Version('devindxdev', 'bluelocke').promptForUpdate(), false)
+  }
+})

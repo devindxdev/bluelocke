@@ -19,26 +19,11 @@ import { returnMockedCarStatus, returnMockedCar } from './mock'
 
 const DEFAULT_API_DOMAIN = 'api.owners.kia.com'
 const LOGIN_EXPIRY = 24 * 60 * 60
-const MFA_RESEND_COOLDOWN_MS = 2 * 60 * 1000
-const MFA_CHALLENGE_MAX_AGE_MS = 10 * 60 * 1000
 const MOCK_API = false
 
 interface MFAResponse {
   rmtoken: string
   sid?: string
-}
-
-interface PendingMfa {
-  sentAt: number
-  type: 'EMAIL' | 'SMS'
-  otpKey: string
-  xid: string
-  verifiedSid?: string
-  rmToken?: string
-}
-
-function canPromptForMfa(): boolean {
-  return !config.runsInWidget && !config.runsWithSiri
 }
 
 export class BluelinkUSAKia extends Bluelink {
@@ -125,110 +110,76 @@ export class BluelinkUSAKia extends Bluelink {
     resp: Record<string, any>,
     data: Record<string, any>,
   ): { valid: boolean; retry: boolean } {
-    const status = Number(resp?.statusCode ?? 200)
-    if (status === 401 || status === 403) return { valid: false, retry: true }
-    // Rate limits, outages and command failures do not invalidate a login.
-    if (status !== 200) return { valid: false, retry: false }
-    if (data?.status?.statusCode === 0 || data?.status?.statusCode === '0') return { valid: true, retry: false }
-    // Kia's explicit invalid-session responses, also used by the upstream
-    // Hyundai-Kia-Connect KiaUvoApiUSA implementation.
-    const expired =
-      Number(data?.status?.statusCode) === 1 &&
-      Number(data?.status?.errorType) === 1 &&
-      [1003, 1005].includes(Number(data?.status?.errorCode))
-    return { valid: false, retry: expired }
-  }
-
-  private getPendingMfa(): PendingMfa | undefined {
-    const pending = this.authSession.readMfa<PendingMfa>()
-    if (!pending) return undefined
-    if (
-      (pending.type !== 'EMAIL' && pending.type !== 'SMS') ||
-      !pending.otpKey ||
-      !pending.xid ||
-      !Number.isFinite(pending.sentAt) ||
-      Date.now() - pending.sentAt >= MFA_CHALLENGE_MAX_AGE_MS
-    ) {
-      this.authSession.clearMfa()
-      return undefined
+    if (Object.hasOwn(resp, 'statusCode') && resp.statusCode !== 200) {
+      return { valid: false, retry: true }
     }
-    return pending
-  }
-
-  private requireMfaInApp(): never {
-    this.authSession.requireForegroundAuth()
-    throw new UserFacingError('Open Bluelocke in Scriptable to finish Kia sign-in and enter your verification code.')
+    if (Object.hasOwn(data, 'status') && Object.hasOwn(data.status, 'statusCode') && data.status.statusCode === 0) {
+      return { valid: true, retry: false }
+    }
+    return { valid: false, retry: true }
   }
 
   protected async mfa(type: 'EMAIL' | 'SMS', code: string, xid: string): Promise<BluelinkTokens | undefined> {
-    this.authSession.requireForegroundAuth()
-    if (!canPromptForMfa()) return this.requireMfaInApp()
-
-    let pending = this.getPendingMfa()
-    if (!pending || pending.otpKey !== code || pending.xid !== xid) {
-      const lastSent = this.authSession.getMfaSentAt()
-      if (lastSent && Date.now() - lastSent < MFA_RESEND_COOLDOWN_MS) {
-        throw new UserFacingError(
-          'A verification code was requested recently. Wait two minutes before requesting another.',
-        )
-      }
-      if (!code || !xid) {
-        throw new UserFacingError('Kia did not provide a verification challenge. Please try signing in later.')
-      }
-      pending = { sentAt: Date.now(), type, otpKey: code, xid }
-      // Record the send before the request: a timeout can still deliver a code.
-      this.authSession.markMfaSent()
-      this.authSession.writeMfa(pending)
-      const sent = await this.request({
-        url: this.apiDomain + 'cmm/sendOTP',
-        data: '{}',
-        headers: { date: this.getDateString(), otpkey: code, notifytype: type, xid },
-        noAuth: true,
-        validResponseFunction: this.requestResponseValid,
-      })
-      if (!this.requestResponseValid(sent.resp, sent.json).valid) {
-        this.authSession.clearMfa()
-        if (this.config.debugLogging) this.logger.log(`Kia MFA send failed: ${JSON.stringify(sent.json)}`)
-        throw new UserFacingError('Kia could not send a verification code. Wait two minutes before trying again.')
-      }
+    if (config.runsInWidget || config.runsWithSiri) {
+      throw new UserFacingError('Open Bluelocke in Scriptable to finish Kia sign-in and enter your verification code.')
     }
-
-    if (pending.verifiedSid) return this.login({ sid: pending.verifiedSid, rmtoken: pending.rmToken || '' })
-    const mfaCode = await textInput(`Enter the verification code already sent via ${pending.type.toLowerCase()}.`, {
-      submitText: 'Enter Code',
-      flavor: 'number',
-    })
-    if (!mfaCode) {
-      throw new UserFacingError('Code entry cancelled. Reopen Bluelocke to enter the same verification code.')
-    }
-    const verified = await this.request({
-      url: this.apiDomain + 'cmm/verifyOTP',
-      data: JSON.stringify({ otp: mfaCode }),
-      headers: { date: this.getDateString(), otpkey: pending.otpKey, xid: pending.xid },
+    const mfaSendResp = await this.request({
+      url: this.apiDomain + 'cmm/sendOTP',
+      data: '{}',
+      headers: {
+        date: this.getDateString(),
+        otpkey: code,
+        notifytype: type,
+        xid: xid,
+      },
       noAuth: true,
       validResponseFunction: this.requestResponseValid,
     })
-    if (!this.requestResponseValid(verified.resp, verified.json).valid) {
-      if (this.config.debugLogging) this.logger.log(`Kia MFA verification failed: ${JSON.stringify(verified.json)}`)
-      throw new UserFacingError('The verification code was not accepted. Reopen Bluelocke to try the code again.')
+    if (!this.requestResponseValid(mfaSendResp.resp, mfaSendResp.json).valid) {
+      const error = `MFA Send Failed: ${JSON.stringify(mfaSendResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
     }
-    const sid = this.caseInsensitiveParamExtraction('sid', verified.resp.headers || {})
-    const remembered =
-      this.tokens?.additionalTokens ?? this.cache?.token.additionalTokens ?? this.authSession.read()?.additionalTokens
-    const rmToken =
-      this.caseInsensitiveParamExtraction('rmtoken', verified.resp.headers || {}) || remembered?.rmToken || ''
-    if (!sid) throw new UserFacingError('Kia could not complete verification. Please try signing in later.')
-    // Preserve a completed OTP step if the final login request times out.
-    this.authSession.writeMfa({ ...pending, verifiedSid: sid, rmToken })
-    return this.login({ sid, rmtoken: rmToken })
+
+    // prompt user for code
+    const mfaCode = await textInput(`MFA code sent via ${type.toLocaleLowerCase()}.`, {
+      submitText: 'Enter Code',
+      flavor: 'number',
+    })
+
+    if (!mfaCode) {
+      //  user cancelled most likely
+      if (this.config.debugLogging) this.logger.log(`MFA Verify Failed / Cancelled`)
+      return undefined
+    }
+
+    if (mfaCode) {
+      const mfaVerifyResp = await this.request({
+        url: this.apiDomain + 'cmm/verifyOTP',
+        data: JSON.stringify({ otp: mfaCode }),
+        headers: {
+          date: this.getDateString(),
+          otpkey: code,
+          xid: xid,
+        },
+        noAuth: true,
+        validResponseFunction: this.requestResponseValid,
+      })
+
+      if (this.requestResponseValid(mfaVerifyResp.resp, mfaVerifyResp.json).valid) {
+        return await this.login({
+          rmtoken: this.caseInsensitiveParamExtraction('rmtoken', mfaVerifyResp.resp.headers) || '',
+          sid: this.caseInsensitiveParamExtraction('sid', mfaVerifyResp.resp.headers) || '',
+        })
+      }
+
+      const error = `MFA Verify Failed: ${JSON.stringify(mfaVerifyResp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      return undefined
+    }
   }
 
   protected async login(mfaToken: MFAResponse | undefined = undefined): Promise<BluelinkTokens | undefined> {
-    const pending = !mfaToken ? this.getPendingMfa() : undefined
-    if (pending) {
-      if (!canPromptForMfa()) return this.requireMfaInApp()
-      return this.mfa(pending.type, pending.otpKey, pending.xid)
-    }
     const remembered =
       this.tokens?.additionalTokens ??
       this.cache?.token.additionalTokens ??
@@ -255,8 +206,6 @@ export class BluelinkUSAKia extends Bluelink {
       const sid = this.caseInsensitiveParamExtraction('sid', resp.resp.headers || {})
       const xid = this.caseInsensitiveParamExtraction('xid', resp.resp.headers || {})
       if (!sid && xid && !mfaToken?.sid) {
-        this.authSession.requireForegroundAuth()
-        if (!canPromptForMfa()) return this.requireMfaInApp()
         return this.mfa(
           resp.json?.payload?.phoneVerifyStatus && this.config.mfaPreference === 'sms' ? 'SMS' : 'EMAIL',
           resp.json?.payload?.otpKey,
@@ -278,12 +227,25 @@ export class BluelinkUSAKia extends Bluelink {
       }
       this.tokens = tokens
       this.saveAuthSession(tokens)
-      this.authSession.clearMfa()
-      this.authSession.clearAuthRequired()
       return tokens
     }
-    // Preserve the trusted device and remembered token on API failures.
-    if (this.config.debugLogging) this.logger.log(`Kia login failed: ${JSON.stringify(resp.json)}`)
+    // if we reach here login failed - regenerate deviceId if we have it cached
+    const previous = this.tokens || this.cache?.token
+    if (previous?.additionalTokens?.deviceId) {
+      const deviceId = this.generateDeviceId()
+      const clientuuid = UUID.string().toLocaleLowerCase()
+      const tokens = { ...previous, additionalTokens: { ...previous.additionalTokens, deviceId, clientuuid } }
+      this.authSession.setDeviceId('deviceId', deviceId)
+      this.authSession.setDeviceId('clientuuid', clientuuid)
+      this.saveAuthSession(tokens)
+      if (this.cache) {
+        this.cache.token = tokens
+        this.saveCache()
+      }
+    }
+
+    const error = `Login Failed: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+    if (this.config.debugLogging) this.logger.log(error)
     return undefined
   }
 

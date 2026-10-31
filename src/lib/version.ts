@@ -43,12 +43,7 @@ export class Version {
 
   public async promptForUpdate(): Promise<boolean> {
     const latestRelease = await this.getLatestGithubRelease()
-    // releases are in the format v1.7.0 converted to number this ends up as 170.
-    // Hence we take off the patch version and check if the minor version is greater than the current one
-    const latest = Math.floor(Version.versionToNumber(latestRelease.version) / 10)
-    const current = Math.floor(Version.versionToNumber(this.currentVersion) / 10)
-
-    return latest > current
+    return Version.versionToNumber(latestRelease.version) > Version.versionToNumber(this.currentVersion)
   }
 
   public async getReleaseVersion(): Promise<string> {

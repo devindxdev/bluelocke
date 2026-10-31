@@ -100,7 +100,7 @@ export class BluelinkIndia extends Bluelink {
     ) {
       return { valid: true, retry: false }
     }
-    return { valid: false, retry: resp.statusCode === 401 || resp.statusCode === 403 }
+    return { valid: false, retry: true }
   }
 
   private getTempCode(temp: number): string {

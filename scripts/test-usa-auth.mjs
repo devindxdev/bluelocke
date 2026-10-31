@@ -204,87 +204,93 @@ test('the first returned car supplies a persisted session-specific vehicle key b
 })
 
 for (const mode of ['widget', 'siri']) {
-  test(`${mode} never sends or prompts for an OTP and marks foreground sign-in required`, async () => {
+  test(`${mode} requests foreground verification without sending or prompting for an OTP`, async () => {
     const h = runtime({ [mode]: true })
     const bl = h.client()
     challenge(h)
     await assert.rejects(bl.login(), /Open Bluelocke in Scriptable/)
     assert.equal(h.count('cmm/sendOTP'), 0)
     assert.equal(h.prompts.length, 0)
-    assert.equal(h.sessions().authRequired(), true)
     await assert.rejects(bl.mfa('EMAIL', 'challenge-key', 'challenge-request'), /Open Bluelocke in Scriptable/)
     assert.equal(h.count('cmm/sendOTP'), 0)
   })
 }
 
-test('cancelling code entry preserves the pending challenge and reopening resumes without another OTP', async () => {
+test('Kia follows the v1.24.4 send, prompt, verify and final-login sequence', async () => {
   const h = runtime()
   challenge(h)
   h.reply('cmm/sendOTP', success())
-  await assert.rejects(h.client().login(), /Code entry cancelled/)
-  assert.equal(h.count('cmm/sendOTP'), 1)
-  assert.ok(h.sessions().readMfa())
   h.inputs.push('123456')
   verify(h)
   const token = await h.client().login()
   assert.equal(token.accessToken, 'final-sid')
-  assert.equal(h.count('cmm/sendOTP'), 1)
-  assert.equal(h.count('prof/authUser'), 2)
-  assert.equal(h.count('cmm/verifyOTP'), 1)
-  assert.equal(h.sessions().readMfa(), undefined)
-  assert.equal(h.sessions().authRequired(), false)
-})
-
-test('a failed OTP send retains the resend cooldown', async () => {
-  const h = runtime()
-  h.reply('cmm/sendOTP', failure(), {}, 429)
-  await assert.rejects(
-    h.client().mfa('SMS', 'challenge-key', 'challenge-request'),
-    /vehicle service is temporarily unavailable/,
+  assert.deepEqual(
+    h.calls.map((call) => call.endpoint),
+    ['prof/authUser', 'cmm/sendOTP', 'cmm/verifyOTP', 'prof/authUser'],
   )
-  const lastSent = h.sessions().getMfaSentAt()
-  assert.equal(lastSent, h.now)
-  await assert.rejects(h.client().mfa('SMS', 'new-key', 'new-request'), /Wait two minutes/)
-  assert.equal(h.count('cmm/sendOTP'), 1)
-  assert.equal(h.sessions().getMfaSentAt(), lastSent)
+  assert.equal(h.calls[1].headers.notifytype, 'SMS')
+  assert.equal(h.calls[2].headers.otpkey, 'challenge-key')
+  assert.equal(h.calls[3].headers.sid, 'verified-sid')
+  assert.equal(h.calls[3].headers.rmtoken, 'remember-me-token')
+  assert.equal(h.sessions().read().additionalTokens.rmToken, 'remember-me-token')
 })
 
-test('an ambiguous send timeout resumes the existing challenge without sending again', async () => {
+test('cancelling code entry starts a fresh Kia challenge on the next launch', async () => {
   const h = runtime()
-  h.fail('cmm/sendOTP')
-  await assert.rejects(h.client().mfa('SMS', 'challenge-key', 'challenge-request'), /Network unavailable/)
-  assert.ok(h.sessions().readMfa())
+  challenge(h)
+  h.reply('cmm/sendOTP', success())
+  assert.equal(await h.client().login(), undefined)
+  assert.equal(h.count('cmm/sendOTP'), 1)
+  challenge(h)
+  h.reply('cmm/sendOTP', success())
+  h.inputs.push('123456')
+  verify(h)
+  const token = await h.client().login()
+  assert.equal(token.accessToken, 'final-sid')
+  assert.equal(h.count('cmm/sendOTP'), 2)
+  assert.equal(h.count('prof/authUser'), 3)
+  assert.equal(h.count('cmm/verifyOTP'), 1)
+})
+
+test('an unsuccessful code can retry through a new Kia login instead of a retained challenge', async () => {
+  const h = runtime()
+  challenge(h)
+  h.reply('cmm/sendOTP', success())
+  h.inputs.push('wrong-code')
+  h.reply('cmm/verifyOTP', failure())
+  assert.equal(await h.client().login(), undefined)
+  challenge(h)
+  h.reply('cmm/sendOTP', success())
   h.inputs.push('123456')
   verify(h)
   assert.equal((await h.client().login()).accessToken, 'final-sid')
-  assert.equal(h.count('cmm/sendOTP'), 1)
+  assert.equal(h.count('cmm/sendOTP'), 2)
 })
 
-test('a failed final login resumes the verified OTP step without another code or prompt', async () => {
+test('a failed final login can restart with a new challenge', async () => {
   const h = runtime()
   h.inputs.push('123456')
   h.reply('cmm/sendOTP', success())
   verify(h, { finalLogin: false })
   h.fail('prof/authUser')
   await assert.rejects(h.client().mfa('SMS', 'challenge-key', 'challenge-request'), /Network unavailable/)
-  assert.equal(h.sessions().readMfa().verifiedSid, 'verified-sid')
-  h.reply('prof/authUser', success(), { sid: 'final-sid' })
+  challenge(h)
+  h.inputs.push('654321')
+  h.reply('cmm/sendOTP', success())
+  verify(h)
   assert.equal((await h.client().login()).accessToken, 'final-sid')
-  assert.equal(h.count('cmm/sendOTP'), 1)
-  assert.equal(h.count('cmm/verifyOTP'), 1)
-  assert.equal(h.prompts.length, 1)
-  assert.equal(h.sessions().read().additionalTokens.rmToken, 'remember-me-token')
+  assert.equal(h.count('cmm/sendOTP'), 2)
+  assert.equal(h.count('cmm/verifyOTP'), 2)
 })
 
-test('only explicit authentication failures request session renewal', () => {
+test('Kia restores the v1.24.4 response rules for session renewal', () => {
   const h = runtime()
   const bl = h.client()
-  for (const statusCode of [429, 500, 503])
-    assert.equal(bl.requestResponseValid({ statusCode }, failure()).retry, false)
-  for (const code of [1001, 2000, 7406])
-    assert.equal(bl.requestResponseValid({ statusCode: 200 }, failure(code)).retry, false)
-  for (const code of [1003, 1005]) assert.equal(bl.requestResponseValid({ statusCode: 200 }, failure(code)).retry, true)
-  for (const statusCode of [401, 403]) assert.equal(bl.requestResponseValid({ statusCode }, {}).retry, true)
+  assert.equal(bl.requestResponseValid({ statusCode: 200 }, success()).retry, false)
+  for (const statusCode of [401, 403, 429, 500, 503])
+    assert.equal(bl.requestResponseValid({ statusCode }, failure()).retry, true)
+  for (const code of [1001, 1003, 1005, 2000, 7406])
+    assert.equal(bl.requestResponseValid({ statusCode: 200 }, failure(code)).retry, true)
 })
 
 test('cached-status service failure never triggers a forced login', async () => {
@@ -363,12 +369,13 @@ test('a rejected status replay does not trigger a second forced login', async ()
   assert.equal(h.count('cmm/gvi'), 2)
 })
 
-test('repeated widget launches stop retrying login once verification is required', async () => {
+test('a widget can retry login after verification was required, while keeping OTP entry in Scriptable', async () => {
   const h = runtime({ widget: true })
   challenge(h)
   await assert.rejects(h.client().superInit(h.account, true), /Open Bluelocke in Scriptable/)
+  challenge(h)
   await assert.rejects(h.client().superInit(h.account, true), /Open Bluelocke in Scriptable/)
-  assert.equal(h.count('prof/authUser'), 1)
+  assert.equal(h.count('prof/authUser'), 2)
   assert.equal(h.count('cmm/sendOTP'), 0)
   assert.equal(h.prompts.length, 0)
 })

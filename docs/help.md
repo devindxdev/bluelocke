@@ -17,11 +17,11 @@ nav_order: 10
 - Force a status refresh from the app UI.
 - If still failing, turn on **Diagnostic logging** under **Settings > Help & Support > Troubleshooting**. View logs under **Help & updates**.
 
-Successful sign-ins are saved independently of vehicle/status loading. A temporary vehicle API failure should not discard your login. Widgets and Shortcuts never send verification codes: when verification is required, open the script in Scriptable. Canada and Kia US keep a pending verification challenge so cancelling and reopening can reuse the existing code. A short resend cooldown prevents repeated code requests.
+Successful sign-ins are saved independently of vehicle/status loading. A temporary vehicle API failure should not discard your login. Widgets and Shortcuts never send verification codes: when verification is required, open the script in Scriptable. Sign-in and verification follow the v1.24.4 flow again. If you cancel or enter an incorrect code, reopen the script to start verification again. Canada retains its two-minute cooldown for verification-code requests.
 
 ## Sign-in stays in progress
 
-This message comes from coordination between Scriptable, widgets, and Shortcuts, and does not by itself mean your credentials are incorrect. The sign-in recovery fix retires v1.26.0 locks automatically while preserving matching saved sessions, settings, and vehicle status. After installing the fixed script, run it once and refresh the widget. If the message persists, enable diagnostic logging and share fresh logs from that attempt.
+Version 1.26.1 removes the persistent sign-in locks introduced after v1.24.4. Updating from v1.26.0 or v1.26.1-beta.1 automatically retires those locks and newer verification flags while preserving matching saved sessions, device IDs, settings, and vehicle status. Replace the script using the same Scriptable script name, then run it once and refresh the widget. An expired session renews normally; if the vehicle service requests verification, complete it in Scriptable.
 
 ## Siri command not recognized
 

@@ -109,7 +109,7 @@ export class BluelinkAustralia extends Bluelink {
     ) {
       return { valid: true, retry: false }
     }
-    return { valid: false, retry: resp.statusCode === 401 || resp.statusCode === 403 }
+    return { valid: false, retry: true }
   }
 
   protected async login(): Promise<BluelinkTokens | undefined> {

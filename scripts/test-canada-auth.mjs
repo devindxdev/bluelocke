@@ -153,57 +153,68 @@ test('successful Canada MFA survives a status outage and reuses the same device/
 })
 
 for (const mode of ['widget', 'shortcut'])
-  test(`${mode}: MFA never sends codes and later background runs do not keep logging in`, async () => {
+  test(`${mode}: restored Canada login never sends codes or prompts in the background`, async () => {
     const h = runtime({ background: mode === 'widget', siri: mode === 'shortcut' })
     h.saveAccount()
-    await h.client().initialize()
-    assert.equal(h.count('login'), 1)
+    const bl = h.client()
+    await bl.initialize()
+    assert.equal(bl.loginFailed(), true)
     assert.equal(h.count('sendotp'), 0)
     assert.equal(h.prompts, 0)
     const next = runtime({ keys: h.keys, background: mode === 'widget', siri: mode === 'shortcut' })
-    await assert.rejects(next.client().initialize(), /Scriptable/)
-    assert.equal(next.count('login'), 0)
+    const retry = next.client()
+    await retry.initialize()
+    assert.equal(next.count('login'), 1, 'A previous failure must not persistently block retrying')
     assert.equal(next.count('sendotp'), 0)
+    assert.equal(next.prompts, 0)
   })
 
-test('cancelling and reopening resumes the existing code instead of sending another', async () => {
+test('cancelling code entry returns to the original sign-in flow on the next launch', async () => {
   const h = runtime()
   h.saveAccount()
   h.code = null
-  await assert.rejects(h.client().initialize(), /cancelled/)
-  const device = h.devices[0]
+  const first = h.client()
+  await first.initialize()
+  assert.equal(first.loginFailed(), true)
   const next = runtime({ keys: h.keys })
   await next.client().initialize()
-  assert.equal(next.count('login'), 0)
-  assert.equal(next.count('sendotp'), 0)
+  assert.equal(next.count('login'), 1)
+  assert.equal(next.count('sendotp'), 1)
   assert.equal(next.prompts, 1)
-  assert.ok(next.devices.every((id) => id === device))
 })
 
-test('an incorrect code keeps the challenge and trusted device for a retry', async () => {
+test('an incorrect code restarts Canada verification with a fresh challenge and device', async () => {
   const h = runtime()
   h.saveAccount()
   h.badCode = true
-  await assert.rejects(h.client().initialize(), /could not be confirmed/)
+  const first = h.client()
+  await first.initialize()
+  assert.equal(first.loginFailed(), true)
   const next = runtime({ keys: h.keys })
   await next.client().initialize()
-  assert.equal(next.count('sendotp'), 0)
-  assert.equal(next.count('login'), 0)
-  assert.equal(next.devices[0], h.devices[0])
+  assert.equal(next.count('sendotp'), 1)
+  assert.equal(next.count('login'), 1)
+  assert.notEqual(next.devices[0], h.devices[0])
 })
 
-test('a send timeout retains the resend cooldown and the device identity', async () => {
+test('a send timeout uses the original two-minute cooldown, then permits a new login', async () => {
   const h = runtime()
   h.saveAccount()
   h.failSend = true
   await assert.rejects(h.client().initialize(), /Sign-in timed out/)
   const next = runtime({ keys: h.keys })
-  await assert.rejects(next.client().initialize(), /Wait two minutes/)
+  const blocked = next.client()
+  await blocked.initialize()
+  assert.equal(blocked.loginFailed(), true)
   assert.equal(next.count('sendotp'), 0)
-  assert.equal(next.devices[0], h.devices[0])
+  next.now += 121000
+  const retried = next.client()
+  await retried.initialize()
+  assert.equal(next.count('sendotp'), 1)
+  assert.equal(retried.loginFailed(), false)
 })
 
-test('a concurrent foreground run cannot send a second verification code', async () => {
+test('the original Canada cooldown suppresses duplicate verification sends across runs', async () => {
   const h = runtime()
   h.saveAccount()
   let finish
@@ -218,21 +229,30 @@ test('a concurrent foreground run cannot send a second verification code', async
   for (let i = 0; i < 20 && !finish; i++) await Promise.resolve()
   assert.ok(finish)
   const next = runtime({ keys: h.keys })
-  await assert.rejects(next.client().initialize(), /Sign-in is already in progress/)
+  const second = next.client()
+  await second.initialize()
+  assert.equal(second.loginFailed(), true)
   assert.equal(next.count('sendotp'), 0)
   finish()
   await first
 })
 
-test('7406/service outages are not treated as expired sessions', () => {
+test('Canada recognizes the v1.24.4 expired, deleted and IP-validation responses', () => {
   const h = runtime()
   h.saveAccount()
   const bl = h.client()
-  const bad = bl.requestResponseValid(
-    { statusCode: 200 },
-    { responseHeader: { responseCode: 1 }, error: { errorCode: '7406', errorDesc: 'Try again' } },
+  for (const errorDesc of ['Token expired', 'Session deleted', 'ip validation failed'])
+    assert.equal(bl.requestResponseValid({}, { responseHeader: { responseCode: 1 }, error: { errorDesc } }).retry, true)
+  assert.deepEqual(
+    plain(
+      bl.requestResponseValid(
+        {},
+        {
+          responseHeader: { responseCode: 1 },
+          error: { errorCode: '7406', errorDesc: 'Try again' },
+        },
+      ),
+    ),
+    { valid: false, retry: false },
   )
-  assert.deepEqual(plain(bad), { valid: false, retry: false })
-  for (const errorCode of ['7403', '7602', '7606'])
-    assert.equal(bl.requestResponseValid({}, { responseHeader: { responseCode: 1 }, error: { errorCode } }).retry, true)
 })
