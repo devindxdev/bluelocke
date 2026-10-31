@@ -1,26 +1,28 @@
-# Bluelocke v1.26.1-beta.4 — Hyundai Europe test build
+# Bluelocke v1.26.1
 
-Includes the reviewed changes from [PR #3, “Fix Hyundai Europe login and hybrid status”](https://github.com/devindxdev/bluelocke/pull/3) by **mariancapota**, on top of beta.3. The reviewed PR head is **23d7d45a823d08de029ca35bd3142ba9b7c9c6f0**.
+Stable release of the beta.4 build, with the v1.24.4 authentication implementation for other regions and the reviewed Hyundai Europe login and hybrid-status fixes from [PR #3](https://github.com/devindxdev/bluelocke/pull/3) by **mariancapota**. No additional login or security changes were introduced when promoting this release.
 
-## Changes from beta.3
+## What changed
 
-- Use the PR’s Hyundai Europe OneApp/CCI password login and token refresh, including its RSA password encryption and signed headers.
-- Handle EU hybrid/ICE status without a charging section, retain reported fuel and 12V readings, and correct the door-lock interpretation.
-- Preserve the modern Settings/setup, custom-photo editor with direct Save, image fallbacks, US climate fixes, and redacted diagnostics from beta.3.
+- Restore the v1.24.4 login, verification, token refresh, device-ID, and cache behavior outside the targeted Hyundai Europe update.
+- Add Hyundai Europe OneApp/CCI login and token refresh, handle hybrid status without charging data, and correct EU door-lock reporting. Kia Europe’s existing login methods are preserved.
+- Restore modern Settings and first-time setup, with Account, Vehicle, Climate, Appearance & Units, and Help & Support, plus autosave, Continue, and Back navigation.
+- Import custom vehicle photos from Photos or Files and frame them in a live widget preview with drag, pinch, crop, and size/position controls. **Save** applies the photo immediately inside the editor, without closing first or confirming “Use Image.” Save errors stay inline for retry. Scriptable’s native Share control remains separate from this Save button.
+- Read fuel range on vehicles without an EV status section, including older Tucson models, with kilometre/mile conversion. Restore 12V readings from alternate API fields.
+- Select vehicle images in order: custom photo, matching GitHub model/trim/color image, API-provided photo, existing default.
+- Correct Hyundai US petrol climate start/stop routes, temperature conversion, and petrol duration limits. Preserve confirmed command success when a follow-up status refresh fails, and omit unsupported options on older Hyundai EVs.
+- Restore readable, indented API responses and debug logs. Redact sensitive account details, credentials, vehicle identifiers, and location data before viewing or sharing. Public errors do not display raw API requests.
 
-The EU login changes follow the PR as submitted. No extra TLS, callback, RSA, or shared authentication changes were added. Other regions retain their v1.24.4 login, verification, and cache implementation. Kia Europe’s existing login methods are preserved.
+## Update to v1.26.1
 
-## Review and validation
+Open the information/About screen, or **Settings > Help & Support > Help & updates**, then choose **Click to Auto Install v1.26.1** and confirm installation.
 
-No malicious behavior was found in the reviewed source. The new login requests target Hyundai-owned hosts; there are no added analytics destinations, remote code loaders, install hooks, or unrelated account-data writes. The pinned **@noble/hashes 1.8.0** dependency was checked against the npm registry and installed without running lifecycle scripts. Its license notice is retained in the generated script. The PR’s prebuilt script was not used; this asset was rebuilt from the reviewed source.
+**Users on v1.26.0:** that version does not automatically prompt for patch releases. Open **Help & updates** manually to install v1.26.1.
 
-All **318 automated tests** passed, together with TypeScript, lint, production build, generated-script syntax, and a runtime dependency audit with zero reported vulnerabilities. Tests cover the PR’s encryption, signed requests, login/refresh responses, hybrid/EV status, and log redaction, plus integration into the existing regional client and the beta.3 regression suite. Live Hyundai Europe login and native iOS behavior still need confirmation.
+For a manual installation, download the attached **bluelocke.js**, replace all code in your existing Scriptable script, and save. **Keep the existing script name** to reuse its settings and cache. Run it once in Scriptable, complete any requested verification, and refresh your widgets. The About screen should show **v1.26.1**.
 
-## Install for testing
+Custom photos are under **Settings > Vehicle > Vehicle photo**. For support, include your region, manufacturer, model/year, and fresh redacted debug logs from **Help & updates**.
 
-1. Download the attached **bluelocke.js** asset.
-2. Replace all code in your existing Bluelocke Scriptable script and save.
-3. **Keep the existing script name** to reuse its settings and cache. Run it in Scriptable, with your account region set to **Europe**, and complete any instructions shown.
-4. Confirm **v1.26.1-beta.4** in About, then test status and your widgets/Shortcuts.
+## Validation
 
-For feedback, include manufacturer, model/year, the login or refresh step that failed, and fresh redacted logs from **Help & Support > Help & updates**. Beta.3 remains available for users whose existing setup is working. This prerelease does not replace stable **v1.26.0** or install through normal stable-update checks.
+All **318 automated tests** passed, with TypeScript, lint, production build, generated-script syntax, and a runtime dependency audit reporting zero known vulnerabilities. Coverage includes original authentication/cache behavior, the reviewed EU login/status code, Settings/setup, startup of the generated script, photo Save/cancel/retry, vehicle image fallback, US climate commands, and diagnostic redaction.
