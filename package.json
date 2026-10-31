@@ -12,14 +12,15 @@
     "test:vehicle-status": "node --test scripts/test-vehicle-status.mjs",
     "test:us-climate": "node --test scripts/test-us-climate.mjs",
     "test:logs": "node --test scripts/test-logs.mjs",
-    "test:auth": "node --test scripts/test-auth-session.mjs scripts/test-canada-auth.mjs scripts/test-usa-auth.mjs",
+    "test:auth": "node --test scripts/test-auth-session.mjs",
     "test:user-errors": "node --test scripts/test-user-errors.mjs",
     "test:security": "node --test scripts/test-security.mjs scripts/test-auth-session.mjs scripts/test-logs.mjs",
     "test:app-ui": "node --test scripts/test-app-ui.mjs",
     "prebuild": "npm run lint",
     "lint": "npm run prettier && eslint \"*.ts\" \"src/**/*.ts\" --fix",
     "watch": "source ./build.sh; build_and_watch",
-    "prettier": "prettier --log-level warn --write \"*.ts\" \"src/**/*.ts\""
+    "prettier": "prettier --log-level warn --write \"*.ts\" \"src/**/*.ts\"",
+    "test": "node --test scripts/test-*.mjs"
   },
   "author": "",
   "license": "ISC",

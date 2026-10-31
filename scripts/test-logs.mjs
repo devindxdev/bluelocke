@@ -78,7 +78,6 @@ function runtime() {
         return { getConfig: (key) => (key === 'PERSISTED_LOG_MAX_LINES' ? 200 : 'error-log') }
       if (dependency === '../date') return { formatDate: () => '20261029' }
       if (dependency.endsWith('/logger')) return load('src/lib/logger.ts')
-      if (dependency.endsWith('/auth-session')) return load('src/lib/auth-session.ts')
       if (dependency.endsWith('/user-error')) return load('src/lib/user-error.ts')
       if (dependency === 'url') return { default: Url }
       if (dependency.endsWith('secure-url')) return load('src/lib/secure-url.ts')
@@ -396,35 +395,6 @@ test('legacy set-car errors hide opaque identifiers even if the original request
     'opaque-private-vehicle==',
   ])
   absent(h.sanitizeLog({ pin: 123, message: 'Rejected PIN 123' }), ['123'])
-})
-
-test('service outages and rate limits never fall back from refresh to a new login', async () => {
-  for (const statusCode of [429, 500, 503]) {
-    const h = runtime()
-    const base = h.load('src/lib/bluelink-regions/base.ts')
-    const bl = new base.Bluelink({
-      auth: { username: EMAIL, password: 'private-password', pin: '9876' },
-      debugLogging: false,
-    })
-    bl.tokens = { accessToken: SECRET, refreshToken: 'remembered', expiry: 0 }
-    let logins = 0
-    bl.login = async () => {
-      logins++
-      throw Error('Must not sign in during an outage')
-    }
-    bl.refreshTokens = async () => {
-      h.payload = { error: 'service unavailable' }
-      await bl.request({
-        url: 'https://example.test/token/refresh',
-        noAuth: true,
-        validResponseFunction: () => ({ valid: false, retry: true }),
-      })
-    }
-    h.statusCode = statusCode
-    await assert.rejects(bl.refreshLogin(), /temporarily unavailable/)
-    assert.equal(logins, 0)
-    assert.equal(bl.tokens.accessToken, SECRET)
-  }
 })
 
 test('API snapshots retain header lines and show indented redacted payloads', () => {

@@ -12,7 +12,6 @@ import {
 import { Bluelink, Status } from './lib/bluelink-regions/base'
 import { Config } from 'config'
 import { Logger } from './lib/logger'
-import { removeKeychainValue } from './lib/storage'
 import { getUserErrorMessage } from './lib/user-error'
 import { getMediumWidgetGeometry, getMediumWidgetFooterLayout, getMediumWidgetImageFrame } from './lib/widget-layout'
 import { createWidgetPreviewStatus, VehicleImagePreviewOptions } from './lib/widget-preview-data'
@@ -23,6 +22,9 @@ type WidgetPresentation = Pick<Bluelink, 'supportsChargingFeatures' | 'getDistan
 // Widget Config
 const DARK_BG_COLOR = '000000'
 const LIGHT_BG_COLOR = 'FFFFFF'
+
+const KEYCHAIN_WIDGET_REFRESH_KEY = 'bluelocke-widget'
+const LEGACY_KEYCHAIN_WIDGET_REFRESH_KEY = 'bluelink-widget-legacy'
 
 // Definition of Day/Night Hours
 const NIGHT_HOUR_START = 23
@@ -108,12 +110,18 @@ export function getWidgetLogger(): Logger {
   return WIDGET_LOGGER
 }
 
-function getCacheKey(): string {
-  return `bluelocke-widget-${Script.name().replaceAll(' ', '')}`
+function getCacheKey(write = false): string {
+  const scriptName = Script.name().replaceAll(' ', '')
+  const newCacheKey = `bluelocke-widget-${scriptName}`
+  const legacyScriptKey = `bluelink-widget-legacy-${scriptName}`
+  if (write || Keychain.contains(newCacheKey)) return newCacheKey
+  if (Keychain.contains(legacyScriptKey)) return legacyScriptKey
+  if (Keychain.contains(LEGACY_KEYCHAIN_WIDGET_REFRESH_KEY)) return LEGACY_KEYCHAIN_WIDGET_REFRESH_KEY
+  return KEYCHAIN_WIDGET_REFRESH_KEY
 }
 
 export function deleteWidgetCache() {
-  removeKeychainValue(getCacheKey())
+  Keychain.remove(getCacheKey(true))
 }
 
 async function waitForCommandSent(
@@ -187,11 +195,10 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
     DEFAULT_REMOTE_REFRESH_INTERVAL = DEFAULT_REMOTE_REFRESH_INTERVAL_DAY
   }
 
-  const cacheKey = getCacheKey()
-  if (Keychain.contains(cacheKey)) {
+  if (Keychain.contains(getCacheKey())) {
     cache = {
       ...DEFAULT_WIDGET_CACHE,
-      ...JSON.parse(Keychain.get(cacheKey)),
+      ...JSON.parse(Keychain.get(getCacheKey())),
     }
   }
   if (!cache) {
@@ -283,7 +290,7 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
     // we have no guarentee of network connection
   }
 
-  Keychain.set(cacheKey, JSON.stringify(cache))
+  Keychain.set(getCacheKey(true), JSON.stringify(cache))
   if (config.debugLogging)
     logger.log(
       `Current time: ${new Date().toLocaleString()}. cache: ${JSON.stringify(cache)}, Last Remote Check: ${new Date(lastRemoteCheck).toLocaleString()} Setting next widget refresh to ${nextRefresh.toLocaleString()}`,

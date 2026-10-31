@@ -1,4 +1,3 @@
-import { singleQueryParam } from '../secure-url'
 import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
@@ -12,6 +11,7 @@ import {
   MAX_COMPLETION_POLLS,
 } from './base'
 import { Config } from '../../config'
+import Url from 'url'
 import { isNotEmptyObject } from '../util'
 
 interface ControlToken {
@@ -166,7 +166,8 @@ export class BluelinkAustralia extends Bluelink {
       throw Error(error)
     }
 
-    const loginAuthCode = singleQueryParam(loginRedirectUrl, 'code')
+    const loginParams = Url.parse(loginRedirectUrl, true).query
+    const loginAuthCode = loginParams.code
     if (!loginAuthCode) {
       const error = `Failed to extract auth code ${JSON.stringify(respLogin.resp)}`
       if (this.config.debugLogging) this.logger.log(error)
@@ -189,7 +190,7 @@ export class BluelinkAustralia extends Bluelink {
     // }
 
     // get tokens
-    const tokenData = `client_id=${this.apiConfig.clientId}&grant_type=authorization_code&code=${encodeURIComponent(loginAuthCode)}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
+    const tokenData = `client_id=${this.apiConfig.clientId}&grant_type=authorization_code&code=${loginAuthCode}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
     const respTokens = await this.request({
       url: `${this.apiDomain}/api/v1/user/oauth2/token`,
       noAuth: true,
@@ -217,14 +218,11 @@ export class BluelinkAustralia extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
-    const currentTokens = this.tokens || this.cache?.token
-    if (!currentTokens) return undefined
-
-    if (!currentTokens.refreshToken) {
+    if (!this.cache.token.refreshToken) {
       if (this.config.debugLogging) this.logger.log('No refresh token - cannot refresh')
       return undefined
     }
-    const refreshData = `client_id=${this.apiConfig.clientId}&grant_type=refresh_token&refresh_token=${currentTokens.refreshToken}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
+    const refreshData = `client_id=${this.apiConfig.clientId}&grant_type=refresh_token&refresh_token=${this.cache.token.refreshToken}&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect`
 
     if (this.config.debugLogging) this.logger.log('Refreshing tokens')
     const resp = await this.request({
@@ -242,7 +240,7 @@ export class BluelinkAustralia extends Bluelink {
       return {
         authCookie: '',
         accessToken: `Bearer ${resp.json.access_token}`,
-        refreshToken: currentTokens.refreshToken, // we never recieve a new refresh token
+        refreshToken: this.cache.token.refreshToken, // we never recieve a new refresh token
         expiry: Math.floor(Date.now() / 1000) + Number(resp.json.expires_in), // we only get a expireIn not a actual date
         authId: await this.getDeviceId(),
       }

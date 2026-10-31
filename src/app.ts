@@ -12,7 +12,6 @@ import { deleteConfig, setConfig, ClimateSeatSetting } from 'config'
 import { loadConfigScreen } from './settings'
 import { loadAboutScreen, doDowngrade } from 'about'
 import { Version } from 'lib/version'
-import { UserFacingError } from './lib/user-error'
 import { deleteWidgetCache } from 'widget'
 import { getAppLogger, getSiriLogger } from './lib/util'
 import { getWidgetLogger } from 'widget'
@@ -94,7 +93,7 @@ export async function createApp(config: Config, bl: Bluelink) {
     bl.refreshAuth()
       .then(() => bl.getStatus(false, true))
       .then((status) => updateStatus(status))
-      .catch((error) => logger.log(`Background status refresh failed: ${error}`))
+      .catch((error) => logger.log(error))
   }
 
   // fetch app icon
@@ -112,7 +111,7 @@ export async function createApp(config: Config, bl: Bluelink) {
               loadAboutScreen(bl)
             } else if (opt === 'Never Ask Again') {
               config.promptForUpdate = false
-              setConfig({ ...getConfig(), promptForUpdate: false })
+              setConfig(config)
             }
           },
         })
@@ -750,11 +749,7 @@ async function doAsyncUpdate(props: doAsyncUpdateProps) {
                   Color.red(),
                   0,
                 ),
-            text: didSucceed
-              ? props.successText
-              : data instanceof UserFacingError
-                ? data.publicMessage
-                : props.failureText,
+            text: didSucceed ? props.successText : props.failureText,
           },
         },
       })
@@ -774,8 +769,7 @@ async function doAsyncUpdate(props: doAsyncUpdateProps) {
 
       // log error on failure
       if (!didSucceed) {
-        logger.log(`Failed to complete ${props.command} request`)
-        logger.log(data)
+        logger.log(`Failed to complete request ${JSON.stringify(data)}`)
       }
     } else {
       // continue to rotate icon indicating ongoing update

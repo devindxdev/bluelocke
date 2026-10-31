@@ -1,3 +1,4 @@
+import { getUserErrorMessage } from './lib/user-error'
 import { Config, CustomClimateConfig, ChargeLimitConfig, buildStandardClimateRequest, ClimateSeatSetting } from 'config'
 import { Bluelink, ClimateRequest, ChargeLimit, Status } from 'lib/bluelink-regions/base'
 import { getChargeCompletionString, getSiriLogger, sleep } from 'lib/util'
@@ -62,7 +63,7 @@ export async function processSiriRequest(config: Config, bl: Bluelink, shortcutP
       } catch (error) {
         const errorMessage = getErrorMessage(error, config.debugLogging)
         logger.log(`Siri command failed for "${shortcutParameterAsString}": ${errorMessage}`)
-        return `Shortcut command failed: ${getErrorMessage(error)}`
+        return getUserErrorMessage(error)
       }
     }
   }

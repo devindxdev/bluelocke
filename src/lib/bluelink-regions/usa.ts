@@ -1,3 +1,5 @@
+import { climateFahrenheit, remoteEngineDuration } from '../us-climate'
+import { UserFacingError } from '../user-error'
 import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
@@ -12,8 +14,6 @@ import {
 } from './base'
 import { Config } from '../../config'
 import { isNotEmptyObject } from '../util'
-import { climateFahrenheit, remoteEngineDuration } from '../us-climate'
-import { UserFacingError } from '../user-error'
 
 const DEFAULT_API_DOMAIN = 'https://api.telematics.hyundaiusa.com/'
 const API_DOMAINS: Record<string, string> = {
@@ -23,8 +23,8 @@ const API_DOMAINS: Record<string, string> = {
 
 export class BluelinkUSA extends Bluelink {
   private carVin: string | undefined
-  private carId: string | undefined
   private carGeneration: number | undefined
+  private carId: string | undefined
 
   constructor(config: Config, statusCheckInterval?: number) {
     super(config)
@@ -105,14 +105,11 @@ export class BluelinkUSA extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
-    const currentTokens = this.tokens || this.cache?.token
-    if (!currentTokens) return undefined
-
     if (this.config.debugLogging) this.logger.log('Refreshing tokens')
     const resp = await this.request({
       url: this.apiDomain + 'v2/ac/oauth/token/refresh',
       data: JSON.stringify({
-        refresh_token: currentTokens.refreshToken,
+        refresh_token: this.cache.token.refreshToken,
       }),
       noAuth: true,
       validResponseFunction: this.requestResponseValid,
@@ -279,6 +276,8 @@ export class BluelinkUSA extends Bluelink {
     throw Error(error)
   }
 
+  // US implementation does not seem to have a mechanism to check for succesful commands or not
+  // for now do nothing but return success until we get some logs and can work out what to do
   protected async pollForCommandCompletion(
     resp: {
       resp: Record<string, any>

@@ -1,9 +1,5 @@
 import type { ClimateRequest } from 'lib/bluelink-regions/base'
 
-import { scriptStorageKey, removeKeychainValue } from './lib/storage'
-import { registerLogSecrets } from './lib/log-sanitizer'
-import { AuthSessionStore, authIdentity } from './lib/auth-session'
-
 const KEYCHAIN_BLUELINK_CONFIG_KEY = 'egmp-bluelink-config'
 
 export const STANDARD_CLIMATE_OPTIONS = ['Warm', 'Cool', 'Off', 'Cancel']
@@ -91,6 +87,7 @@ export interface Config {
   widgetAppearance: 'system' | 'dark' | 'white'
   mfaPreference: 'sms' | 'email'
   debugLogging: boolean
+  multiCar: boolean
   promptForUpdate: boolean
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
@@ -125,13 +122,13 @@ export interface FlattenedConfig {
   allowWidgetRemoteRefresh: boolean
   widgetAppearance: 'system' | 'dark' | 'white'
   debugLogging: boolean
+  multiCar: boolean
   promptForUpdate: boolean
   widgetConfig: WidgetConfig
   customClimates: CustomClimateConfig[]
   hideDefaultClimates: boolean
   chargeLimits: ChargeLimitConfig[]
 }
-
 const VEHICLE_TYPE_OVERRIDES: VehicleTypeOverride[] = ['auto', 'ice', 'hev', 'phev', 'ev']
 const DEFAULT_TEMPS = {
   C: {
@@ -184,6 +181,7 @@ const DEFAULT_CONFIG = {
   climateTempWarm: DEFAULT_TEMPS.C.warm,
   climateSeatLevel: 'Off',
   debugLogging: false,
+  multiCar: false,
   promptForUpdate: true,
   allowWidgetRemoteRefresh: false,
   widgetAppearance: 'system',
@@ -212,47 +210,28 @@ const DEFAULT_CONFIG = {
   },
 } as Config
 
-function getCacheKey(): string {
-  const key = scriptStorageKey('config')
-  if (Keychain.contains(key)) return key
-  const legacyScriptKey = `egmp-scriptable-config-${Script.name().replaceAll(' ', '')}`
-  return Keychain.contains(legacyScriptKey) ? legacyScriptKey : KEYCHAIN_BLUELINK_CONFIG_KEY
+function getCacheKey(write = false): string {
+  const newCacheKey = `egmp-scriptable-config-${Script.name().replaceAll(' ', '')}`
+  if (write || Keychain.contains(newCacheKey)) return newCacheKey
+  return KEYCHAIN_BLUELINK_CONFIG_KEY
 }
 
 export function configExists(): boolean {
-  const config = getConfig()
-  return !!(
-    config.manufacturer &&
-    config.auth.region &&
-    config.auth.username?.trim() &&
-    config.auth.password &&
-    String(config.auth.pin ?? '').trim()
-  )
+  return Keychain.contains(getCacheKey())
 }
 
 export function deleteConfig(all = false) {
-  new AuthSessionStore(getConfig()).clear()
-  removeKeychainValue(`egmp-scriptable-bl-cache-${Script.name().replaceAll(' ', '')}`)
-  removeKeychainValue(scriptStorageKey('vehicle-cache'))
-  // A tombstone prevents a reset script from importing old shared credentials again.
-  Keychain.set(scriptStorageKey('config'), 'null')
-  removeKeychainValue(`egmp-scriptable-config-${Script.name().replaceAll(' ', '')}`)
-  if (all) removeKeychainValue(KEYCHAIN_BLUELINK_CONFIG_KEY)
+  Keychain.remove(getCacheKey(true))
+  if (all) Keychain.remove(getCacheKey())
 }
 
 export function setConfig(config: Config) {
-  if (authIdentity(config) !== authIdentity(getConfig())) {
-    new AuthSessionStore(config).clear()
-    removeKeychainValue(`egmp-scriptable-bl-cache-${Script.name().replaceAll(' ', '')}`)
-    removeKeychainValue(scriptStorageKey('vehicle-cache'))
-  }
-  registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
-  Keychain.set(scriptStorageKey('config'), JSON.stringify(config))
+  Keychain.set(getCacheKey(true), JSON.stringify(config))
 }
 
 export function getFlattenedConfig(): FlattenedConfig {
   const config = getConfig()
-  config.auth.pin = String(config.auth.pin ?? '') // convert previous pin if integer
+  config.auth.pin = config.auth.pin.toString() // convert previous pin if integer
   return {
     ...DEFAULT_CONFIG,
     ...config.auth,
@@ -262,33 +241,16 @@ export function getFlattenedConfig(): FlattenedConfig {
 
 export function getConfig(): Config {
   let config: Config | undefined
-  try {
-    if (Keychain.contains(getCacheKey())) config = JSON.parse(Keychain.get(getCacheKey()))
-  } catch {
-    /* keep Settings usable if stored data is damaged */
+  if (configExists()) {
+    config = JSON.parse(Keychain.get(getCacheKey()))
   }
-  if (!config || !configValid(config)) {
+  if (!config || !configValid) {
     config = DEFAULT_CONFIG
   }
-  // Ignore settings from the retired vehicle picker while preserving account/preferences.
-  delete (config as Config & { selectedVehicle?: unknown }).selectedVehicle
-  delete (config as Config & { multiCar?: unknown }).multiCar
   const mergedConfig = {
     ...DEFAULT_CONFIG,
     ...config,
-    auth: {
-      username: String(config.auth.username ?? ''),
-      password: String(config.auth.password ?? ''),
-      pin: String(config.auth.pin ?? ''),
-      region: String(config.auth.region ?? ''),
-    },
   }
-  registerLogSecrets([
-    mergedConfig.auth.username,
-    mergedConfig.auth.password,
-    mergedConfig.auth.pin,
-    mergedConfig.displayNameOverride,
-  ])
   const widgetAppearanceRaw = (mergedConfig.widgetAppearance || 'system').toLocaleLowerCase()
   const vehicleTypeOverrideRaw = (mergedConfig.vehicleTypeOverride || 'auto').toLocaleLowerCase() as VehicleTypeOverride
   return {
@@ -304,7 +266,7 @@ export function getConfig(): Config {
 }
 
 function configValid(config: Config): boolean {
-  return !!(config && config.auth)
+  return config && Object.hasOwn(config, 'auth')
 }
 
 function normalizeSeatClimateLevel(level: string | undefined): StandardClimateSeatLevel {

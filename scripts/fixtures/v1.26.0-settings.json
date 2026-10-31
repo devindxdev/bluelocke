@@ -1,0 +1,4220 @@
+{
+  "release": "https://github.com/devindxdev/bluelocke/releases/tag/v1.26.0",
+  "assetSha256": "54de7c258d669041da97e493fe6b8073c0c0165af0bbeb3b85d0c65ed4f65861",
+  "pages": {
+    "light/settings": [
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Settings",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Changes save automatically.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Account",
+            "subtitle": "Sign-in and connected service",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle",
+            "subtitle": "Display name and vehicle photo",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Climate",
+            "subtitle": "Warm and Cool",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Appearance & Units",
+            "subtitle": "Theme, distance, and temperature",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Help & Support",
+            "subtitle": "Updates and troubleshooting",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/account": [
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "007AFF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Account",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Sign in with your connected vehicle account. Changes save automatically.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Manufacturer",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Hyundai",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Region",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Canada",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Email or username",
+            "subtitle": "driver@example.test",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Password",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "••••••••",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle PIN",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "••••••••",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Verification code",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Text message",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/welcome": [
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Continue",
+            "kind": "text",
+            "color": "636366",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 84,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Welcome to Bluelocke",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Sign in with your connected vehicle account. Changes save automatically.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Manufacturer",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Hyundai",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Region",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Email or username",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Password",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle PIN",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Verification code",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Text message",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/vehicle": [
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Vehicle",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Display name",
+            "subtitle": "Use vehicle name",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle photo",
+            "subtitle": "Choose or adjust a photo",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/climate": [
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Climate",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Warm",
+            "subtitle": "21.5°C · 15 minutes",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Cool",
+            "subtitle": "19°C · 15 minutes",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/warm": [
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "007AFF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Warm",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Changes save automatically.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Temperature (°C)",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "21.5",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Duration (minutes)",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "15",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Front defrost",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "On",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Rear defrost",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "On",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Heated steering wheel",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "On",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Seat climate",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/cool": [
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "007AFF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Cool",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Changes save automatically.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Temperature (°C)",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "19",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Duration (minutes)",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "15",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Front defrost",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Rear defrost",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Heated steering wheel",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Seat climate",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/appearance": [
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "007AFF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Appearance & Units",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "The app follows your iPhone appearance.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Widget appearance",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Automatic",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Distance",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Kilometres",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Temperature",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Celsius",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/support": [
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Help & Support",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Help & updates",
+            "subtitle": "Guides, version, and release notes",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Troubleshooting",
+            "subtitle": "Diagnostics and vehicle detection",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Restore previous version",
+            "subtitle": "Use the last saved app version",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Reset saved settings",
+            "subtitle": "Remove account and status from this script",
+            "kind": "text",
+            "color": "C9342D",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "light/troubleshooting": [
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "007AFF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Troubleshooting",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Vehicle type is detected automatically by default.",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Diagnostic logging",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle detection",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Automatic",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 38,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Widget connection",
+            "kind": "text",
+            "color": "636366",
+            "subtitleColor": "636366",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 56,
+        "background": "F2F2F7",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Refresh from vehicle",
+            "kind": "text",
+            "color": "1C1C1E",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "007AFF",
+            "subtitleColor": "636366",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "E5E5EA",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "F2F2F7",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/settings": [
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Settings",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Changes save automatically.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Account",
+            "subtitle": "Sign-in and connected service",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle",
+            "subtitle": "Display name and vehicle photo",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Climate",
+            "subtitle": "Warm and Cool",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Appearance & Units",
+            "subtitle": "Theme, distance, and temperature",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Help & Support",
+            "subtitle": "Updates and troubleshooting",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/account": [
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "0A84FF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Account",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Sign in with your connected vehicle account. Changes save automatically.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Manufacturer",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Hyundai",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Region",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Canada",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Email or username",
+            "subtitle": "driver@example.test",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Password",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "••••••••",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle PIN",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "••••••••",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Verification code",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Text message",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/welcome": [
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Continue",
+            "kind": "text",
+            "color": "AEAEB2",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 84,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Welcome to Bluelocke",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Sign in with your connected vehicle account. Changes save automatically.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Manufacturer",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Hyundai",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Region",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Email or username",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Password",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle PIN",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Not set",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Verification code",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Text message",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/vehicle": [
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Vehicle",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Display name",
+            "subtitle": "Use vehicle name",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle photo",
+            "subtitle": "Choose or adjust a photo",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/climate": [
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Climate",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Warm",
+            "subtitle": "21.5°C · 15 minutes",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Cool",
+            "subtitle": "19°C · 15 minutes",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/warm": [
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "0A84FF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Warm",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Changes save automatically.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Temperature (°C)",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "21.5",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Duration (minutes)",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "15",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Front defrost",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "On",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Rear defrost",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "On",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Heated steering wheel",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "On",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Seat climate",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/cool": [
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "0A84FF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Cool",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Changes save automatically.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Temperature (°C)",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "19",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Duration (minutes)",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "15",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Front defrost",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Rear defrost",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Heated steering wheel",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Seat climate",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/appearance": [
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "0A84FF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Appearance & Units",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "The app follows your iPhone appearance.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Widget appearance",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Automatic",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Distance",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Kilometres",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Temperature",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Celsius",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/support": [
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Help & Support",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Help & updates",
+            "subtitle": "Guides, version, and release notes",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Troubleshooting",
+            "subtitle": "Diagnostics and vehicle detection",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Restore previous version",
+            "subtitle": "Use the last saved app version",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 72,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Reset saved settings",
+            "subtitle": "Remove account and status from this script",
+            "kind": "text",
+            "color": "FF6961",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 92,
+            "actionable": false
+          },
+          {
+            "title": "›",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 8,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ],
+    "dark/troubleshooting": [
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "",
+            "kind": "text",
+            "width": 60,
+            "actionable": false
+          },
+          {
+            "title": "Done",
+            "kind": "button",
+            "color": "0A84FF",
+            "font": "body",
+            "align": "right",
+            "width": 40,
+            "actionable": true
+          }
+        ]
+      },
+      {
+        "height": 64,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Troubleshooting",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "title1",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 100,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 44,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Vehicle type is detected automatically by default.",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Diagnostic logging",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Vehicle detection",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Automatic",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 38,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": [
+          {
+            "title": "Widget connection",
+            "kind": "text",
+            "color": "AEAEB2",
+            "subtitleColor": "AEAEB2",
+            "font": "footnote",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 56,
+        "background": "1C1C1E",
+        "selectable": true,
+        "cells": [
+          {
+            "title": "Refresh from vehicle",
+            "kind": "text",
+            "color": "F2F2F7",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "left",
+            "width": 64,
+            "actionable": false
+          },
+          {
+            "title": "Off",
+            "kind": "text",
+            "color": "0A84FF",
+            "subtitleColor": "AEAEB2",
+            "font": "body",
+            "subtitleFont": "subheadline",
+            "align": "right",
+            "width": 36,
+            "actionable": false
+          }
+        ]
+      },
+      {
+        "height": 1,
+        "background": "38383A",
+        "selectable": false,
+        "cells": []
+      },
+      {
+        "height": 12,
+        "background": "1C1C1E",
+        "selectable": false,
+        "cells": []
+      }
+    ]
+  }
+}

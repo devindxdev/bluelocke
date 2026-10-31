@@ -1,4 +1,3 @@
-import { singleQueryParam } from '../secure-url'
 import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
@@ -12,6 +11,7 @@ import {
   MAX_COMPLETION_POLLS,
 } from './base'
 import { Config } from '../../config'
+import Url from 'url'
 
 interface ControlToken {
   expiry: number
@@ -154,7 +154,8 @@ export class BluelinkIndia extends Bluelink {
       throw Error(error)
     }
 
-    const authCode = singleQueryParam(redirectUrl, 'code')
+    const params = Url.parse(redirectUrl, true).query
+    const authCode = params.code
     if (!authCode) {
       const error = `Failed to extract auth code ${JSON.stringify(respSignin.resp)}`
       if (this.config.debugLogging) this.logger.log(error)
@@ -162,7 +163,7 @@ export class BluelinkIndia extends Bluelink {
     }
 
     // Get access token
-    const tokenData = `grant_type=authorization_code&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect&code=${encodeURIComponent(authCode)}`
+    const tokenData = `grant_type=authorization_code&redirect_uri=${this.apiDomain}/api/v1/user/oauth2/redirect&code=${authCode}`
     const respTokens = await this.request({
       url: `${this.apiDomain}/api/v1/user/oauth2/token`,
       noAuth: true,
@@ -226,16 +227,13 @@ export class BluelinkIndia extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
-    const currentTokens = this.tokens || this.cache?.token
-    if (!currentTokens) return undefined
-
-    if (!currentTokens.refreshToken) {
+    if (!this.cache.token.refreshToken) {
       if (this.config.debugLogging) this.logger.log('No refresh token - cannot refresh')
       return undefined
     }
 
     const stamp = this.getStamp(this.apiConfig.appId, this.apiConfig.authCfb)
-    const refreshData = `grant_type=refresh_token&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&refresh_token=${currentTokens.refreshToken}`
+    const refreshData = `grant_type=refresh_token&redirect_uri=https%3A%2F%2Fwww.getpostman.com%2Foauth2%2Fcallback&refresh_token=${this.cache.token.refreshToken}`
 
     if (this.config.debugLogging) this.logger.log('Refreshing tokens')
     const resp = await this.request({
@@ -261,7 +259,7 @@ export class BluelinkIndia extends Bluelink {
       return {
         authCookie: '',
         accessToken,
-        refreshToken: currentTokens.refreshToken, // maintain existing refresh token
+        refreshToken: this.cache.token.refreshToken, // maintain existing refresh token
         expiry: Math.floor(Date.now() / 1000) + Number(resp.json.expires_in),
         authId: await this.getDeviceId(),
       }
@@ -332,8 +330,8 @@ export class BluelinkIndia extends Bluelink {
         modelName: vehicle.vehicleName,
         modelYear: vehicle.year,
         odometer: 0, // not available here
-        modelColour: vehicle.detailInfo?.outColor,
-        modelTrim: vehicle.detailInfo?.saleCarmdlCd,
+        modelColour: vehicle.detailInfo.outColor,
+        modelTrim: vehicle.detailInfo.saleCarmdlCd,
         europeccs2: vehicle.ccuCCS2ProtocolSupport,
       }
     }
@@ -487,7 +485,7 @@ export class BluelinkIndia extends Bluelink {
     if (this.requestResponseValid(resp.resp, resp.json).valid) {
       const controlToken = `Bearer ${resp.json.controlToken}`
       const expiry = Date.now() + Number(resp.json.expiresTime) * 1000
-      if (this.config.debugLogging) this.logger.log(`Control token received; expiry: ${expiry}`)
+      if (this.config.debugLogging) this.logger.log(`expiry: ${expiry}, control token: ${controlToken}`)
       this.controlToken = { expiry, token: controlToken }
       return this.controlToken.token
     }

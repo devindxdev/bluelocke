@@ -27,6 +27,8 @@ function harness() {
     selectedPaths: [],
     editorCrop: { zoom: 1, x: 0.5, y: 0.5 },
     confirmations: [],
+    saveFeedback: [],
+    editorNavigation: [],
     messages: [],
     imageLogs: [],
     webEvaluations: [],
@@ -195,6 +197,19 @@ function harness() {
       async present(fullscreen) {
         h.presentations++
         h.fullscreenRequests.push(fullscreen)
+        h.editorOpen = true
+        const actions = h.editorActions || [{ type: h.answers.shift() === false ? 'close' : 'save' }]
+        for (const action of actions) {
+          if (action.type === 'close') break
+          const url =
+            action.url ||
+            'bluelocke-image://save?crop=' +
+              encodeURIComponent(JSON.stringify(action.crop === undefined ? h.editorCrop : action.crop))
+          h.editorNavigation.push({ url, allowed: this.shouldAllowRequest({ url }) })
+          h.afterEditorAction?.(action)
+          for (let tick = 0; tick < 10; tick++) await Promise.resolve()
+        }
+        h.editorOpen = false
       }
       async evaluateJavaScript(code, useCallback) {
         h.webEvaluations.push({ code, useCallback })
@@ -216,6 +231,16 @@ function harness() {
           await Promise.resolve()
           assert.equal(completed, true)
           return completionValue
+        }
+        if (code.startsWith('window.vehicleImageSaveFinished(')) {
+          if (h.failSaveFeedback) throw Error('Could not show save feedback')
+          vm.runInNewContext(code, {
+            window: {
+              vehicleImageSaveFinished: (success, message) =>
+                h.saveFeedback.push({ success, message, editorOpen: h.editorOpen }),
+            },
+          })
+          return undefined
         }
         if (code.includes('getVehicleImagePreviewAppearance')) return h.editorAppearance
         return h.editorCrop
@@ -498,7 +523,7 @@ test('unreadable files, denied permissions, and an unloaded editor never replace
     h.option = failure === 'file' ? 'Choose from Files' : 'Choose from Photos'
     h.selectedPaths = ['/unreadable.png']
     if (failure === 'permission') h.photoError = new Error('Photos permission denied')
-    if (failure === 'preview') h.editorCrop = null
+    if (failure === 'preview') h.editorReady = false
     await h.editor.loadVehicleImageSettings(h.bl())
     assert.equal(h.storage.getCustomVehicleImage('VIN-1'), current)
     assert.ok(h.confirmations.includes('We could not update your vehicle image'))
@@ -614,7 +639,7 @@ test('live widget includes dummy metrics around the directly editable image area
   assert.ok(!html.includes('The next screen'))
 })
 
-test('editing stays in one live widget screen before confirmation without opening a native preview', async () => {
+test('closing the live editor does not ask to use or confirm the image', async () => {
   const h = harness()
   h.option = 'Choose from Photos'
   h.answers = [false]
@@ -622,7 +647,7 @@ test('editing stays in one live widget screen before confirmation without openin
   await h.editor.loadVehicleImageSettings(h.bl())
   assert.equal(h.presentations, 1)
   assert.equal(h.widgetPreviews.length, 0)
-  assert.ok(h.confirmations.includes('Use this vehicle image?'))
+  assert.deepEqual(h.confirmations, [])
   assert.equal(h.writes, 0)
   assert.equal(h.keys.size, 0)
 })
@@ -814,9 +839,9 @@ function liveEditorHarness() {
   }
   const html = h.editor.vehicleImageEditorHTML('AA==', { width: 1600, height: 900 })
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1]
-  const window = {}
+  const window = { location: { href: '' } }
   vm.runInNewContext(script, { window, document: { getElementById: node } })
-  return { node, crop: () => plain(window.getVehicleImageCrop()), draws: () => draws }
+  return { node, window, crop: () => plain(window.getVehicleImageCrop()), draws: () => draws }
 }
 
 test('live pointer gestures pinch in place and continue as a drag after lifting one finger', () => {
@@ -921,17 +946,19 @@ test('storage errors are identified as save failures and preserve the previous p
   h.failWriteAt = h.writes + 2
   h.option = 'Choose from Photos'
   await h.editor.loadVehicleImageSettings(h.bl())
-  const alert = h.messages.at(-1)
-  assert.ok(alert.message.includes('Step: Saving the vehicle image'))
-  assert.ok(alert.message.includes('Out of storage'))
+  assert.equal(h.saveFeedback[0].success, false)
+  assert.equal(h.saveFeedback[0].editorOpen, true)
+  assert.ok(h.saveFeedback[0].message.includes('Out of storage'))
+  assert.ok(h.imageLogs.at(-1).includes('Saving the vehicle image'))
+  assert.deepEqual(h.confirmations, [])
   assert.equal(h.storage.getCustomVehicleImage('VIN-1'), original)
   assert.equal(h.files.size, 2)
 })
 
-test('a confirmation error after a successful save does not falsely claim the previous image was kept', async () => {
+test('a native feedback error after saving does not falsely claim the previous image was kept', async () => {
   const h = harness()
   h.option = 'Choose from Photos'
-  h.failConfirmationTitle = 'Your vehicle image is saved'
+  h.failSaveFeedback = true
   await h.editor.loadVehicleImageSettings(h.bl())
   assert.ok(h.storage.getCustomVehicleImage('VIN-1'))
   const alert = h.messages.at(-1)
@@ -1191,4 +1218,106 @@ test('API photos reject cleartext/local endpoints, unsafe redirects and excessiv
   assert.equal(request.allowInsecureRequest, false)
   assert.equal(request.onRedirect({ url: 'http://images.example.test/photo.png' }), null)
   assert.equal(request.onRedirect({ url: 'https://127.0.0.1/photo.png' }), null)
+})
+
+test('Save persists the current framing before the editor closes without any confirmation dialogs', async () => {
+  const h = harness()
+  h.option = 'Choose from Photos'
+  h.editorCrop = { zoom: 2, x: 0.3, y: 0.7 }
+  let savedWhileOpen = false
+  h.afterEditorAction = () => {
+    assert.equal(h.editorOpen, true)
+    assert.deepEqual(plain(h.storage.getCustomVehicleImageSource('VIN-1').crop), h.editorCrop)
+    savedWhileOpen = true
+  }
+  await h.editor.loadVehicleImageSettings(h.bl())
+  assert.equal(savedWhileOpen, true)
+  assert.deepEqual(h.confirmations, [])
+  assert.deepEqual(
+    h.saveFeedback.map((result) => [result.success, result.editorOpen]),
+    [[true, true]],
+  )
+  assert.ok(h.editorNavigation.every((request) => request.allowed === false))
+})
+
+test('several saves in one editor session retain the final crop and clean up replaced files', async () => {
+  const h = harness()
+  h.option = 'Choose from Photos'
+  const first = { zoom: 1.4, x: 0.4, y: 0.6 }
+  const final = { zoom: 2.2, x: 0.2, y: 0.8 }
+  h.editorActions = [{ type: 'save', crop: first }, { type: 'save', crop: final }, { type: 'close' }]
+  await h.editor.loadVehicleImageSettings(h.bl())
+  assert.deepEqual(plain(h.storage.getCustomVehicleImageSource('VIN-1').crop), final)
+  assert.deepEqual(
+    h.saveFeedback.map((result) => result.success),
+    [true, true],
+  )
+  assert.equal(h.files.size, 2)
+  assert.deepEqual(h.confirmations, [])
+})
+
+test('a failed save can be retried inside the same editor without losing the last saved photo', async () => {
+  const h = harness()
+  h.option = 'Choose from Photos'
+  const previous = h.storage.saveCustomVehicleImage('VIN-1', photo())
+  h.failWriteAt = h.writes + 1
+  h.editorActions = [{ type: 'save' }, { type: 'save' }]
+  let attempts = 0
+  h.afterEditorAction = () => {
+    if (++attempts === 1) assert.equal(h.storage.getCustomVehicleImage('VIN-1'), previous)
+  }
+  await h.editor.loadVehicleImageSettings(h.bl())
+  assert.deepEqual(
+    h.saveFeedback.map((result) => result.success),
+    [false, true],
+  )
+  assert.notEqual(h.storage.getCustomVehicleImage('VIN-1'), previous)
+  assert.equal(h.files.size, 2)
+  assert.deepEqual(h.confirmations, [])
+})
+
+test('the Save bridge rejects malformed framing and prevents external navigation', async () => {
+  const h = harness()
+  h.option = 'Choose from Photos'
+  h.editorActions = [
+    { url: 'https://example.test/upload' },
+    { url: h.editor.VEHICLE_IMAGE_SAVE_URL + '%broken' },
+    { url: h.editor.VEHICLE_IMAGE_SAVE_URL + encodeURIComponent(JSON.stringify({ zoom: 'bad', x: 0.5, y: 0.5 })) },
+  ]
+  await h.editor.loadVehicleImageSettings(h.bl())
+  assert.equal(h.writes, 0)
+  assert.ok(h.editorNavigation.every((request) => request.allowed === false))
+  assert.deepEqual(
+    h.saveFeedback.map((result) => result.success),
+    [false, false],
+  )
+  assert.equal(h.requests.length, 0)
+})
+
+test('the in-page Save button locks framing during save, shows Saved, and re-enables after another edit', () => {
+  const h = liveEditorHarness()
+  const save = h.node('save-image')
+  const original = h.crop()
+  assert.equal(save.disabled, false)
+  save.onclick()
+  assert.equal(save.disabled, true)
+  assert.equal(save.textContent, 'Saving…')
+  const url = h.window.location.href
+  assert.deepEqual(JSON.parse(decodeURIComponent(url.split('?crop=')[1])), original)
+  h.node('zoom').value = '2'
+  h.node('zoom').emit('input')
+  h.node('canvas').emit('wheel', { deltaY: -200, clientX: 100, clientY: 50 })
+  assert.deepEqual(h.crop(), original)
+  h.window.vehicleImageSaveFinished(true)
+  assert.equal(save.textContent, 'Saved')
+  assert.equal(save.disabled, true)
+  h.node('zoom').value = '2'
+  h.node('zoom').emit('input')
+  assert.equal(save.textContent, 'Save')
+  assert.equal(save.disabled, false)
+  save.onclick()
+  h.window.vehicleImageSaveFinished(false, 'Storage full. Tap Save to retry.')
+  assert.equal(save.disabled, false)
+  assert.equal(save.textContent, 'Save')
+  assert.match(h.node('save-status').textContent, /Storage full/)
 })

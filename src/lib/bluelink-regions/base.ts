@@ -1,15 +1,13 @@
+import { getCustomVehicleImage } from '../custom-vehicle-image'
+import { loadApiVehiclePhoto } from '../vehicle-photo'
+import { registerLogSecrets } from '../log-sanitizer'
+import { UserFacingError } from '../user-error'
 import { Config, VehicleTypeOverride } from '../../config'
 import { defaultImage } from '../../resources/defaultImage'
 import { resolveVehicleImage } from '../../resources/vehicle-images'
-import { getCustomVehicleImage } from '../custom-vehicle-image'
-import { loadApiVehiclePhoto } from '../vehicle-photo'
 import { Logger } from '../logger'
-import { registerLogSecrets, sanitizeLog } from '../log-sanitizer'
 import { Buffer } from 'buffer'
-import { AuthSessionStore, authIdentity } from '../auth-session'
-import { UserFacingError } from '../user-error'
-import { removeKeychainValue, scriptStorageKey } from '../storage'
-import { httpsUrl, sameOrigin } from '../secure-url'
+const KEYCHAIN_CACHE_KEY = 'egmp-bluelink-cache'
 export const DEFAULT_STATUS_CHECK_INTERVAL = 3600 * 1000
 export const MAX_COMPLETION_POLLS = 20
 const BLUELINK_LOG_FILE = `${Script.name().replaceAll(' ', '')}-api.log`
@@ -18,7 +16,6 @@ const CAPTURE_NEXT_API_RESPONSE_KEY = `${Script.name().replaceAll(' ', '')}-capt
 const DEFAULT_API_HOST = 'mybluelink.ca'
 const DEFAULT_API_DOMAIN = `https://${DEFAULT_API_HOST}/tods/api/`
 export const WIDGET_REQUEST_TIMEOUT_SECS = 5
-const AUTH_REQUEST_TIMEOUT_SECS = 30
 
 export interface BluelinkTokens {
   accessToken: string
@@ -27,6 +24,13 @@ export interface BluelinkTokens {
   authCookie?: string
   authId?: string
   additionalTokens?: Record<string, string>
+}
+
+export interface CarOption {
+  vin: string
+  nickName: string
+  modelName: string
+  modelYear: string
 }
 
 export interface BluelinkCar {
@@ -310,9 +314,9 @@ export class Bluelink {
   protected loginFailure: boolean
   protected loginRequiredWebview: boolean
   protected refreshLoginPromise: Promise<void> | undefined
+  protected carOptions: CarOption[]
   protected distanceUnit: string
   protected lastCommandSent: number | undefined
-  protected authSession: AuthSessionStore
 
   constructor(config: Config, vin?: string) {
     registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
@@ -323,11 +327,11 @@ export class Bluelink {
     this.statusCheckInterval = DEFAULT_STATUS_CHECK_INTERVAL
     this.additionalHeaders = {}
     this.authHeader = 'Authentication'
-    this.authSession = new AuthSessionStore(config)
-    this.tokens = this.authSession.read()
+    this.tokens = undefined
     this.loginFailure = false
     this.loginRequiredWebview = false
     this.refreshLoginPromise = undefined
+    this.carOptions = []
     this.debugLastRequest = undefined
     this.tempLookup = undefined
     this.authIdHeader = undefined
@@ -356,63 +360,43 @@ export class Bluelink {
   }
 
   protected async refreshLogin(force?: boolean) {
-    this.assertCurrentSession()
+    if (!this.cache) return // we have no cache - likely failed on first load - ignore
     if (this.refreshLoginPromise) {
       await this.refreshLoginPromise
       return
     }
+    // if we are here we have logged in successfully at least once and can refresh if supported
     if (!(force || !this.tokenValid())) return
 
-    // v1.24.4 coordinates refreshes within this run. Persisted locks and
-    // foreground-auth flags from later releases no longer block sign-in.
     this.refreshLoginPromise = (async () => {
-      const previous = this.tokens || this.cache?.token
-      const shared = this.authSession.read()
-      if (shared && previous && shared.accessToken !== previous.accessToken && shared.expiry > Date.now() / 1000 + 30) {
-        this.tokens = shared
-        if (this.cache) this.cache.token = shared
-        this.loginFailure = false
-        await this.onAuthRefreshed()
-        return
-      }
-      let tokens: BluelinkTokens | undefined
-      if (previous && typeof (this as any).refreshTokens === 'function') {
-        // @ts-ignore - refreshTokens is optional for regional implementations.
+      let tokens = undefined
+      if (typeof (this as any).refreshTokens === 'function') {
+        // @ts-ignore - this is why we check the sub-class has this as its not always implemented
         tokens = await this.refreshTokens()
-        if (!tokens) tokens = await this.login()
+        if (!tokens) {
+          tokens = await this.login() // fallback to normal login if refresh fails
+        }
       } else {
         tokens = await this.login()
       }
+
       if (!tokens) this.loginFailure = true
       else {
         this.loginFailure = false
-        this.saveAuthSession(tokens)
+        this.tokens = tokens as BluelinkTokens
         if (this.cache) {
-          this.cache.token = tokens
+          this.cache.token = this.tokens
           this.saveCache()
         }
-        if (previous) await this.onAuthRefreshed()
       }
     })()
+
     try {
       await this.refreshLoginPromise
     } finally {
       this.refreshLoginPromise = undefined
     }
   }
-
-  protected saveAuthSession(tokens: BluelinkTokens) {
-    this.assertCurrentSession()
-    this.authSession.write(tokens)
-    this.tokens = tokens
-  }
-
-  protected assertCurrentSession() {
-    this.authSession.assertCurrent()
-  }
-
-  protected async onAuthRefreshed(): Promise<void> {}
-  protected async onCacheLoaded(): Promise<void> {}
 
   protected getStamp(appId: string, cfbB64: string): string {
     const rawData = `${appId}:${Math.floor(Date.now() / 1000)}`
@@ -524,48 +508,6 @@ export class Bluelink {
     return undefined
   }
 
-  protected getRangeFromStatus(status: any, preferElectricRange = false): number {
-    const rangeByFuel = status?.evStatus?.drvDistance?.[0]?.rangeByFuel
-    // ICE vehicles often omit evStatus entirely. Other models return a partial
-    // evStatus with fuel range but no traction-battery reading.
-    const candidates = [
-      ...(preferElectricRange ? [rangeByFuel?.evModeRange] : []),
-      rangeByFuel?.totalAvailableRange,
-      rangeByFuel?.gasModeRange,
-      status?.dte,
-      status?.distanceToEmpty,
-      ...(!preferElectricRange ? [rangeByFuel?.evModeRange] : []),
-    ]
-
-    for (const candidate of candidates) {
-      const value = this.parseNumber(candidate?.value)
-      if (typeof value !== 'number' || value <= 0) continue
-      // Legacy Bluelink distance units: 1 = km, 3 = miles. When omitted,
-      // retain the regional API's native unit.
-      const unit = this.parseNumber(candidate?.unit)
-      const converted =
-        unit === 1 && this.distanceUnit === 'mi'
-          ? value / 1.609344
-          : unit === 3 && this.distanceUnit === 'km'
-            ? value * 1.609344
-            : value
-      return Math.floor(converted)
-    }
-    // Zero range is sometimes a placeholder in otherwise successful responses.
-    return this.cache?.status.range ?? 0
-  }
-
-  protected getTwelveVoltSocFromStatus(status: any): number {
-    const candidates = [status?.battery?.batSoc, status?.batteryStatus?.stateOfCharge]
-    for (const candidate of candidates) {
-      const value = this.parseNumber(candidate)
-      // These fields contain percentages, not 0–1 ratios. Ignore unavailable
-      // sentinel values such as 255 rather than overwriting a cached reading.
-      if (typeof value === 'number' && value >= 0 && value <= 100) return value
-    }
-    return this.cache?.status.twelveSoc ?? 0
-  }
-
   protected defaultNoEVStatus(
     lastRemoteCheck: Date,
     status: any,
@@ -649,6 +591,10 @@ export class Bluelink {
     )
   }
 
+  public getCarOptions(): CarOption[] {
+    return this.carOptions
+  }
+
   public loginFailed(): boolean {
     return this.loginFailure
   }
@@ -658,27 +604,10 @@ export class Bluelink {
   }
 
   public getCachedStatus(): Status {
-    this.assertCurrentSession()
     return {
       car: this.cache.car,
       status: this.cache.status,
     }
-  }
-
-  protected async statusAfterCommand(id: string): Promise<BluelinkStatus> {
-    // The command has already been confirmed. A status refresh failure must not
-    // turn that success into a failed command or cause another remote request.
-    try {
-      const status = await this.getCarStatus(id, false)
-      this.assertCurrentSession()
-      this.cache.status = status
-      this.saveCache()
-    } catch (error) {
-      this.assertCurrentSession()
-      this.logger.log('Command completed, but the follow-up status refresh failed.')
-      this.logger.log(error)
-    }
-    return this.cache.status
   }
 
   public getVehicleDisplayName(car: BluelinkCar): string {
@@ -690,7 +619,6 @@ export class Bluelink {
   }
 
   public async getStatus(forceUpdate: boolean, noCache: boolean, location: boolean = false): Promise<Status> {
-    this.assertCurrentSession()
     if (forceUpdate) {
       // getCar first then save then get remote status
       // widget remote refresh does not await for entire process to complete, and odometer in US is only on getCar calls, which need to complete and save to cache before sending remote status command
@@ -716,7 +644,6 @@ export class Bluelink {
     input: any,
     callback: (isComplete: boolean, didSucceed: boolean, input: any | undefined) => void,
   ) {
-    this.assertCurrentSession()
     let promise: Promise<any> | undefined = undefined
     let data: any | undefined = undefined
     let didSucceed = false
@@ -797,8 +724,11 @@ export class Bluelink {
     }
   }
 
-  protected getCacheKey(): string {
-    return scriptStorageKey('vehicle-cache')
+  protected getCacheKey(write = false): string {
+    const currentScript = Script.name().replaceAll(' ', '')
+    const newCacheKey = `egmp-scriptable-bl-cache-${currentScript}`
+    if (this.config.multiCar || write || Keychain.contains(newCacheKey)) return newCacheKey
+    return KEYCHAIN_CACHE_KEY
   }
 
   public getConfig() {
@@ -806,32 +736,17 @@ export class Bluelink {
   }
 
   public deleteCache(all = false) {
-    this.assertCurrentSession()
-    this.authSession.clear()
-    removeKeychainValue(this.getCacheKey())
-    if (all) removeKeychainValue('egmp-bluelink-cache')
+    Keychain.remove(this.getCacheKey(true))
+    if (all) Keychain.remove(this.getCacheKey())
   }
 
   protected saveCache() {
-    this.assertCurrentSession()
     registerLogSecrets([
-      this.cache.token.accessToken,
-      this.cache.token.refreshToken,
-      this.cache.token.authId,
-      ...Object.values(this.cache.token.additionalTokens || {}),
       this.cache.car.id,
       this.cache.car.vin,
       ...(this.cache.car.nickName !== this.cache.car.modelName ? [this.cache.car.nickName] : []),
     ])
-    Keychain.set(
-      this.getCacheKey(),
-      JSON.stringify({
-        ...this.cache,
-        identity: authIdentity(this.config),
-        generation: this.authSession.generationId(),
-        script: Script.name(),
-      }),
-    )
+    Keychain.set(this.getCacheKey(true), JSON.stringify(this.cache))
   }
 
   protected cacheExists(): boolean {
@@ -841,53 +756,35 @@ export class Bluelink {
   protected async loadCache(): Promise<Cache | undefined> {
     let cache: Cache | undefined = undefined
     if (Keychain.contains(this.getCacheKey())) {
-      try {
-        const stored = JSON.parse(Keychain.get(this.getCacheKey()))
-        if (
-          stored?.identity === authIdentity(this.config) &&
-          stored?.script === Script.name() &&
-          stored?.generation === this.authSession.generationId() &&
-          stored?.token?.accessToken &&
-          stored?.car?.id &&
-          stored?.status
-        )
-          cache = stored
-      } catch {
-        /* Sign in again if a stored cache is damaged. */
-      }
+      cache = JSON.parse(Keychain.get(this.getCacheKey()))
     }
-    const hadCache = !!cache
     if (!cache) {
-      // Authentication is independent of a complete vehicle/status snapshot.
-      await this.refreshLogin()
-      const tokens = this.tokens
-      if (!tokens || this.loginFailure) {
+      // initial use - load car and status
+      const tokens = await this.login()
+      if (!tokens) {
         this.loginFailure = true
         return
       }
+      this.tokens = tokens
       const car = await this.getCar()
       if (!car) {
         this.loginFailure = true
         return
       }
-      registerLogSecrets([car.id, car.vin, ...(car.nickName !== car.modelName ? [car.nickName] : [])])
       cache = {
-        token: this.tokens!,
+        token: this.tokens,
         car: car,
         status: await this.getCarStatus(car.id, false),
       }
-    } else if (this.tokens) cache.token = this.tokens
+    }
     this.cache = cache
-    this.tokens = cache.token
-    if (hadCache) await this.onCacheLoaded()
     this.saveCache()
     return this.cache
   }
 
   protected tokenValid(): boolean {
     // invalid if within 30 seconds of expiry
-    const tokens = this.tokens || this.cache?.token
-    return Boolean(tokens && tokens.expiry - 30 > Math.floor(Date.now() / 1000))
+    return Boolean(this.cache.token.expiry - 30 > Math.floor(Date.now() / 1000))
   }
 
   protected nextRequestCookies(req: Request): string {
@@ -902,7 +799,6 @@ export class Bluelink {
   }
 
   protected async request(props: RequestProps): Promise<{ resp: { [key: string]: any }; json: any; cookies: string }> {
-    this.assertCurrentSession()
     let requestTokens: BluelinkTokens | undefined = undefined
     if (!props.noAuth) {
       requestTokens = this.tokens ? this.tokens : this.cache.token
@@ -910,7 +806,8 @@ export class Bluelink {
     if (!props.noAuth && !requestTokens) {
       throw Error('No tokens available for request')
     }
-    if (requestTokens) {
+
+    if (requestTokens)
       registerLogSecrets([
         requestTokens.accessToken,
         requestTokens.refreshToken,
@@ -918,11 +815,7 @@ export class Bluelink {
         requestTokens.authId,
         ...Object.values(requestTokens.additionalTokens || {}),
       ])
-    }
-
-    httpsUrl(props.url)
     const req = new Request(props.url)
-    const usedAccessToken = requestTokens?.accessToken
     req.method = props.method ? props.method : props.data ? 'POST' : 'GET'
     req.headers = {
       Accept: 'application/json, text/plain, */*',
@@ -956,32 +849,16 @@ export class Bluelink {
     if (props.data) {
       req.body = props.data
     }
-    // Never forward a credential-bearing request to another origin or HTTP.
-    // Auth redirects may visit only the region's configured HTTPS hosts, using
-    // a fresh GET with no password body or custom authentication headers.
-    // @ts-ignore - Scriptable permits returning null to stop a redirect.
-    req.onRedirect = (next: Request) => {
-      if (props.noRedirect) return null
-      try {
-        const target = httpsUrl(next.url)
-        if (sameOrigin(props.url, next.url)) return next
-        if (!props.noAuth || !props.notJSON) return null
-        const regional = (this as any).apiConfig
-        const allowed = [httpsUrl(this.apiDomain).hostname, regional?.authHost, regional?.newApiDomain]
-        if (!allowed.includes(target.hostname)) return null
-        const redirect = new Request(next.url)
-        redirect.method = 'GET'
-        redirect.headers = { Accept: 'text/html,application/json' }
-        redirect.timeoutInterval = req.timeoutInterval
-        redirect.allowInsecureRequest = false
-        return redirect
-      } catch {
+    if (props.noRedirect) {
+      // @ts-ignore - returning null is allowed
+      req.onRedirect = (_request) => {
         return null
       }
     }
+    // Widget executions have a strict Scriptable timeout budget.
+    // Keep network requests short and fall back to cached data when possible.
     if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
-    else if (props.noAuth) req.timeoutInterval = AUTH_REQUEST_TIMEOUT_SECS
-    req.allowInsecureRequest = false
+    req.allowInsecureRequest = true
     this.debugLastRequest = {
       url: props.url,
       method: req.method,
@@ -993,7 +870,6 @@ export class Bluelink {
     try {
       if (this.config.debugLogging) this.logger.log(`Sending request ${JSON.stringify(this.debugLastRequest)}`)
       const json = !props.notJSON ? await req.loadJSON() : await req.loadString()
-      this.assertCurrentSession()
       if (this.config.debugLogging) {
         this.logger.log(
           `response ${JSON.stringify(req.response)} data: ${!props.notJSON ? JSON.stringify(json) : 'not JSON'}`,
@@ -1013,21 +889,9 @@ export class Bluelink {
       }
 
       const checkResponse = props.validResponseFunction(req.response, json)
-      const statusCode = Number(req.response?.statusCode)
-      if (statusCode === 429 || statusCode >= 500) {
-        throw new UserFacingError(
-          'The vehicle service is temporarily unavailable. Your session has been kept; try again later.',
-        )
-      }
       if (!props.noRetry && checkResponse.retry && !props.noAuth) {
         // re-auth and call ourselves
-        const latest = this.authSession.read()
-        if (latest && latest.accessToken !== usedAccessToken && latest.expiry > Date.now() / 1000 + 30) {
-          this.tokens = latest
-          if (this.cache) this.cache.token = latest
-          this.loginFailure = false
-          await this.onAuthRefreshed()
-        } else await this.refreshLogin(true)
+        if (this.cache) await this.refreshLogin(true) // only refresh login if we have a cache - i.e not first login
         if (this.loginFailure) {
           return { resp: req.response, json: json, cookies: this.nextRequestCookies(req) }
         }
@@ -1038,14 +902,111 @@ export class Bluelink {
       }
       return { resp: req.response, json: json, cookies: this.nextRequestCookies(req) }
     } catch (error) {
-      if (error instanceof UserFacingError) throw error
       const errorString = `Failed to send request to ${props.url}, request ${JSON.stringify(this.debugLastRequest)} - error ${error}`
       if (this.config.debugLogging) this.logger.log(error)
-      if (props.noAuth && /timed?\s*out|timeout/i.test(String(error))) {
-        throw new UserFacingError('Sign-in timed out. Check your connection, then try again in Scriptable.')
-      }
-      throw Error(sanitizeLog(errorString))
+      if (this.config.debugLogging) this.logger.log(errorString)
+      throw new UserFacingError('The vehicle service request failed. Try again later.')
     }
+  }
+
+  protected getRangeFromStatus(status: any, preferElectricRange = false): number {
+    const rangeByFuel = status?.evStatus?.drvDistance?.[0]?.rangeByFuel
+    // ICE vehicles often omit evStatus entirely. Other models return a partial
+    // evStatus with fuel range but no traction-battery reading.
+    const candidates = [
+      ...(preferElectricRange ? [rangeByFuel?.evModeRange] : []),
+      rangeByFuel?.totalAvailableRange,
+      rangeByFuel?.gasModeRange,
+      status?.dte,
+      status?.distanceToEmpty,
+      ...(!preferElectricRange ? [rangeByFuel?.evModeRange] : []),
+    ]
+
+    for (const candidate of candidates) {
+      const value = this.parseNumber(candidate?.value)
+      if (typeof value !== 'number' || value <= 0) continue
+      // Legacy Bluelink distance units: 1 = km, 3 = miles. When omitted,
+      // retain the regional API's native unit.
+      const unit = this.parseNumber(candidate?.unit)
+      const converted =
+        unit === 1 && this.distanceUnit === 'mi'
+          ? value / 1.609344
+          : unit === 3 && this.distanceUnit === 'km'
+            ? value * 1.609344
+            : value
+      return Math.floor(converted)
+    }
+    // Zero range is sometimes a placeholder in otherwise successful responses.
+    return this.cache?.status.range ?? 0
+  }
+
+  protected getTwelveVoltSocFromStatus(status: any): number {
+    const candidates = [status?.battery?.batSoc, status?.batteryStatus?.stateOfCharge]
+    for (const candidate of candidates) {
+      const value = this.parseNumber(candidate)
+      // These fields contain percentages, not 0–1 ratios. Ignore unavailable
+      // sentinel values such as 255 rather than overwriting a cached reading.
+      if (typeof value === 'number' && value >= 0 && value <= 100) return value
+    }
+    return this.cache?.status.twelveSoc ?? 0
+  }
+
+  private async getDefaultCarImage(
+    carColour: string,
+    forceRefresh: boolean,
+    retryDefaultOnFail: boolean,
+    retryOriginalColour?: string,
+  ): Promise<Image> {
+    const fs = FileManager.local()
+    let carFilePrefix = ''
+    for (const [name, fileName] of Object.entries(carImageMap)) {
+      if (this.cache.car.modelName.toLocaleLowerCase().replaceAll(' ', '').includes(name)) {
+        carFilePrefix = fileName
+        break
+      }
+    }
+    if (!carFilePrefix) carFilePrefix = carImageMap['default']!
+
+    const localFilePath = retryOriginalColour
+      ? `${fs.libraryDirectory()}/${carFilePrefix}_${retryOriginalColour}.png`
+      : `${fs.libraryDirectory()}/${carFilePrefix}_${carColour}.png`
+    try {
+      if (!forceRefresh && fs.fileExists(localFilePath)) {
+        const image = fs.readImage(localFilePath)
+        if (image && image.size.width > 0 && image.size.height > 0) return image
+      }
+    } catch {
+      /* replace a damaged default image or use the embedded fallback */
+    }
+
+    // download and store image
+    const req = new Request(`${carImageHttpURL}/${carFilePrefix}/${carColour}.png`)
+    req.method = 'GET'
+    if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
+
+    try {
+      const image = await req.loadImage()
+      fs.writeImage(localFilePath, image)
+      return image
+    } catch (_error) {
+      // retry with white which always exists - save as requested colour so we dont keep retrying all the time.
+      if (retryDefaultOnFail) return await this.getDefaultCarImage('white', false, false, carColour)
+      return Image.fromData(Data.fromBase64String(defaultImage))
+    }
+  }
+
+  protected async statusAfterCommand(id: string): Promise<BluelinkStatus> {
+    // The command has already been confirmed. A status refresh failure must not
+    // turn that success into a failed command or cause another remote request.
+    try {
+      const status = await this.getCarStatus(id, false)
+      this.cache.status = status
+      this.saveCache()
+    } catch (error) {
+      this.logger.log('Command completed, but the follow-up status refresh failed.')
+      this.logger.log(error)
+    }
+    return this.cache.status
   }
 
   public async getCarImage(
@@ -1114,50 +1075,6 @@ export class Bluelink {
     )
     if (apiPhoto) return apiPhoto
     return this.getDefaultCarImage(carColour, forceRefresh, retryDefaultOnFail, retryOriginalColour)
-  }
-
-  private async getDefaultCarImage(
-    carColour: string,
-    forceRefresh: boolean,
-    retryDefaultOnFail: boolean,
-    retryOriginalColour?: string,
-  ): Promise<Image> {
-    const fs = FileManager.local()
-    let carFilePrefix = ''
-    for (const [name, fileName] of Object.entries(carImageMap)) {
-      if (this.cache.car.modelName.toLocaleLowerCase().replaceAll(' ', '').includes(name)) {
-        carFilePrefix = fileName
-        break
-      }
-    }
-    if (!carFilePrefix) carFilePrefix = carImageMap['default']!
-
-    const localFilePath = retryOriginalColour
-      ? `${fs.libraryDirectory()}/${carFilePrefix}_${retryOriginalColour}.png`
-      : `${fs.libraryDirectory()}/${carFilePrefix}_${carColour}.png`
-    try {
-      if (!forceRefresh && fs.fileExists(localFilePath)) {
-        const image = fs.readImage(localFilePath)
-        if (image && image.size.width > 0 && image.size.height > 0) return image
-      }
-    } catch {
-      /* replace a damaged default image or use the embedded fallback */
-    }
-
-    // download and store image
-    const req = new Request(`${carImageHttpURL}/${carFilePrefix}/${carColour}.png`)
-    req.method = 'GET'
-    if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
-
-    try {
-      const image = await req.loadImage()
-      fs.writeImage(localFilePath, image)
-      return image
-    } catch (_error) {
-      // retry with white which always exists - save as requested colour so we dont keep retrying all the time.
-      if (retryDefaultOnFail) return await this.getDefaultCarImage('white', false, false, carColour)
-      return Image.fromData(Data.fromBase64String(defaultImage))
-    }
   }
 
   protected async sleep(milliseconds: number): Promise<void> {

@@ -1,6 +1,6 @@
-import { getVehiclePhotoUrl } from '../vehicle-photo'
 import { climateFahrenheit, remoteEngineDuration } from '../us-climate'
 import { UserFacingError } from '../user-error'
+import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
   BluelinkTokens,
@@ -18,7 +18,7 @@ import { textInput } from '../scriptable-utils/'
 import { returnMockedCarStatus, returnMockedCar } from './mock'
 
 const DEFAULT_API_DOMAIN = 'api.owners.kia.com'
-const LOGIN_EXPIRY = 24 * 60 * 60
+const LOGIN_EXPIRY = 24 * 60 * 60 * 1000
 const MOCK_API = false
 
 interface MFAResponse {
@@ -39,7 +39,8 @@ export class BluelinkUSAKia extends Bluelink {
       offset: this.getTimeZone().slice(0, 3),
       appType: 'L',
       appVersion: '7.22.0',
-      clientuuid: this.authSession.getDeviceId('clientuuid', () => UUID.string().toLocaleLowerCase()),
+      // clientuuid will be overridden from cache if exists
+      clientuuid: UUID.string().toLocaleLowerCase(),
       clientId: 'SPACL716-APL',
       phonebrand: 'iPhone',
       osType: 'iOS',
@@ -48,7 +49,8 @@ export class BluelinkUSAKia extends Bluelink {
       to: 'APIGW',
       tokentype: 'A',
       'User-Agent': 'KIAPrimo_iOS/37 CFNetwork/1335.0.3.4 Darwin/21.6.0',
-      deviceId: this.authSession.getDeviceId('deviceId', () => this.generateDeviceId()),
+      // deviceId will be overridden from cache if exists
+      deviceId: this.generateDeviceId(),
       Host: DEFAULT_API_DOMAIN,
     }
 
@@ -67,27 +69,14 @@ export class BluelinkUSAKia extends Bluelink {
   }
 
   protected getAdditionalHeaders(): Record<string, string> {
-    const remembered = this.tokens?.additionalTokens ?? this.cache?.token.additionalTokens
-    if (remembered?.deviceId) this.additionalHeaders.deviceId = remembered.deviceId
-    if (remembered?.clientuuid) this.additionalHeaders.clientuuid = remembered.clientuuid
+    // inject previous deviceId and clientuuid from cache if exists
+    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.deviceId) {
+      this.additionalHeaders.deviceId = this.cache.token.additionalTokens.deviceId
+    }
+    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.clientuuid) {
+      this.additionalHeaders.clientuuid = this.cache.token.additionalTokens.clientuuid
+    }
     return this.additionalHeaders
-  }
-
-  protected async onAuthRefreshed(): Promise<void> {
-    const car = await this.getCar(true)
-    if (car && this.cache) {
-      this.cache.car = car
-      this.saveCache()
-    }
-  }
-
-  protected async onCacheLoaded(): Promise<void> {
-    const tokens = this.tokens ?? this.cache.token
-    // A renewed SID can survive an interrupted vehicle-list request. Recover
-    // its vehicle key before using an older completed status snapshot.
-    if (this.tokenValid() && (!tokens.authId || tokens.authId !== this.cache.car.id)) {
-      await this.onAuthRefreshed()
-    }
   }
 
   private getDateString(): string {
@@ -120,9 +109,6 @@ export class BluelinkUSAKia extends Bluelink {
   }
 
   protected async mfa(type: 'EMAIL' | 'SMS', code: string, xid: string): Promise<BluelinkTokens | undefined> {
-    if (config.runsInWidget || config.runsWithSiri) {
-      throw new UserFacingError('Open Bluelocke in Scriptable to finish Kia sign-in and enter your verification code.')
-    }
     const mfaSendResp = await this.request({
       url: this.apiDomain + 'cmm/sendOTP',
       data: '{}',
@@ -153,6 +139,7 @@ export class BluelinkUSAKia extends Bluelink {
       return undefined
     }
 
+    if (this.config.debugLogging) this.logger.log(`MFA Code entered: ${mfaCode}`)
     if (mfaCode) {
       const mfaVerifyResp = await this.request({
         url: this.apiDomain + 'cmm/verifyOTP',
@@ -180,68 +167,84 @@ export class BluelinkUSAKia extends Bluelink {
   }
 
   protected async login(mfaToken: MFAResponse | undefined = undefined): Promise<BluelinkTokens | undefined> {
-    const remembered =
-      this.tokens?.additionalTokens ??
-      this.cache?.token.additionalTokens ??
-      this.authSession.read()?.additionalTokens ??
-      {}
-    const rememberedToken = mfaToken?.rmtoken || remembered.rmToken
+    /*
+      Kia US Login/Refresh process requires initial MFA to extract SID.
+      The rmtoken returned in the initial login appears to be long lived and can be used for subsequent logins without MFA,
+      However to do that the deviceId and clientuuid used in the initial login must also be reused.
+      Hence these are cached along with the rmtoken for future logins and used if exists in cache
+    */
+    // check for previous MFA token
+    if (!mfaToken && this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.rmToken) {
+      mfaToken = {
+        rmtoken: this.cache.token.additionalTokens.rmToken,
+      }
+    }
+
     const resp = await this.request({
       url: this.apiDomain + 'prof/authUser',
       data: JSON.stringify({
         deviceKey: this.getAdditionalHeaders().deviceId,
         deviceType: 2,
         tncFlag: 1,
-        userCredential: { userId: this.config.auth.username, password: this.config.auth.password },
+        userCredential: {
+          userId: this.config.auth.username,
+          password: this.config.auth.password,
+        },
       }),
       headers: {
         date: this.getDateString(),
-        ...(rememberedToken && { rmtoken: rememberedToken }),
-        ...(mfaToken?.sid && { sid: mfaToken.sid }),
+        ...(mfaToken &&
+          mfaToken.rmtoken && {
+            rmtoken: mfaToken.rmtoken,
+          }),
+        ...(mfaToken &&
+          mfaToken.sid && {
+            sid: mfaToken.sid,
+          }),
       },
       noAuth: true,
       validResponseFunction: this.requestResponseValid,
     })
     if (this.requestResponseValid(resp.resp, resp.json).valid) {
-      const sid = this.caseInsensitiveParamExtraction('sid', resp.resp.headers || {})
-      const xid = this.caseInsensitiveParamExtraction('xid', resp.resp.headers || {})
-      if (!sid && xid && !mfaToken?.sid) {
-        return this.mfa(
-          resp.json?.payload?.phoneVerifyStatus && this.config.mfaPreference === 'sms' ? 'SMS' : 'EMAIL',
-          resp.json?.payload?.otpKey,
+      const sid = this.caseInsensitiveParamExtraction('sid', resp.resp.headers)
+      const xid = this.caseInsensitiveParamExtraction('xid', resp.resp.headers)
+      if (!sid && xid && (!mfaToken || !mfaToken.sid)) {
+        // If no SID and we havent attempted MFA yet - try it, loging will be called again from MFA function
+        return await this.mfa(
+          resp.json.payload.phoneVerifyStatus && this.config.mfaPreference === 'sms' ? 'SMS' : 'EMAIL',
+          resp.json.payload.otpKey,
           xid,
         )
       }
-      if (!sid) throw new UserFacingError('Kia did not complete sign-in. Please try again later.')
-      const headers = this.getAdditionalHeaders()
-      const tokens: BluelinkTokens = {
-        accessToken: sid,
-        refreshToken: '',
-        expiry: Math.floor(Date.now() / 1000) + LOGIN_EXPIRY,
-        additionalTokens: {
-          ...remembered,
-          rmToken: this.caseInsensitiveParamExtraction('rmtoken', resp.resp.headers || {}) || rememberedToken || '',
-          deviceId: headers.deviceId || '',
-          clientuuid: headers.clientuuid || '',
-        },
+
+      // update tokens used in this session as we call getCar before we write the new tokens to cache
+      this.tokens = {
+        accessToken: sid || '',
+        refreshToken: '', // seemingly KIA us doesnt support refresh?
+        expiry: Math.floor(Date.now() / 1000) + Number(LOGIN_EXPIRY), // we also dont get an expiry?
+        ...(mfaToken && {
+          additionalTokens: {
+            rmToken: mfaToken.rmtoken,
+            deviceId: this.getAdditionalHeaders().deviceId || '',
+            clientuuid: this.getAdditionalHeaders().clientuuid || '',
+          },
+        }),
       }
-      this.tokens = tokens
-      this.saveAuthSession(tokens)
-      return tokens
+      const car = await this.getCar(true)
+      if (car) this.tokens.authId = car.id
+      return this.tokens
     }
+
     // if we reach here login failed - regenerate deviceId if we have it cached
-    const previous = this.tokens || this.cache?.token
-    if (previous?.additionalTokens?.deviceId) {
-      const deviceId = this.generateDeviceId()
-      const clientuuid = UUID.string().toLocaleLowerCase()
-      const tokens = { ...previous, additionalTokens: { ...previous.additionalTokens, deviceId, clientuuid } }
-      this.authSession.setDeviceId('deviceId', deviceId)
-      this.authSession.setDeviceId('clientuuid', clientuuid)
-      this.saveAuthSession(tokens)
-      if (this.cache) {
-        this.cache.token = tokens
-        this.saveCache()
-      }
+    if (
+      this.cache &&
+      this.cache.token &&
+      this.cache.token.additionalTokens &&
+      this.cache.token.additionalTokens.deviceId
+    ) {
+      this.cache.token.additionalTokens.deviceId = this.generateDeviceId()
+      this.cache.token.additionalTokens.clientuuid = UUID.string().toLocaleLowerCase()
+      this.saveCache()
     }
 
     const error = `Login Failed: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
@@ -283,10 +286,10 @@ export class BluelinkUSAKia extends Bluelink {
         }
       }
 
-      const car: BluelinkCar = {
+      return {
         id: vehicle.vehicleKey,
         vin: vehicle.vin,
-        photoUrl: getVehiclePhotoUrl(vehicle, 'https://owners.kia.com/') ?? null,
+        photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
         nickName: vehicle.nickName,
         modelName: vehicle.modelName,
         modelYear: vehicle.modelYear,
@@ -294,13 +297,6 @@ export class BluelinkUSAKia extends Bluelink {
         modelColour: vehicle.colorName,
         modelTrim: vehicle.trim,
       }
-      const tokens = this.tokens ?? this.cache?.token
-      if (tokens) {
-        this.tokens = { ...tokens, authId: car.id }
-        this.saveAuthSession(this.tokens)
-        if (this.cache) this.cache.token = this.tokens
-      }
-      return car
     }
     const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
@@ -413,7 +409,8 @@ export class BluelinkUSAKia extends Bluelink {
           resp.json.payload.vehicleInfoList[0].lastVehicleInfo.vehicleStatusRpt.vehicleStatus,
           locationStatus,
         )
-      } else if (retry && this.requestResponseValid(resp.resp, resp.json).retry) {
+      } else if (retry) {
+        // manage retry ourselves - just assume we need to re-auth
         await this.refreshLogin(true)
         return await this.getCarStatus(_id, forceUpdate, location, false)
       }

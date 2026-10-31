@@ -45,7 +45,7 @@ export class BluelinkCanada extends Bluelink {
     this.apiDomain = `https://${this.apiHost}/tods/api/`
     this.statusCheckInterval = statusCheckInterval || DEFAULT_STATUS_CHECK_INTERVAL
     this.additionalHeaders = {
-      deviceid: this.authSession.getDeviceId('deviceid', () => UUID.string()),
+      deviceid: UUID.string(), // native scriptable UUID method
       from: config.manufacturer === 'hyundai' ? 'SPA' : 'CWP',
       client_id: 'HATAHSPACA0232141ED9722C67715A0B',
       client_secret: 'CLISCR01AHSPA',
@@ -94,27 +94,20 @@ export class BluelinkCanada extends Bluelink {
   }
 
   protected getAdditionalHeaders(): Record<string, string> {
-    const tokens = this.tokens || this.cache?.token
-    const deviceid = tokens?.additionalTokens?.deviceid
-    if (deviceid) this.additionalHeaders.deviceid = deviceid
+    if (this.cache && this.cache.token.additionalTokens && this.cache.token.additionalTokens.deviceid) {
+      this.additionalHeaders.deviceid = this.cache.token.additionalTokens.deviceid
+    }
     return this.additionalHeaders
   }
 
   private regenerateDeviceId(): void {
-    const deviceid = UUID.string()
-    this.additionalHeaders.deviceid = deviceid
-    this.authSession.setDeviceId('deviceid', deviceid)
-    const previous = this.tokens || this.cache?.token
-    if (previous) {
-      const tokens = {
-        ...previous,
-        additionalTokens: { ...previous.additionalTokens, deviceid },
+    this.additionalHeaders.deviceid = UUID.string()
+    if (this.cache && this.cache.token) {
+      this.cache.token.additionalTokens = {
+        ...(this.cache.token.additionalTokens || {}),
+        deviceid: this.additionalHeaders.deviceid,
       }
-      this.saveAuthSession(tokens)
-      if (this.cache) {
-        this.cache.token = tokens
-        this.saveCache()
-      }
+      this.saveCache()
     }
   }
 
@@ -271,6 +264,7 @@ export class BluelinkCanada extends Bluelink {
       return undefined
     }
 
+    if (this.config.debugLogging) this.logger.log(`MFA Code entered: ${otpCode}`)
     const validateOtpResp = await this.request({
       url: this.apiDomain + 'mfa/validateotp',
       data: JSON.stringify({
@@ -392,6 +386,21 @@ export class BluelinkCanada extends Bluelink {
     return undefined
   }
 
+  protected async setCar(id: string) {
+    const resp = await this.request({
+      url: this.apiDomain + 'vhcllst',
+      data: JSON.stringify({
+        vehicleId: id,
+      }),
+      validResponseFunction: this.requestResponseValid,
+    })
+    if (!this.requestResponseValid(resp.resp, resp.json).valid) {
+      const error = `Failed to set car ${id}: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
+      if (this.config.debugLogging) this.logger.log(error)
+      throw Error(error)
+    }
+  }
+
   protected async getCar(): Promise<BluelinkCar | undefined> {
     let vin = this.vin
     if (!vin && this.cache) {
@@ -420,6 +429,8 @@ export class BluelinkCanada extends Bluelink {
           }
         }
       }
+      // should set car just in case its not already set
+      await this.setCar(vehicle.vehicleId)
       return {
         id: vehicle.vehicleId,
         vin: vehicle.vin,

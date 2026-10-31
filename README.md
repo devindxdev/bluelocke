@@ -9,7 +9,10 @@ Bluelocke is a Scriptable app for iOS that lets you monitor and control Hyundai,
 - Siri and Shortcuts support, including text-command workflows
 - Automation support (for example walk-away lock patterns)
 - Auto-update flow from GitHub releases
-- Vehicle image overrides by trim/color for supported Tucson variants, with API photos as a fallback
+- Custom vehicle photos from Photos or Files, framed in a live widget preview with drag, pinch, and crop controls
+- Vehicle image fallback: custom photo, matching GitHub model/trim/color image, API photo, existing default
+- Fuel range and alternate 12V readings for older vehicles, plus corrected Hyundai US climate commands
+- Readable diagnostics with account, vehicle, credential, and location redaction
 
 ## Documentation
 
@@ -61,18 +64,15 @@ npm run lint
 ### Checks
 
 ```bash
-npm run test:app-ui
-npm run test:vehicle-status
-npm run test:us-climate
-npm run test:vehicle-loading
-npm run test:logs
-npm run test:auth
-npm run test:user-errors
-npm run test:security
-npm run test:vehicle-images
+npm test
+npx tsc --noEmit
 ```
 
-The UI checks exercise Settings navigation and saved preferences with simulated Scriptable APIs. To review Settings, run `node scripts/preview-app-ui.mjs /absolute/path/preview.html`. The preview reuses the Settings renderer; final fonts and selection behaviour are supplied by iOS.
+The v1.26.1-beta.3 rebuild starts from the exact v1.24.4 release supplied by the user. Authentication regression checks compare the executable sign-in, verification, token-refresh, device-ID, and cache methods against fingerprints from that release. Settings and first-time setup match the v1.26.0 UI, including autosave, Continue, and Back navigation. The generated script is also tested directly to verify its entry points and original login route.
+
+The modern Settings page can be previewed with `node scripts/preview-app-ui.mjs /absolute/path/settings.html`.
+
+The photo editor can be previewed locally with `node scripts/preview-vehicle-image.mjs /absolute/path/preview.html`. It uses sample data and does not contact a vehicle service. Final iOS touch behavior still needs a check in Scriptable.
 
 ## License
 

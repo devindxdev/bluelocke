@@ -48,7 +48,6 @@ function runtime(manufacturer = 'hyundai', { powertrain = 'ice', generation = 3,
   const modules = new Map()
   const actualModules = new Set([
     'src/config.ts',
-    'src/lib/auth-session.ts',
     'src/lib/storage.ts',
     'src/lib/user-error.ts',
     'src/lib/us-climate.ts',
@@ -82,7 +81,6 @@ function runtime(manufacturer = 'hyundai', { powertrain = 'ice', generation = 3,
   }
   const { BluelinkUSA } = load('src/lib/bluelink-regions/usa.ts')
   const { BluelinkUSAKia } = load('src/lib/bluelink-regions/usa-kia.ts')
-  const { AuthSessionStore } = load('src/lib/auth-session.ts')
   const Regional = manufacturer === 'kia' ? BluelinkUSAKia : BluelinkUSA
   const client = Object.create(Regional.prototype)
   client.config = {
@@ -111,17 +109,13 @@ function runtime(manufacturer = 'hyundai', { powertrain = 'ice', generation = 3,
       climate: false,
     },
   }
-  client.authSession = new AuthSessionStore(client.config)
-  client.authSession.write(client.cache.token)
   client.logger = { log: (message) => h.logs.push(message) }
   client.getDateString = () => '20261029090000'
   client.sleep = async () => {}
   client.saveCache = () => {
-    client.assertCurrentSession()
     h.saves += 1
   }
   client.request = async (options) => {
-    client.assertCurrentSession()
     h.calls.push({ ...options, body: options.data ? JSON.parse(options.data) : undefined })
     const next = h.queue.shift() ?? reply(manufacturer)
     if (next instanceof Error) throw next
@@ -134,7 +128,6 @@ function runtime(manufacturer = 'hyundai', { powertrain = 'ice', generation = 3,
   }
   h.client = client
   h.load = load
-  h.revoke = () => new AuthSessionStore(client.config).clear()
   h.start = (options = {}) => client.climateOn(client.cache.car.id, input(options))
   h.stop = () => client.climateOff(client.cache.car.id)
   return h
@@ -339,30 +332,6 @@ for (const manufacturer of ['hyundai', 'kia']) {
     assert.equal(h.saves, 1)
   })
 
-  test(`${manufacturer} does not swallow a revoked session during command refresh`, async () => {
-    for (const refreshThrows of [true, false]) {
-      const h = runtime(manufacturer)
-      h.client.getCarStatus = async () => {
-        h.revoke()
-        if (refreshThrows) throw Error('Follow-up status unavailable')
-        return { ...h.client.cache.status, climate: true }
-      }
-      h.queue.push(
-        reply(manufacturer, {
-          json:
-            manufacturer === 'kia'
-              ? { status: { statusCode: 0 }, payload: { remoteStatus: 0 } }
-              : { status: 'SUCCESS' },
-        }),
-      )
-      await assert.rejects(
-        manufacturer === 'kia' ? h.realPoll(h.client.cache.car.id, 'command-id') : h.realPoll({}, 'command-id'),
-        /saved session was reset/,
-      )
-      assert.equal(h.saves, 0)
-      assert.equal(h.client.cache.status.climate, false)
-    }
-  })
 }
 
 test('standard presets carry their current temperature unit to an already initialized client', () => {

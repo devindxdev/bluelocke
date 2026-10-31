@@ -21,6 +21,7 @@ import { DEFAULT_IMAGE_PREVIEW_OPTIONS, VehicleImagePreviewOptions } from './wid
 
 // WKWebView rejects Promise return values even when Scriptable's completion callback is used.
 export const VEHICLE_IMAGE_EDITOR_READY_SCRIPT = 'void window.vehicleImagePreviewReady.then(completion)'
+export const VEHICLE_IMAGE_SAVE_URL = 'bluelocke-image://save?crop='
 
 export function formatVehicleImageError(error: unknown): string {
   const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error)
@@ -51,9 +52,13 @@ export function vehicleImageEditorHTML(
     html, body { overscroll-behavior: none; }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px -apple-system, BlinkMacSystemFont, sans-serif; }
     main { max-width: 640px; margin: auto; padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
-    h1 { font-size: 28px; letter-spacing: -.6px; margin: 0 0 8px; }
+    h1 { font-size: 22px; letter-spacing: -.6px; margin: 0; }
+    .editor-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 3; padding: 12px 0; background: var(--bg); }
+    #save-image { flex-shrink: 0; min-width: 80px; background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
+    #save-image:disabled { opacity: .5; }
+    #save-status { min-height: 20px; font-size: 13px; margin: 0 0 12px; }
     p { color: var(--muted); line-height: 1.5; margin: 0 0 20px; }
-    .preview-panel { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; padding: 10px 0; background: var(--bg); }
+    .preview-panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 68px); z-index: 2; padding: 10px 0; background: var(--bg); }
     .widget-guide { position: relative; background: #fff; color: #000; border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
     .widget-guide.dark { background: #000; color: #fff; }
     .widget-data { width: 100%; height: 100%; display: block; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
@@ -86,7 +91,8 @@ export function vehicleImageEditorHTML(
 </head>
 <body>
 <main>
-  <h1>Frame your vehicle.</h1>
+  <header class="editor-toolbar"><h1>Frame your vehicle.</h1><button id="save-image" disabled>Save</button></header>
+  <p id="save-status" role="status" aria-live="polite">Tap Save to keep your framing.</p>
   <p>Drag the photo to move it. Pinch or pull the corner to resize. See every change right in the widget.</p>
   <section class="preview-panel" aria-label="Interactive widget preview">
   ${preview.html}
@@ -103,8 +109,8 @@ export function vehicleImageEditorHTML(
     <input id="y" type="range" min="0" max="1" step="0.01">
   </div>
   </details>
-  <p class="note">Your photo stays in the widget's ${Math.round(preview.frame.width)} &times; ${Math.round(preview.frame.height)} point image area. The title and readings are sample data and stay fixed while you edit. Tap Done, then Use Image to save. Nothing is uploaded.</p>
-  <p id="error" role="alert" hidden>We couldn't load this image. Tap Done and choose another photo.</p>
+  <p class="note">Your photo stays in the widget's ${Math.round(preview.frame.width)} &times; ${Math.round(preview.frame.height)} point image area. Tap Save to apply your framing immediately. Closing without saving discards your latest adjustments. Nothing is uploaded.</p>
+  <p id="error" role="alert" hidden>We couldn't load this image. Close the editor and choose another photo.</p>
   <img id="source" alt="" hidden>
 </main>
 <script>
@@ -118,6 +124,28 @@ export function vehicleImageEditorHTML(
   const state = ${JSON.stringify(initialCrop)};
   const controls = ['zoom', 'x', 'y'];
   let ready = false;
+  let saving = false;
+  let savedCrop = '';
+  const saveButton = document.getElementById('save-image');
+  const saveStatus = document.getElementById('save-status');
+  function updateSaveButton() {
+    const saved = savedCrop === JSON.stringify(state);
+    saveButton.disabled = !ready || saving || saved;
+    saveButton.textContent = saving ? 'Saving…' : saved ? 'Saved' : 'Save';
+  }
+  saveButton.onclick = () => {
+    if (!ready || saving || savedCrop === JSON.stringify(state)) return;
+    saving = true;
+    saveStatus.textContent = 'Saving your vehicle image…';
+    updateSaveButton();
+    window.location.href = '${VEHICLE_IMAGE_SAVE_URL}' + encodeURIComponent(JSON.stringify({ ...state }));
+  };
+  window.vehicleImageSaveFinished = (success, message) => {
+    saving = false;
+    if (success) savedCrop = JSON.stringify(state);
+    saveStatus.textContent = success ? 'Saved. You can close the editor or keep adjusting.' : message;
+    updateSaveButton();
+  };
   const pointers = new Map();
   const handle = document.getElementById('resize-image');
   // Cancel native scrolling only on the editing surfaces, not on the page or controls.
@@ -139,17 +167,21 @@ export function vehicleImageEditorHTML(
       document.getElementById(key).value = state[key];
       document.getElementById(key + '-value').textContent = Math.round(state[key] * 100) + '%';
     });
+    if (!saving && savedCrop !== JSON.stringify(state)) saveStatus.textContent = 'Tap Save to keep your framing.';
+    updateSaveButton();
   }
   controls.forEach(key => {
     document.getElementById(key).addEventListener('input', event => {
+      if (saving) { event.target.value = state[key]; return; }
       const value = Number(event.target.value);
       if (key === 'zoom') Object.assign(state, zoomAt(sourceSize, frame, state, value, { x: frame.width / 2, y: frame.height / 2 }));
       else state[key] = value;
       draw();
     });
   });
-  document.getElementById('fit').onclick = () => { Object.assign(state, { zoom: 1, x: 0.5, y: 0.5 }); draw(); };
+  document.getElementById('fit').onclick = () => { if (saving) return; Object.assign(state, { zoom: 1, x: 0.5, y: 0.5 }); draw(); };
   document.getElementById('fill').onclick = () => {
+    if (saving) return;
     const fit = Math.min(frame.width / sourceSize.width, frame.height / sourceSize.height);
     const fill = Math.max(frame.width / sourceSize.width, frame.height / sourceSize.height);
     Object.assign(state, { zoom: fill / fit, x: 0.5, y: 0.5 }); draw();
@@ -185,14 +217,14 @@ export function vehicleImageEditorHTML(
     canvas.classList.toggle('dragging', points.length > 0);
   }
   canvas.addEventListener('pointerdown', event => {
-    if (!ready || resizing || pointers.size >= 2) return;
+    if (!ready || saving || resizing || pointers.size >= 2) return;
     event.preventDefault();
     pointers.set(event.pointerId, point(event));
     canvas.setPointerCapture(event.pointerId);
     beginGesture();
   });
   canvas.addEventListener('pointermove', event => {
-    if (!gesture || !pointers.has(event.pointerId)) return;
+    if (saving || !gesture || !pointers.has(event.pointerId)) return;
     event.preventDefault();
     pointers.set(event.pointerId, point(event));
     const points = [...pointers.values()];
@@ -209,18 +241,18 @@ export function vehicleImageEditorHTML(
   }));
   canvas.addEventListener('wheel', event => {
     event.preventDefault();
-    if (!ready) return;
+    if (!ready || saving) return;
     Object.assign(state, zoomAt(sourceSize, frame, state, state.zoom * Math.exp(-event.deltaY * 0.002), toFrame(point(event))));
     draw();
   }, { passive: false });
   handle.addEventListener('pointerdown', event => {
-    if (!ready || resizing || pointers.size) return;
+    if (!ready || saving || resizing || pointers.size) return;
     event.preventDefault();
     resizing = { id: event.pointerId, start: point(event), crop: { ...state } };
     handle.setPointerCapture(event.pointerId);
   });
   handle.addEventListener('pointermove', event => {
-    if (!resizing || resizing.id !== event.pointerId) return;
+    if (saving || !resizing || resizing.id !== event.pointerId) return;
     event.preventDefault();
     const bounds = canvas.getBoundingClientRect();
     const delta = (event.clientX - resizing.start.x) / bounds.width + (event.clientY - resizing.start.y) / bounds.height;
@@ -233,7 +265,7 @@ export function vehicleImageEditorHTML(
   handle.addEventListener('keydown', event => {
     const grow = ['ArrowUp', 'ArrowRight', '+', '=', 'Enter', ' '].includes(event.key);
     const shrink = ['ArrowDown', 'ArrowLeft', '-', '_'].includes(event.key);
-    if ((!grow && !shrink) || !ready) return;
+    if ((!grow && !shrink) || !ready || saving) return;
     event.preventDefault();
     Object.assign(state, zoomAt(sourceSize, frame, state, state.zoom * (grow ? 1.1 : 1 / 1.1), { x: frame.width / 2, y: frame.height / 2 }));
     draw();
@@ -253,9 +285,10 @@ export function vehicleImageEditorHTML(
 async function editVehicleImage(
   image: Image,
   options: VehicleImagePreviewOptions,
-  crop?: VehicleImageCrop,
+  crop: VehicleImageCrop | undefined,
+  onSave: (crop: VehicleImageCrop) => void,
   onStage: (stage: string) => void = () => {},
-): Promise<VehicleImageCrop | undefined> {
+): Promise<void> {
   onStage('Preparing the live editor')
   const view = new WebView()
   onStage('Loading the live editor')
@@ -265,17 +298,44 @@ async function editVehicleImage(
   if (!ready) throw new Error('The image preview could not be loaded.')
   onStage('Showing the live editor')
   // Fullscreen avoids iOS's sheet-dismiss pan recognizer competing with image drags.
-  await view.present(true)
-  onStage('Reading your image framing')
-  const result = await view.evaluateJavaScript('window.getVehicleImageCrop()')
-  if (!result) throw new Error('The image preview could not be loaded.')
-  onStage('Confirming your image')
-  const accepted = await confirm('Use this vehicle image?', {
-    message: 'Save the framing you just adjusted in the live widget preview?',
-    confirmButtonTitle: 'Use Image',
-    cancelButtonTitle: 'Keep Current',
-  })
-  return accepted ? normalizeVehicleImageCrop(image.size, result) : undefined
+  let closed = false
+  let feedback = Promise.resolve()
+  let feedbackError: unknown
+  // Intercept the editor's local Save action. No navigation or photo upload
+  // occurs, and no JavaScript callback is left waiting when Close is tapped.
+  view.shouldAllowRequest = (request) => {
+    if (!request.url.startsWith(VEHICLE_IMAGE_SAVE_URL)) return false
+    let success = false
+    let message = ''
+    try {
+      if (request.url.length > 2048) throw new Error('Invalid image framing.')
+      const crop = JSON.parse(decodeURIComponent(request.url.slice(VEHICLE_IMAGE_SAVE_URL.length)))
+      if (!crop || !['zoom', 'x', 'y'].every((key) => typeof crop[key] === 'number' && Number.isFinite(crop[key]))) {
+        throw new Error('Invalid image framing.')
+      }
+      onStage('Saving the vehicle image')
+      onSave(normalizeVehicleImageCrop(image.size, crop))
+      success = true
+    } catch (error) {
+      message = `Could not save: ${formatVehicleImageError(error)}. Your last saved image is still in use. Tap Save to retry.`
+    }
+    feedback = feedback
+      .then(async () => {
+        if (!closed)
+          await view.evaluateJavaScript(`window.vehicleImageSaveFinished(${success}, ${JSON.stringify(message)})`)
+      })
+      .catch((error) => {
+        if (!closed) feedbackError = error
+      })
+    return false
+  }
+  try {
+    await view.present(true)
+  } finally {
+    closed = true
+    await feedback
+  }
+  if (feedbackError) throw feedbackError
 }
 
 function imagePreviewOptions(bl: Bluelink): VehicleImagePreviewOptions {
@@ -353,18 +413,27 @@ export async function loadVehicleImageSettings(bl: Bluelink): Promise<void> {
     if (!image) return
     stage = 'Resizing the selected image'
     const source = prepareVehicleImage(image)
-    const editedCrop = await editVehicleImage(source, previewOptions, crop, (value) => {
-      stage = value
-    })
-    if (!editedCrop) return
-    stage = 'Saving the vehicle image'
-    saveCustomVehicleImage(vehicleId, source, editedCrop)
-    imageUpdated = true
-    stage = 'Showing the save confirmation'
-    await confirm('Your vehicle image is saved', {
-      message: 'Close Settings to see it in the app. Widgets will show it on their next refresh.',
-      includeCancel: false,
-    })
+    await editVehicleImage(
+      source,
+      previewOptions,
+      crop,
+      (editedCrop) => {
+        try {
+          saveCustomVehicleImage(vehicleId, source, editedCrop)
+          imageUpdated = true
+        } catch (error) {
+          try {
+            bl.getLogger().log(`Vehicle image error - ${stage}: ${formatVehicleImageError(error)}`)
+          } catch {
+            // Keep the save error visible even if diagnostic storage fails.
+          }
+          throw error
+        }
+      },
+      (value) => {
+        stage = value
+      },
+    )
   } catch (error) {
     if (/cancel(?:led|ed)?/i.test(String(error))) return
     const detail = formatVehicleImageError(error)

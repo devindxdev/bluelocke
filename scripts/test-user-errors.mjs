@@ -85,6 +85,7 @@ function runtime(mode = 'widget') {
     if (dependency.endsWith('log-sanitizer')) return load('src/lib/log-sanitizer.ts')
     if (dependency === 'widget') return load('src/widget.ts')
     if (dependency === 'config') return { getConfig: () => account, configExists: () => true }
+    if (dependency.endsWith('/settings')) return { hasCompleteAccountSettings: () => true }
     if (dependency === 'lib/bluelink')
       return {
         initRegionalBluelink: async () => {
@@ -196,4 +197,29 @@ test('typed initialization errors retain their safe guidance in the widget', asy
   h.initError = new h.helper.UserFacingError('Another sign-in is already in progress. Try again shortly.')
   await h.initialize()
   assert.ok(h.texts(h.widgets[0]).includes(h.initError.publicMessage))
+})
+
+test('shared error dialogs hide request details while keeping sanitized diagnostics', () => {
+  const h = runtime('app')
+  const displayed = [],
+    saved = []
+  const file = 'src/lib/scriptable-utils/errorHandling.ts'
+  const code = ts.transpileModule(fs.readFileSync(path.join(ROOT, file), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  const module = { exports: {} }
+  vm.runInNewContext(`(function(require,module,exports){${code}\n})`, {})(
+    (dep) => {
+      if (dep.endsWith('/confirm')) return { OK: (title, opts) => displayed.push({ title, ...opts }) }
+      if (dep.endsWith('/PersistedLog')) return { default: () => ({ log: (entry) => saved.push(entry) }) }
+      if (dep.endsWith('/user-error')) return h.helper
+      if (dep.endsWith('/log-sanitizer')) return { sanitizeLog: () => 'sanitized request diagnostics' }
+      throw Error(dep)
+    },
+    module,
+    module.exports,
+  )
+  module.exports.alertAndLogError(new Error(SCREENSHOT_ERROR), 'status refresh')
+  assert.equal(displayed[0].message, DEFAULT_MESSAGE)
+  assert.equal(saved[0].error, 'sanitized request diagnostics')
 })

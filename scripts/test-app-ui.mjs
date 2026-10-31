@@ -31,6 +31,30 @@ test('fresh setup saves every account field without requiring a vehicle cache', 
   await opening
 })
 
+test('first-run account details save progressively and Continue waits for a complete account', async () => {
+  const h = uiHarness({ account: false })
+  const opening = h.screens.loadConfigScreen()
+  assert.ok(h.texts().includes('Welcome to Bluelocke'))
+  await assert.rejects(h.tap('Continue'), /No enabled action/)
+  h.choices.push('canada')
+  await h.tap('Region')
+  h.alerts.push({ text: 'driver@example.test' })
+  await h.tap('Email or username')
+  assert.equal(h.config.getConfig().auth.username, 'driver@example.test')
+  assert.equal(h.screens.hasCompleteAccountSettings(), false)
+  h.top().close()
+  await opening
+  const reopening = h.screens.loadConfigScreen()
+  assert.ok(h.texts().includes('driver@example.test'))
+  h.alerts.push({ text: 'password' }, { text: '1234' })
+  await h.tap('Password')
+  await assert.rejects(h.tap('Continue'), /No enabled action/)
+  await h.tap('Vehicle PIN')
+  assert.equal(h.screens.hasCompleteAccountSettings(), true)
+  await h.tap('Continue')
+  await reopening
+})
+
 test('Settings has five destinations, explains autosave, and has no Save button', async () => {
   const h = uiHarness()
   const opening = h.screens.loadConfigScreen(h.bl)
@@ -57,30 +81,6 @@ test('Settings has five destinations, explains autosave, and has no Save button'
   h.top().close()
   await opening
   assert.equal(h.writes, 0)
-})
-
-test('first-run account details save progressively and Continue waits for a complete account', async () => {
-  const h = uiHarness({ account: false })
-  const opening = h.screens.loadConfigScreen()
-  assert.ok(h.texts().includes('Welcome to Bluelocke'))
-  await assert.rejects(h.tap('Continue'), /No enabled action/)
-  h.choices.push('canada')
-  await h.tap('Region')
-  h.alerts.push({ text: 'driver@example.test' })
-  await h.tap('Email or username')
-  assert.equal(h.config.getConfig().auth.username, 'driver@example.test')
-  assert.equal(h.config.configExists(), false)
-  h.top().close()
-  await opening
-  const reopening = h.screens.loadConfigScreen()
-  assert.ok(h.texts().includes('driver@example.test'))
-  h.alerts.push({ text: 'password' }, { text: '1234' })
-  await h.tap('Password')
-  await assert.rejects(h.tap('Continue'), /No enabled action/)
-  await h.tap('Vehicle PIN')
-  assert.equal(h.config.configExists(), true)
-  await h.tap('Continue')
-  await reopening
 })
 
 test('display name edits directly from Vehicle and saves on Done without another page', async () => {
@@ -178,32 +178,28 @@ test('pickers mark the current option and cancellation or choosing it again does
   await opening
 })
 
-test('account edits invalidate authentication immediately while changing verification method does not', async () => {
+test('account edits clear the original vehicle cache while verification preference changes preserve it', async () => {
   const h = uiHarness()
   const cacheKey = 'egmp-scriptable-bl-cache-Bluelocke'
-  const sessionKey = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
-  h.keys.set(cacheKey, 'cached vehicle data')
-  h.keys.set(
-    sessionKey,
-    JSON.stringify({ ...JSON.parse(h.keys.get(sessionKey)), token: { accessToken: 'old-session' } }),
-  )
+  h.keys.set(cacheKey, 'original cached vehicle data')
   h.bl.deleteCache = () => {
-    throw new Error('Settings must not invalidate a second time')
+    h.invalidations++
+    h.keys.delete(cacheKey)
   }
   const opening = h.screens.loadAccountSettingsScreen(h.bl)
   h.choices.push('email')
   await h.tap('Verification code')
   assert.equal(h.keys.has(cacheKey), true)
-  assert.equal(JSON.parse(h.keys.get(sessionKey)).token.accessToken, 'old-session')
+  assert.equal(h.invalidations, 0)
   h.alerts.push({ text: 'other@example.test' })
   await h.tap('Email or username')
   assert.equal(h.keys.has(cacheKey), false)
-  assert.equal(JSON.parse(h.keys.get(sessionKey)).token, undefined)
+  assert.equal(h.invalidations, 1)
+  assert.ok(![...h.keys.keys()].some((key) => key.startsWith('bluelocke:auth-session:')))
   assert.ok(!h.messages.some((message) => message.title === 'Could not save this change'))
   assert.equal(h.config.getConfig().auth.username, 'other@example.test')
   assert.equal(h.config.getConfig().auth.password, 'password')
   assert.equal(h.config.getConfig().mfaPreference, 'email')
-  assert.ok(h.config.getConfig().widgetConfig.standardPollPeriod > 0)
   h.top().close()
   await opening
 })
@@ -219,21 +215,21 @@ test('an existing account can change manufacturer without an active client or st
   await opening
 })
 
-test('partial legacy account data can be completed and fresh/reset settings can be cleared repeatedly', async () => {
-  const h = uiHarness({ account: false })
-  h.keys.set('bluelocke:config:["Bluelocke"]', JSON.stringify({ auth: { region: 'canada' }, manufacturer: 'hyundai' }))
-  const opening = h.screens.loadConfigScreen()
-  h.choices.push('kia')
-  await h.tap('Manufacturer')
-  assert.equal(h.config.getConfig().manufacturer, 'kia')
-  assert.equal(h.config.getConfig().auth.username, '')
-  assert.equal(h.config.getConfig().auth.region, 'canada')
-  assert.ok(!h.messages.some((message) => message.title === 'Could not save this change'))
+test('modern preferences keep the v1.24.4 configuration key and do not replace credentials or tokens', async () => {
+  const h = uiHarness()
+  const before = plain(h.config.getConfig().auth)
+  const cacheKey = 'egmp-scriptable-bl-cache-Bluelocke'
+  h.keys.set(cacheKey, 'original token and status')
+  const opening = h.screens.loadAppearanceSettingsScreen()
+  h.choices.push('dark')
+  await h.tap('Widget appearance')
+  assert.equal(h.config.getConfig().widgetAppearance, 'dark')
+  assert.deepEqual(plain(h.config.getConfig().auth), before)
+  assert.equal(h.keys.get(cacheKey), 'original token and status')
+  assert.ok(h.keys.has('egmp-scriptable-config-Bluelocke'))
+  assert.ok(!h.keys.has('bluelocke:config:["Bluelocke"]'))
   h.top().close()
   await opening
-  assert.doesNotThrow(() => h.config.deleteConfig(true))
-  assert.doesNotThrow(() => h.config.deleteConfig(true))
-  assert.equal(h.config.configExists(), false)
 })
 
 test('invalid numbers stay in the editor and never replace the last saved climate value', async () => {
@@ -305,4 +301,49 @@ test('Troubleshooting switches save immediately without exposing the multi-car s
   assert.equal(h.config.getConfig().debugLogging, true)
   h.top().close()
   await opening
+})
+
+test('Vehicle photo opens the existing live photo editor without changing account settings', async () => {
+  const h = uiHarness()
+  const before = JSON.stringify(h.config.getConfig())
+  const opening = h.screens.loadCarSettingsScreen(h.bl)
+  await h.tap('Vehicle photo')
+  assert.equal(h.photoEdits, 1)
+  assert.equal(JSON.stringify(h.config.getConfig()), before)
+  assert.equal(h.invalidations, 0)
+  h.top().close()
+  await opening
+})
+
+test('incomplete v1.24.4 settings reopen modern setup, including a previously missing PIN', async () => {
+  const h = uiHarness({ account: false })
+  h.keys.set(
+    'egmp-scriptable-config-Bluelocke',
+    JSON.stringify({
+      manufacturer: 'hyundai',
+      auth: { username: 'driver@example.test', password: 'password', region: 'canada' },
+    }),
+  )
+  const opening = h.screens.loadConfigScreen()
+  assert.ok(h.texts().includes('Welcome to Bluelocke'))
+  assert.equal(h.legacyForms.length, 0)
+  assert.equal(h.screens.hasCompleteAccountSettings(), false)
+  h.alerts.push({ text: '1234' })
+  await h.tap('Vehicle PIN')
+  assert.equal(h.screens.hasCompleteAccountSettings(), true)
+  await h.tap('Continue')
+  await opening
+})
+
+test('a saved numeric v1.24.4 PIN opens modern Account without changing stored values', async () => {
+  const h = uiHarness()
+  h.config.setConfig({ ...h.config.getConfig(), auth: { ...h.config.getConfig().auth, pin: 1234 } })
+  const before = h.keys.get('egmp-scriptable-config-Bluelocke')
+  const opening = h.screens.loadAccountSettingsScreen()
+  assert.ok(h.texts().includes('Account'))
+  assert.ok(h.texts().includes('••••••••'))
+  assert.equal(h.screens.hasCompleteAccountSettings(), true)
+  h.top().close()
+  await opening
+  assert.equal(h.keys.get('egmp-scriptable-config-Bluelocke'), before)
 })

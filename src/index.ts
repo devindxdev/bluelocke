@@ -1,3 +1,5 @@
+import { getUserErrorMessage, UserFacingError } from './lib/user-error'
+import { sanitizeLog } from './lib/log-sanitizer'
 import { initRegionalBluelink } from 'lib/bluelink'
 import { getBluelinkLogger, getBluelinkResponseLogger } from 'lib/bluelink-regions/base'
 import { getWidgetLogger } from 'widget'
@@ -12,10 +14,8 @@ import {
 import { createApp } from 'app'
 import { getAppLogger, getSiriLogger } from './lib/util'
 import { processSiriRequest } from 'siri'
-import { getConfig, configExists } from 'config'
-import { loadConfigScreen } from './settings'
-import { sanitizeLog } from './lib/log-sanitizer'
-import { getUserErrorMessage, UserFacingError } from './lib/user-error'
+import { getConfig } from 'config'
+import { hasCompleteAccountSettings, loadConfigScreen } from './settings'
 import { confirm, quickOptions } from './lib/scriptable-utils'
 
 function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean): string {
@@ -28,10 +28,10 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
 }
 ;(async () => {
   // load config on first run if not configured
-  if (!configExists() && (config.runsWithSiri || config.runsInWidget)) return
-  if (!configExists()) {
+  if (!hasCompleteAccountSettings() && (config.runsWithSiri || config.runsInWidget)) return
+  if (!hasCompleteAccountSettings()) {
     await loadConfigScreen()
-    if (!configExists()) return
+    if (!hasCompleteAccountSettings()) return
   }
 
   const logger = getAppLogger()
@@ -94,7 +94,7 @@ function getLoginFailureMessage(region: string, requiresForegroundAuth: boolean)
     return
   }
 
-  // deal with login failure - main app only
+  // deal with login failure, multiple car selection - main app only
   if (!bl || bl.loginFailed()) {
     if (config.runsWithSiri || config.runsInWidget) {
       const errorMessage =

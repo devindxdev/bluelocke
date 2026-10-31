@@ -1,16 +1,23 @@
 ---
-title: Vehicle Setup
+title: Multi Car
 nav_order: 9
 ---
 
-# Vehicle Setup
+# Multi Car
 
-Bluelocke uses the earlier automatic vehicle-loading behavior. On a fresh login it uses the first vehicle returned by your account. There is no vehicle picker or multi-car setting.
+Bluelocke includes a `Multi Car Support` config option that changes cache handling.
 
-Accounts with several vehicles currently have no supported way to choose another car. Duplicating the script does not select a different vehicle.
+## Current Behavior
 
-## Updating from v1.25.0
+- Vehicle selection is resolved from account vehicle data and cached state.
+- In multi-vehicle accounts, Bluelocke uses available vehicle context from the API/cache path.
+- Enabling `Multi Car Support` separates cache keys per script instance.
 
-Your saved account, preferences, and photo settings are kept. Existing authentication is recovered separately where available; saved vehicle selections and their old status are ignored. The app loads its default vehicle again. If the service requires verification, finish it once in Scriptable.
+## Practical Setup
 
-Widgets and Shortcuts no longer require selecting a vehicle in the app first. If sign-in needs verification, run the script manually to finish signing in.
+For cleaner separation, use one Scriptable script per car profile:
+
+1. Duplicate script with a unique name.
+2. Enable `Multi Car Support`.
+3. Configure each script for the intended vehicle/account context.
+4. Point widgets/shortcuts at the specific script name.

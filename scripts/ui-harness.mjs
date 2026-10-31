@@ -7,9 +7,10 @@ import ts from 'typescript'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-export function uiHarness({ dark = false, electric = false, account = true } = {}) {
+export function uiHarness({ dark = false, electric = false, account = true, settingsSource } = {}) {
   const h = {
     tables: [],
+    legacyForms: [],
     keys: new Map(),
     choices: [],
     alerts: [],
@@ -154,6 +155,11 @@ export function uiHarness({ dark = false, electric = false, account = true } = {
   }
   const library = {
     getTable,
+    form: (options) => async (initial) => {
+      const page = { options, initial }
+      h.legacyForms.push(page)
+      return page
+    },
     quickOptions: async (options, settings) => {
       h.pickers.push({ options, settings })
       return h.choices.length ? h.choices.shift() : null
@@ -245,7 +251,6 @@ export function uiHarness({ dark = false, electric = false, account = true } = {
     'src/lib/storage.ts',
     'src/lib/secure-url.ts',
     'src/lib/update-security.ts',
-    'src/lib/auth-session.ts',
     'src/lib/user-error.ts',
     'src/lib/log-sanitizer.ts',
     'src/lib/vehicle-photo.ts',
@@ -259,9 +264,14 @@ export function uiHarness({ dark = false, electric = false, account = true } = {
     if (modules.has(relative)) return modules.get(relative).exports
     const module = { exports: {} }
     modules.set(relative, module)
-    const source = ts.transpileModule(fs.readFileSync(path.join(ROOT, relative), 'utf8'), {
-      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    }).outputText
+    const source = ts.transpileModule(
+      relative === 'src/settings.ts' && settingsSource !== undefined
+        ? settingsSource
+        : fs.readFileSync(path.join(ROOT, relative), 'utf8'),
+      {
+        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+      },
+    ).outputText
     const require = (dependency) => {
       if (dependency === 'url') return { default: Url }
       if (dependency.endsWith('scriptable-utils')) return library

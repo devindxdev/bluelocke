@@ -1,4 +1,3 @@
-import { exactCallback, sameOrigin, singleQueryParam } from '../secure-url'
 import { getVehiclePhotoUrl } from '../vehicle-photo'
 import {
   Bluelink,
@@ -190,13 +189,13 @@ export class BluelinkEurope extends Bluelink {
       throw Error(error)
     }
 
-    if (!sameOrigin(respLoginForm.resp.url, this.apiDomain)) {
+    if (!respLoginForm.resp.url.startsWith(this.apiDomain)) {
       // we have not been redirected - so need to login
       // Form HTML looks like
       // <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="https://eu-account.hyundai.com/auth/realms/euhyundaiidm/login-actions/authenticate?session_code=<session_code>&amp;execution=<execution_id>&amp;client_id=<client_id>&amp;tab_id=<tab_id>" method="post">
       // extract entire action URL - confirm its the right host - then extract session code and execution ID
       const loginURL = respLoginForm.json.match(/action="([^"]+)"/)
-      if (!loginURL || loginURL.length < 2 || !sameOrigin(loginURL[1], `https://${this.apiConfig.authHost}`)) {
+      if (!loginURL || loginURL.length < 2 || !loginURL[1].startsWith(`https://${this.apiConfig.authHost}`)) {
         const error = `Failed to extract login URL ${JSON.stringify(respLoginForm.resp)}`
         if (this.config.debugLogging) this.logger.log(error)
         throw Error(error)
@@ -206,14 +205,7 @@ export class BluelinkEurope extends Bluelink {
       const sessionCode = params.session_code
       const executionId = params.execution
       const tabId = params.tab_id
-      if (
-        typeof sessionCode !== 'string' ||
-        !sessionCode ||
-        typeof executionId !== 'string' ||
-        !executionId ||
-        typeof tabId !== 'string' ||
-        !tabId
-      ) {
+      if (!sessionCode || !executionId || !tabId) {
         const error = `Failed to extract session code or execution ID ${JSON.stringify(params)}`
         if (this.config.debugLogging) this.logger.log(error)
         throw Error(error)
@@ -222,7 +214,7 @@ export class BluelinkEurope extends Bluelink {
       // now actually login
       const loginData = `username=${encodeURIComponent(this.config.auth.username)}&password=${encodeURIComponent(this.config.auth.password)}&credentialId=&rememberMe=on`
       const respLogin = await this.request({
-        url: `https://${this.apiConfig.authHost}/auth/realms/${this.apiConfig.authParam}/login-actions/authenticate?session_code=${encodeURIComponent(sessionCode)}&execution=${encodeURIComponent(executionId)}&client_id=${this.apiConfig.authClientID}&tab_id=${encodeURIComponent(tabId)}`,
+        url: `https://${this.apiConfig.authHost}/auth/realms/${this.apiConfig.authParam}/login-actions/authenticate?session_code=${sessionCode}&execution=${executionId}&client_id=${this.apiConfig.authClientID}&tab_id=${tabId}`,
         noAuth: true,
         notJSON: true,
         validResponseFunction: this.requestResponseValid,
@@ -240,7 +232,7 @@ export class BluelinkEurope extends Bluelink {
       }
 
       // at this point we should have been rediected to the API domain after completing login - if not its a error - likely password issues
-      if (!sameOrigin(respLogin.resp.url, this.apiDomain)) {
+      if (!respLogin.resp.url.startsWith(this.apiDomain)) {
         const error = `Login did not redirect - login error: ${JSON.stringify(respLogin.resp)} data: ${respLogin.json}`
         if (this.config.debugLogging) this.logger.log(error)
         return undefined
@@ -303,19 +295,12 @@ export class BluelinkEurope extends Bluelink {
     }
   }
 
-  protected loginWithWebview(start_url: string, callback_url: string, expectedState?: string) {
+  protected loginWithWebview(start_url: string, callback_url: string) {
     // @ts-ignore
     return new Promise((resolve, reject) => {
       const webview = new WebView()
       webview.shouldAllowRequest = (request) => {
-        if (!exactCallback(request.url, callback_url)) return true
-        try {
-          if (expectedState && singleQueryParam(request.url, 'state') !== expectedState)
-            throw Error('Authentication state did not match.')
-        } catch (error) {
-          reject(error)
-          return false
-        }
+        if (!request.url.startsWith(callback_url)) return true
         // we have been redirected to the callback URL - return URL and update webview to a success page
         resolve(request.url)
         webview.loadHTML(
@@ -413,7 +398,6 @@ export class BluelinkEurope extends Bluelink {
   }
 
   protected async KiaLogin(): Promise<BluelinkTokens | undefined> {
-    const state = UUID.string()
     const authUrl =
       `https://${this.apiConfig.authHost}/auth/api/v2/user/oauth2/authorize?` +
       [
@@ -422,15 +406,16 @@ export class BluelinkEurope extends Bluelink {
         'response_type=code',
         'scope=account.token.transfer%20account.id.generate%20account.puid.userinfos%20account.userinfo%20read%20account.userinfos%20puid%20email%20name%20mobileNum%20birthdate%20lang%20country%20signUpDate%20gender%20nationInfo%20certProfile%20offline',
         'response_type=code',
-        `state=${encodeURIComponent(state)}`,
+        'state=hmgoneapp',
         'ui_locales=en-GB',
       ].join('&')
 
     // open webview for user to login - which handles detecting login, settings webview to authURL and finally detecting the redirectURL and returning
-    const callback_url = (await this.loginWithWebview(authUrl, 'https://oneapp.kia.com/redirect', state)) as string
+    const callback_url = (await this.loginWithWebview(authUrl, 'https://oneapp.kia.com/redirect')) as string
 
     // extract code from callback URL
-    const code = singleQueryParam(callback_url, 'code')
+    const codeParams = Url.parse(callback_url, true).query
+    const code = codeParams.code
     if (!code) {
       const error = `Failed to extract code from redirect ${callback_url}`
       if (this.config.debugLogging) this.logger.log(error)
@@ -439,7 +424,7 @@ export class BluelinkEurope extends Bluelink {
 
     // swap code for tokens
     const respTokens = await this.request({
-      url: `https://${this.apiConfig.newApiDomain}/domain/api/v1/auth/token?code=${encodeURIComponent(code)}`,
+      url: `https://${this.apiConfig.newApiDomain}/domain/api/v1/auth/token?code=${code}`,
       method: 'POST',
       noAuth: true,
       disableAdditionalHeaders: true,
@@ -588,10 +573,7 @@ export class BluelinkEurope extends Bluelink {
   }
 
   protected async newRefreshTokens(): Promise<BluelinkTokens | undefined> {
-    const currentTokens = this.tokens || this.cache?.token
-    if (!currentTokens) return undefined
-
-    if (!currentTokens.additionalTokens || !isNotEmptyObject(currentTokens.additionalTokens)) {
+    if (!this.cache || !this.cache.token.additionalTokens || !isNotEmptyObject(this.cache.token.additionalTokens)) {
       if (this.config.debugLogging) this.logger.log('No additional tokens - cannot refresh')
       return undefined
     }
@@ -602,21 +584,21 @@ export class BluelinkEurope extends Bluelink {
     const respTokens = await this.request({
       url: `https://${this.apiConfig.newApiDomain}/domain/api/v2/auth/token-refresh`,
       data: JSON.stringify({
-        accessToken: currentTokens.additionalTokens['access'],
-        refreshToken: currentTokens.additionalTokens['refresh'],
-        exchangeableAccessToken: currentTokens.additionalTokens['exchangeableAccess'],
-        exchangeableRefreshToken: currentTokens.additionalTokens['exchangeableRefresh'],
-        nonCcsToken: currentTokens.additionalTokens['nonCcsToken'],
-        nonCcsRefreshToken: currentTokens.additionalTokens['nonCcsRefreshToken'],
+        accessToken: this.cache.token.additionalTokens['access'],
+        refreshToken: this.cache.token.additionalTokens['refresh'],
+        exchangeableAccessToken: this.cache.token.additionalTokens['exchangeableAccess'],
+        exchangeableRefreshToken: this.cache.token.additionalTokens['exchangeableRefresh'],
+        nonCcsToken: this.cache.token.additionalTokens['nonCcsToken'],
+        nonCcsRefreshToken: this.cache.token.additionalTokens['nonCcsRefreshToken'],
       }),
       noAuth: true,
       validResponseFunction: this.requestResponseValid,
       headers: {
         'client-id': 'com.kia.oneapp.eu',
-        Authentication: currentTokens.additionalTokens['idToken'] || '',
-        Authorization: `Bearer ${currentTokens.additionalTokens['access'] || ''}`,
-        'exchangeable-token': currentTokens.additionalTokens['exchangeableAccess'] || '',
-        'non-ccs-token': currentTokens.additionalTokens['nonCcsToken'] || '',
+        Authentication: this.cache.token.additionalTokens['idToken'] || '',
+        Authorization: `Bearer ${this.cache.token.additionalTokens['access'] || ''}`,
+        'exchangeable-token': this.cache.token.additionalTokens['exchangeableAccess'] || '',
+        'non-ccs-token': this.cache.token.additionalTokens['nonCcsToken'] || '',
       },
     })
 
@@ -644,14 +626,11 @@ export class BluelinkEurope extends Bluelink {
   }
 
   protected async refreshTokens(): Promise<BluelinkTokens | undefined> {
-    const currentTokens = this.tokens || this.cache?.token
-    if (!currentTokens) return undefined
-
-    if (currentTokens.additionalTokens) {
+    if (this.cache && this.cache.token.additionalTokens) {
       return await this.newRefreshTokens()
     }
 
-    if (!currentTokens.refreshToken) {
+    if (!this.cache.token.refreshToken) {
       if (this.config.debugLogging) this.logger.log('No refresh token - cannot refresh')
       return undefined
     }
@@ -662,7 +641,7 @@ export class BluelinkEurope extends Bluelink {
       data: [
         `client_id=${this.apiConfig.clientId}`,
         'grant_type=refresh_token',
-        `refresh_token=${currentTokens.refreshToken}`,
+        `refresh_token=${this.cache.token.refreshToken}`,
         `redirect_uri=${this.apiDomain}:${this.apiConfig.apiPort}/api/v1/user/oauth2/redirect`,
       ].join('&'),
       noAuth: true,
@@ -677,7 +656,7 @@ export class BluelinkEurope extends Bluelink {
       return {
         authCookie: '',
         accessToken: `Bearer ${resp.json.access_token}`,
-        refreshToken: currentTokens.refreshToken, // we never recieve a new refresh token
+        refreshToken: this.cache.token.refreshToken, // we never recieve a new refresh token
         expiry: Math.floor(Date.now() / 1000) + Number(resp.json.expires_in), // we only get a expireIn not a actual date
         authId: await this.getDeviceId(),
       }
@@ -752,8 +731,8 @@ export class BluelinkEurope extends Bluelink {
         modelName: vehicle.vehicleName,
         modelYear: vehicle.year,
         odometer: 0, // not available here
-        modelColour: vehicle.detailInfo?.outColor,
-        modelTrim: vehicle.detailInfo?.saleCarmdlCd,
+        modelColour: vehicle.detailInfo.outColor,
+        modelTrim: vehicle.detailInfo.saleCarmdlCd,
         europeccs2: vehicle.ccuCCS2ProtocolSupport,
       }
     }

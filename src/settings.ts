@@ -5,7 +5,6 @@ import {
   StandardClimatePresetConfig,
   configExists,
   getConfig,
-  getFlattenedConfig,
   setConfig,
   deleteConfig,
   getStandardClimateConfig,
@@ -65,7 +64,7 @@ async function settingsMenu(title: string, entries: () => MenuEntry[]) {
 }
 
 export async function loadConfigScreen(bl?: Bluelink) {
-  if (!configExists()) return loadAccountSettingsScreen(bl, true)
+  if (!hasCompleteAccountSettings()) return loadAccountSettingsScreen(bl, true)
   return settingsMenu('Settings', () => [
     {
       title: 'Account',
@@ -92,7 +91,27 @@ type AccountSettings = Pick<
   'username' | 'password' | 'pin' | 'region' | 'manufacturer' | 'mfaPreference'
 >
 
-export async function loadAccountSettingsScreen(_bl?: Bluelink, firstRun = false) {
+function accountSettingsValues(): AccountSettings {
+  const current = getConfig()
+  return {
+    manufacturer: current.manufacturer,
+    username: String(current.auth?.username ?? ''),
+    password: String(current.auth?.password ?? ''),
+    pin: String(current.auth?.pin ?? ''),
+    region: current.auth?.region ?? '',
+    mfaPreference: current.mfaPreference,
+  }
+}
+
+// This checks whether the setup UI can continue. Login and token handling stay
+// in the original v1.24.4 regional clients, using their original Keychain keys.
+export function hasCompleteAccountSettings(): boolean {
+  if (!configExists()) return false
+  const { manufacturer, username, password, pin, region } = accountSettingsValues()
+  return !!(manufacturer && username.trim() && password && pin.trim() && region)
+}
+
+export async function loadAccountSettingsScreen(bl?: Bluelink, firstRun = false) {
   return settingsForm<AccountSettings>({
     title: firstRun ? 'Welcome to Bluelocke' : 'Account',
     subtitle: 'Sign in with your connected vehicle account. Changes save automatically.',
@@ -104,15 +123,25 @@ export async function loadAccountSettingsScreen(_bl?: Bluelink, firstRun = false
         ...current,
         manufacturer: values.manufacturer ?? current.manufacturer,
         auth: {
-          username: values.username ?? current.auth.username,
-          password: values.password ?? current.auth.password,
-          pin: values.pin ?? current.auth.pin,
-          region: values.region ?? current.auth.region,
+          username: values.username ?? current.auth?.username ?? '',
+          password: values.password ?? current.auth?.password ?? '',
+          pin: values.pin ?? String(current.auth?.pin ?? ''),
+          region: values.region ?? current.auth?.region ?? '',
         },
         mfaPreference: values.mfaPreference ?? current.mfaPreference,
       }
-      // setConfig invalidates authentication/status once when credentials change.
       setConfig(next)
+      // Keep the original v1.24.4 cache and token flow. The modern page
+      // retires the same completed cache that the original Save action did.
+      if (
+        current.manufacturer !== next.manufacturer ||
+        current.auth?.region !== next.auth.region ||
+        current.auth?.username !== next.auth.username ||
+        current.auth?.password !== next.auth.password
+      ) {
+        const cacheKey = `egmp-scriptable-bl-cache-${Script.name().replaceAll(' ', '')}`
+        if (Keychain.contains(cacheKey)) (bl ?? new Bluelink(current)).deleteCache()
+      }
     },
     isFormValid: ({ username, password, pin, region, manufacturer }) =>
       !!(username?.trim() && password && pin?.trim() && region && manufacturer),
@@ -135,7 +164,7 @@ export async function loadAccountSettingsScreen(_bl?: Bluelink, firstRun = false
         mapDisplayValue: (value) => (value === 'sms' ? 'Text message' : 'Email'),
       },
     },
-  })(getFlattenedConfig())
+  })(accountSettingsValues())
 }
 
 export async function loadCarSettingsScreen(bl?: Bluelink) {
