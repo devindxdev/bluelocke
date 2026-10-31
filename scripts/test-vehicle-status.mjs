@@ -166,3 +166,23 @@ test('a 1% auxiliary battery reading is not treated as a 0–1 ratio', () => {
   const result = region.read(client(region), { battery: { batSoc: '1' } })
   assert.equal(result.twelveSoc, 1)
 })
+
+test('Australia petrol and partial status responses do not require an EV charging section', () => {
+  const bl = Object.create(load('australia').BluelinkAustralia.prototype)
+  bl.distanceUnit = 'km'
+  bl.config = { vehicleTypeOverride: 'auto' }
+  for (const green of [undefined, null, {}]) {
+    const result = bl.returnCarStatus(
+      {
+        Green: green,
+        Drivetrain: { FuelSystem: { DTE: { Total: 415 } } },
+        Electronics: { Battery: { Level: 84 } },
+      },
+      Date.now(),
+    )
+    assert.equal(result.range, 415)
+    assert.equal(result.twelveSoc, 84)
+    assert.equal(result.isCharging, false)
+    assert.equal(result.supportsChargeCommands, false)
+  }
+})

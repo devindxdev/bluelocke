@@ -34,7 +34,11 @@ export class Version {
   }
 
   public static versionToNumber(version: string): number {
-    return Number(version.replace('v', '').replace(/\./g, ''))
+    const [core, prerelease] = version.replace(/^v/, '').split('-', 2)
+    const value = Number(core?.replace(/\./g, ''))
+    // A beta sorts after the previous stable patch and before its own final
+    // release. Only stable releases are fetched by the updater's latest URL.
+    return prerelease && Number.isFinite(value) ? value - 0.5 : value
   }
 
   public async promptForUpdate(): Promise<boolean> {

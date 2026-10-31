@@ -19,6 +19,10 @@ nav_order: 10
 
 Successful sign-ins are saved independently of vehicle/status loading. A temporary vehicle API failure should not discard your login. Widgets and Shortcuts never send verification codes: when verification is required, open the script in Scriptable. Canada and Kia US keep a pending verification challenge so cancelling and reopening can reuse the existing code. A short resend cooldown prevents repeated code requests.
 
+## Sign-in stays in progress
+
+This message comes from coordination between Scriptable, widgets, and Shortcuts, and does not by itself mean your credentials are incorrect. The sign-in recovery fix retires v1.26.0 locks automatically while preserving matching saved sessions, settings, and vehicle status. After installing the fixed script, run it once and refresh the widget. If the message persists, enable diagnostic logging and share fresh logs from that attempt.
+
 ## Siri command not recognized
 
 - Ensure text is passed as Shortcut input to `Run Script`.

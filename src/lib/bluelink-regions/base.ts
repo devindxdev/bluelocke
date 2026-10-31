@@ -6,7 +6,7 @@ import { loadApiVehiclePhoto } from '../vehicle-photo'
 import { Logger } from '../logger'
 import { registerLogSecrets, sanitizeLog } from '../log-sanitizer'
 import { Buffer } from 'buffer'
-import { AuthSessionStore, authIdentity } from '../auth-session'
+import { AuthSessionStore, authIdentity, BACKGROUND_LOGIN_LEASE_MS, LOGIN_LEASE_MS } from '../auth-session'
 import { UserFacingError } from '../user-error'
 import { removeKeychainValue, scriptStorageKey } from '../storage'
 import { httpsUrl, sameOrigin } from '../secure-url'
@@ -18,6 +18,7 @@ const CAPTURE_NEXT_API_RESPONSE_KEY = `${Script.name().replaceAll(' ', '')}-capt
 const DEFAULT_API_HOST = 'mybluelink.ca'
 const DEFAULT_API_DOMAIN = `https://${DEFAULT_API_HOST}/tods/api/`
 export const WIDGET_REQUEST_TIMEOUT_SECS = 5
+const AUTH_REQUEST_TIMEOUT_SECS = 30
 
 export interface BluelinkTokens {
   accessToken: string
@@ -312,6 +313,7 @@ export class Bluelink {
   protected distanceUnit: string
   protected lastCommandSent: number | undefined
   protected authSession: AuthSessionStore
+  protected loginLeaseOwner: string | undefined
 
   constructor(config: Config, vin?: string) {
     registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
@@ -327,6 +329,7 @@ export class Bluelink {
     this.loginFailure = false
     this.loginRequiredWebview = false
     this.refreshLoginPromise = undefined
+    this.loginLeaseOwner = undefined
     this.debugLastRequest = undefined
     this.tempLookup = undefined
     this.authIdHeader = undefined
@@ -364,15 +367,20 @@ export class Bluelink {
     if (!(force || !this.tokenValid() || this.authSession.authRequired())) return
 
     this.refreshLoginPromise = (async () => {
+      const background = config.runsInWidget || config.runsWithSiri
+      const previous = this.tokens || this.cache?.token
       if (this.authSession.authRequired() && (config.runsInWidget || config.runsWithSiri)) {
         throw new UserFacingError(
           'Open Bluelocke in Scriptable to finish signing in. Background verification is paused.',
         )
       }
-      const owner = this.authSession.acquireLogin()
-      if (!owner) throw new UserFacingError('Sign-in is already in progress. Finish it in Scriptable, then try again.')
+      const owner = this.authSession.acquireLogin(background ? BACKGROUND_LOGIN_LEASE_MS : LOGIN_LEASE_MS)
+      if (!owner)
+        throw new UserFacingError(
+          'Sign-in is already in progress in another run. Wait a moment, then reopen Bluelocke in Scriptable.',
+        )
+      this.loginLeaseOwner = owner
       try {
-        const previous = this.tokens || this.cache?.token
         const shared = this.authSession.read()
         if (
           shared &&
@@ -411,6 +419,7 @@ export class Bluelink {
           if (previous) await this.onAuthRefreshed()
         }
       } finally {
+        this.loginLeaseOwner = undefined
         try {
           this.authSession.releaseLogin(owner)
         } catch {
@@ -427,12 +436,14 @@ export class Bluelink {
   }
 
   protected saveAuthSession(tokens: BluelinkTokens) {
+    this.assertCurrentSession()
     this.authSession.write(tokens)
     this.tokens = tokens
   }
 
   protected assertCurrentSession() {
     this.authSession.assertCurrent()
+    if (this.loginLeaseOwner) this.authSession.renewLogin(this.loginLeaseOwner)
   }
 
   protected async onAuthRefreshed(): Promise<void> {}
@@ -996,6 +1007,7 @@ export class Bluelink {
         const redirect = new Request(next.url)
         redirect.method = 'GET'
         redirect.headers = { Accept: 'text/html,application/json' }
+        redirect.timeoutInterval = req.timeoutInterval
         redirect.allowInsecureRequest = false
         return redirect
       } catch {
@@ -1003,6 +1015,7 @@ export class Bluelink {
       }
     }
     if (config.runsInWidget) req.timeoutInterval = WIDGET_REQUEST_TIMEOUT_SECS
+    else if (props.noAuth) req.timeoutInterval = AUTH_REQUEST_TIMEOUT_SECS
     req.allowInsecureRequest = false
     this.debugLastRequest = {
       url: props.url,
@@ -1063,6 +1076,9 @@ export class Bluelink {
       if (error instanceof UserFacingError) throw error
       const errorString = `Failed to send request to ${props.url}, request ${JSON.stringify(this.debugLastRequest)} - error ${error}`
       if (this.config.debugLogging) this.logger.log(error)
+      if (props.noAuth && /timed?\s*out|timeout/i.test(String(error))) {
+        throw new UserFacingError('Sign-in timed out. Check your connection, then try again in Scriptable.')
+      }
       throw Error(sanitizeLog(errorString))
     }
   }

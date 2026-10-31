@@ -196,7 +196,7 @@ test('a send timeout retains the resend cooldown and the device identity', async
   const h = runtime()
   h.saveAccount()
   h.failSend = true
-  await assert.rejects(h.client().initialize(), /Timeout/)
+  await assert.rejects(h.client().initialize(), /Sign-in timed out/)
   const next = runtime({ keys: h.keys })
   await assert.rejects(next.client().initialize(), /Wait two minutes/)
   assert.equal(next.count('sendotp'), 0)

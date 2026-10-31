@@ -48,9 +48,16 @@ function runtime({ keys = new Map(), name = 'Blue locke', background = false, si
     requests: [],
     logs: [],
     token: token(),
+    now: Date.now(),
+  }
+  class Clock extends Date {
+    static now() {
+      return h.now
+    }
   }
   const context = vm.createContext({
     Error,
+    Date: Clock,
     Script: { name: () => name },
     config: { runsInWidget: background, runsWithSiri: siri },
     UUID: { string: () => `00000000-0000-4000-8000-${String(++nextUuid).padStart(12, '0')}` },
@@ -70,6 +77,9 @@ function runtime({ keys = new Map(), name = 'Blue locke', background = false, si
       async loadJSON() {
         if (!h.transport) throw Error(`Unexpected network request: ${this.url}`)
         return h.transport(this)
+      }
+      async loadString() {
+        return this.loadJSON()
       }
     },
     console,
@@ -112,7 +122,7 @@ function runtime({ keys = new Map(), name = 'Blue locke', background = false, si
       if (
         resolved === 'src/config.ts' ||
         /^src\/lib\/(?:storage|log-sanitizer|vehicle-photo|[^/]*auth[^/]*|[^/]*session[^/]*)\.ts$/.test(resolved) ||
-        /^src\/lib\/bluelink-regions\/(?:base|usa|usa-kia|canada)\.ts$/.test(resolved)
+        /^src\/lib\/bluelink-regions\/(?:base|usa|usa-kia|canada|australia)\.ts$/.test(resolved)
       )
         return load(resolved)
       return {}
@@ -526,4 +536,251 @@ test('API transport validates TLS and stops credential-bearing or downgraded red
   assert.equal(req.onRedirect(safe), safe)
   await assert.rejects(bl.request({ url: 'http://api.example.test/status' }), /HTTPS/)
   await assert.rejects(bl.request({ url: 'https://user:secret@api.example.test/status' }), /Unsafe/)
+})
+
+test('abandoned widget sign-in leases expire quickly and ordinary sign-in remains exclusive', () => {
+  const h = runtime()
+  h.saveAccount()
+  const { AuthSessionStore, BACKGROUND_LOGIN_LEASE_MS } = h.load('src/lib/auth-session.ts')
+  const first = new AuthSessionStore(h.settings.getConfig())
+  const owner = first.acquireLogin(BACKGROUND_LOGIN_LEASE_MS)
+  assert.ok(owner)
+  const second = new AuthSessionStore(h.settings.getConfig())
+  assert.equal(second.acquireLogin(), undefined)
+  h.now += 31_000
+  const replacement = second.acquireLogin()
+  assert.ok(replacement)
+  assert.notEqual(replacement, owner)
+  first.releaseLogin(owner)
+  assert.equal(new AuthSessionStore(h.settings.getConfig()).acquireLogin(), undefined)
+})
+
+test('corrupt or implausibly far-future leases cannot block sign-in indefinitely', () => {
+  for (const until of [null, '999999999999999', Number.MAX_SAFE_INTEGER, Date.now() + 24 * 60 * 60 * 1000]) {
+    const h = runtime()
+    h.saveAccount()
+    const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
+    const store = new AuthSessionStore(h.settings.getConfig())
+    store.acquireLogin()
+    const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:login-lease:'))
+    const record = JSON.parse(h.keys.get(key))
+    record.until = until
+    h.keys.set(key, JSON.stringify(record))
+    assert.ok(new AuthSessionStore(h.settings.getConfig()).acquireLogin())
+  }
+})
+
+test('a recovered login lease rejects late results from its previous owner', async () => {
+  const h = runtime()
+  h.saveAccount()
+  const { AuthSessionStore, BACKGROUND_LOGIN_LEASE_MS } = h.load('src/lib/auth-session.ts')
+  const store = new AuthSessionStore(h.settings.getConfig())
+  const old = store.acquireLogin(BACKGROUND_LOGIN_LEASE_MS)
+  h.now += 31_000
+  const peer = new AuthSessionStore(h.settings.getConfig())
+  const replacement = peer.acquireLogin()
+  assert.ok(replacement)
+  assert.throws(() => store.renewLogin(old), /sign-in attempt has ended/)
+  const stale = h.client()
+  stale.loginLeaseOwner = old
+  assert.throws(() => stale.saveAuthSession(token('late-stale-session')), /sign-in attempt has ended/)
+  assert.equal(peer.read(), undefined)
+})
+
+test('authentication progress renews a background lease while an abandoned attempt expires', () => {
+  const h = runtime()
+  h.saveAccount()
+  const { AuthSessionStore, BACKGROUND_LOGIN_LEASE_MS } = h.load('src/lib/auth-session.ts')
+  const first = new AuthSessionStore(h.settings.getConfig())
+  const owner = first.acquireLogin(BACKGROUND_LOGIN_LEASE_MS)
+  h.now += 20_000
+  first.renewLogin(owner)
+  h.now += 20_000
+  const peer = new AuthSessionStore(h.settings.getConfig())
+  assert.equal(peer.acquireLogin(), undefined)
+  h.now += 11_000
+  assert.ok(peer.acquireLogin())
+})
+
+test('an in-flight authentication response cannot overwrite the session that recovered its abandoned lock', async () => {
+  const h = runtime({ background: true })
+  h.saveAccount()
+  const pending = deferred()
+  h.transport = () => pending.promise
+  const old = h.client()
+  old.login = async () => {
+    const result = await old.request({
+      url: 'https://example.test/signin',
+      noAuth: true,
+      validResponseFunction: () => ({ valid: true, retry: false }),
+    })
+    return result.json
+  }
+  const first = old.initialize()
+  assert.equal(h.requests.length, 1)
+  h.now += 31_000
+  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
+  const peer = new AuthSessionStore(h.settings.getConfig())
+  assert.ok(peer.acquireLogin())
+  peer.write(token('recovered-session'))
+  pending.resolve(token('late-stale-session'))
+  await assert.rejects(first, /sign-in attempt has ended/)
+  assert.equal(peer.read().accessToken, 'recovered-session')
+  assert.equal(peer.acquireLogin(), undefined, 'A late finally handler must not release the replacement lease')
+})
+
+for (const region of ['australia', 'usa']) {
+  test(`${region}: upgrading a working v1.26 session retires its stuck lock and preserves authentication and cached status`, async () => {
+    const h = runtime()
+    h.saveAccount({ auth: { ...ACCOUNT, region } })
+    const old = h.client()
+    await old.initialize()
+    const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+    const record = JSON.parse(h.keys.get(key))
+    record.lease = { owner: 'interrupted-v126-run', until: h.now + 5 * 60 * 1000 }
+    h.keys.set(key, JSON.stringify(record))
+    const next = runtime({ keys: h.keys, background: true })
+    const upgraded = next.client()
+    await upgraded.initialize()
+    assert.equal(upgraded.tokens.accessToken, old.tokens.accessToken)
+    assert.equal(upgraded.getCachedStatus().status.range, 415)
+    assert.equal(next.authCalls.length, 0)
+    assert.equal(next.metadataCalls.length, 0)
+    assert.equal(next.statusCalls.length, 0)
+    assert.equal(JSON.parse(h.keys.get(key)).lease, undefined)
+    assert.throws(() => old.saveAuthSession(token('late-v126-login')), /reset/)
+  })
+}
+
+test('concurrent session/device writes cannot erase an active sign-in lock', () => {
+  const h = runtime()
+  h.saveAccount()
+  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
+  const first = new AuthSessionStore(h.settings.getConfig())
+  first.read()
+  const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+  const stale = JSON.parse(h.keys.get(key))
+  const owner = first.acquireLogin()
+  // Another process started reading this record before the lock was claimed,
+  // then saved a device/session update. It must not overwrite the lock.
+  h.keys.set(key, JSON.stringify({ ...stale, devices: { deviceId: 'remembered-device' } }))
+  const peer = new AuthSessionStore(h.settings.getConfig())
+  assert.equal(peer.acquireLogin(), undefined)
+  first.releaseLogin(owner)
+  assert.ok(peer.acquireLogin())
+})
+
+test('a delayed session/device write cannot resurrect a completed sign-in lock', () => {
+  const h = runtime()
+  h.saveAccount()
+  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
+  const first = new AuthSessionStore(h.settings.getConfig())
+  const owner = first.acquireLogin()
+  const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+  const stale = JSON.parse(h.keys.get(key))
+  first.releaseLogin(owner)
+  h.keys.set(key, JSON.stringify({ ...stale, devices: { deviceId: 'remembered-device' } }))
+  assert.ok(new AuthSessionStore(h.settings.getConfig()).acquireLogin())
+})
+
+test('retiring a v1.26 lock never adopts a cache from a different account, script, or reset generation', async () => {
+  for (const field of ['identity', 'script', 'generation']) {
+    const h = runtime()
+    h.saveAccount()
+    const old = h.client()
+    await old.initialize()
+    const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+    const record = JSON.parse(h.keys.get(key))
+    record.lease = { owner: 'interrupted-v126-run', until: h.now + 5 * 60 * 1000 }
+    h.keys.set(key, JSON.stringify(record))
+    const cacheKey = old.getCacheKey()
+    const cache = JSON.parse(h.keys.get(cacheKey))
+    cache[field] = 'another-owner'
+    cache.status.range = 9999
+    h.keys.set(cacheKey, JSON.stringify(cache))
+    const next = runtime({ keys: h.keys, background: true })
+    const upgraded = next.client()
+    await upgraded.initialize()
+    assert.equal(upgraded.getCachedStatus().status.range, 415)
+    assert.equal(next.metadataCalls.length, 1)
+    assert.equal(next.statusCalls.length, 1)
+    assert.equal(next.authCalls.length, 0)
+  }
+})
+
+test('Australia foreground sign-in completes and authentication requests have bounded timeouts', async () => {
+  const h = runtime()
+  h.saveAccount({ auth: { ...ACCOUNT, region: 'australia' } })
+  const Regional = h.load('src/lib/bluelink-regions/australia.ts').BluelinkAustralia
+  const bl = h.decorate(new Regional(h.settings.getConfig()))
+  h.transport = (req) => {
+    assert.equal(req.timeoutInterval, 30)
+    if (req.url.includes('/oauth2/authorize') || req.url.endsWith('/session')) return ''
+    if (req.url.endsWith('/signin'))
+      return { redirectUrl: 'https://au-apigw.ccs.hyundai.com.au:8080/api/v1/user/oauth2/redirect?code=test-code' }
+    if (req.url.endsWith('/oauth2/token'))
+      return { access_token: 'australian-session', refresh_token: 'au-refresh', expires_in: 3600 }
+    if (req.url.endsWith('/notifications/register')) return { resMsg: { deviceId: 'au-device' } }
+    throw Error(`Unexpected auth route: ${req.url}`)
+  }
+  await bl.initialize()
+  assert.equal(bl.tokens.accessToken, 'Bearer australian-session')
+  assert.equal(bl.tokens.authId, 'au-device')
+  const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+  assert.equal(JSON.parse(h.keys.get(key)).lease, undefined)
+})
+
+test('Australia widgets renew saved sessions and reconnect with saved credentials when refresh is rejected', async () => {
+  const h = runtime({ background: true })
+  h.saveAccount({ auth: { ...ACCOUNT, region: 'australia' } })
+  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
+  new AuthSessionStore(h.settings.getConfig()).write(token('expired-au', Math.floor(h.now / 1000) - 60))
+  const Regional = h.load('src/lib/bluelink-regions/australia.ts').BluelinkAustralia
+  const bl = h.decorate(new Regional(h.settings.getConfig()))
+  h.transport = (req) => {
+    assert.equal(req.timeoutInterval, 5)
+    if (req.url.endsWith('/oauth2/token'))
+      return { access_token: 'renewed-au', refresh_token: 'au-refresh', expires_in: 3600 }
+    if (req.url.endsWith('/notifications/register')) return { resMsg: { deviceId: 'au-device' } }
+    throw Error('A widget must not start the full sign-in flow')
+  }
+  await bl.initialize()
+  assert.equal(bl.tokens.accessToken, 'Bearer renewed-au')
+  const key = [...h.keys.keys()].find((key) => key.startsWith('bluelocke:auth-session:'))
+  const record = JSON.parse(h.keys.get(key))
+  record.token.expiry = Math.floor(h.now / 1000) - 60
+  h.keys.set(key, JSON.stringify(record))
+  const retry = h.decorate(new Regional(h.settings.getConfig()))
+  h.requests.length = 0
+  h.transport = (req) => {
+    if (req.url.endsWith('/oauth2/token') && req.body.includes('grant_type=refresh_token')) {
+      req.response.statusCode = 400
+      return { error: 'invalid_grant' }
+    }
+    if (req.url.includes('/oauth2/authorize') || req.url.endsWith('/session')) return ''
+    if (req.url.endsWith('/signin')) {
+      assert.equal(JSON.parse(req.body).email, ACCOUNT.username)
+      assert.equal(JSON.parse(req.body).password, ACCOUNT.password)
+      return { redirectUrl: 'https://au-apigw.ccs.hyundai.com.au:8080/api/v1/user/oauth2/redirect?code=test-code' }
+    }
+    if (req.url.endsWith('/oauth2/token'))
+      return { access_token: 'reconnected-au', refresh_token: 'au-refresh', expires_in: 3600 }
+    if (req.url.endsWith('/notifications/register')) return { resMsg: { deviceId: 'au-device' } }
+    throw Error(`Unexpected auth route: ${req.url}`)
+  }
+  await retry.initialize()
+  assert.equal(retry.tokens.accessToken, 'Bearer reconnected-au')
+  assert.equal(JSON.parse(h.keys.get(key)).lease, undefined)
+})
+
+test('a failed Australian authentication request releases the lock for the next attempt', async () => {
+  const h = runtime()
+  h.saveAccount({ auth: { ...ACCOUNT, region: 'australia' } })
+  const Regional = h.load('src/lib/bluelink-regions/australia.ts').BluelinkAustralia
+  h.transport = () => {
+    throw Error('The request timed out.')
+  }
+  await assert.rejects(new Regional(h.settings.getConfig()).superInit(h.settings.getConfig(), false), /timed out/)
+  const { AuthSessionStore } = h.load('src/lib/auth-session.ts')
+  assert.ok(new AuthSessionStore(h.settings.getConfig()).acquireLogin())
 })
