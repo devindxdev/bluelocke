@@ -75,6 +75,8 @@ export interface StandardClimateConfig {
 export interface Config {
   manufacturer: string
   auth: Auth
+  selectedVin?: string
+  vehiclePreferences?: Record<string, Pick<Config, 'displayNameOverride' | 'vehicleTypeOverride'>>
   displayNameOverride: string
   vehicleTypeOverride: VehicleTypeOverride
   standardClimateConfig: StandardClimateConfig

@@ -25,22 +25,31 @@ export async function initRegionalBluelink(
     }
   }
 
+  let client: Bluelink
   switch (config.auth.region) {
     case 'canada':
-      return await BluelinkCanada.init(config, refreshAuth)
+      client = await BluelinkCanada.init(config, refreshAuth)
+      break
     case 'usa':
-      return config.manufacturer === 'kia'
-        ? await BluelinkUSAKia.init(config, refreshAuth)
-        : await BluelinkUSA.init(config, refreshAuth)
+      client =
+        config.manufacturer === 'kia'
+          ? await BluelinkUSAKia.init(config, refreshAuth)
+          : await BluelinkUSA.init(config, refreshAuth)
+      break
     case 'europe':
-      return await BluelinkEurope.init(config, refreshAuth)
+      client = await BluelinkEurope.init(config, refreshAuth)
+      break
     case 'india':
-      return await BluelinkIndia.init(config, refreshAuth)
+      client = await BluelinkIndia.init(config, refreshAuth)
+      break
     case 'australia':
-      return await BluelinkAustralia.init(config, refreshAuth)
+      client = await BluelinkAustralia.init(config, refreshAuth)
+      break
     default:
       throw new Error(
         `Something went wrong determining bluelink region! Please raise an issue on GitHub with details of your vehicle and region.`,
       )
   }
+  if (!client.loginFailed()) await client.ensureSelectedVehicle()
+  return client
 }

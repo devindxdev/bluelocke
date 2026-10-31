@@ -283,12 +283,12 @@ test('autosave retains Shortcut profiles and configured refresh defaults', async
   await opening
 })
 
-test('Vehicle settings keeps name and photo without a vehicle picker', async () => {
+test('Vehicle settings includes selection, name, and photo', async () => {
   const h = uiHarness()
   const opening = h.screens.loadCarSettingsScreen(h.bl)
   assert.ok(h.texts().includes('Display name'))
   assert.ok(h.texts().includes('Vehicle photo'))
-  assert.ok(!h.texts().includes('Selected vehicle'))
+  assert.ok(h.texts().includes('Selected vehicle'))
   h.top().close()
   await opening
 })
@@ -346,4 +346,86 @@ test('a saved numeric v1.24.4 PIN opens modern Account without changing stored v
   h.top().close()
   await opening
   assert.equal(h.keys.get('egmp-scriptable-config-Bluelocke'), before)
+})
+
+test('vehicle picker lists account cars, persists the choice, and keeps names per vehicle', async () => {
+  const h = uiHarness()
+  h.config.setConfig({ ...h.config.getConfig(), displayNameOverride: 'Family car', vehicleTypeOverride: 'hev' })
+  h.clientConfig = h.config.getConfig()
+  h.vehicles = [h.vehicle.car, { ...h.vehicle.car, id: 'second', vin: 'VIN-2', nickName: 'Commuter', modelName: 'IONIQ 5' }]
+  const opening = h.screens.loadVehicleSelectionScreen(h.bl)
+  await h.flush()
+  assert.ok(h.texts().includes('✓ Tucson'))
+  assert.ok(h.texts().includes('Commuter'))
+  await h.tap('Commuter')
+  let saved = h.config.getConfig()
+  assert.equal(saved.selectedVin, 'VIN-2')
+  assert.equal(saved.multiCar, true)
+  assert.equal(saved.displayNameOverride, '')
+  assert.equal(saved.vehicleTypeOverride, 'auto')
+  assert.equal(saved.vehiclePreferences['VIN-1'].displayNameOverride, 'Family car')
+  assert.equal(saved.vehiclePreferences['VIN-1'].vehicleTypeOverride, 'hev')
+  assert.equal(h.restarts.length, 1)
+  h.top().close()
+  await opening
+
+  // Simulate reopening on the new car and switching back.
+  h.vehicle = { ...h.vehicle, car: h.vehicles[1] }
+  h.clientConfig = saved
+  const returning = h.screens.loadVehicleSelectionScreen(h.bl)
+  await h.flush()
+  await h.tap('Tucson')
+  saved = h.config.getConfig()
+  assert.equal(saved.selectedVin, 'VIN-1')
+  assert.equal(saved.displayNameOverride, 'Family car')
+  assert.equal(saved.vehicleTypeOverride, 'hev')
+  h.top().close()
+  await returning
+})
+
+test('vehicle picker cancellation and a failed save leave the selected car unchanged', async () => {
+  const h = uiHarness()
+  h.vehicles = [h.vehicle.car, { ...h.vehicle.car, vin: 'VIN-2', nickName: 'Commuter' }]
+  const before = JSON.stringify(h.config.getConfig())
+  const opening = h.screens.loadVehicleSelectionScreen(h.bl)
+  await h.flush()
+  h.failWrites = true
+  await h.tap('Commuter')
+  assert.equal(JSON.stringify(h.config.getConfig()), before)
+  assert.equal(h.restarts.length, 0)
+  assert.ok(h.messages.some((message) => message.title === 'Could not save the selected vehicle'))
+  h.top().close()
+  await opening
+  assert.equal(JSON.stringify(h.config.getConfig()), before)
+})
+
+test('an unavailable selected car can be replaced from the initialization recovery Settings', async () => {
+  const h = uiHarness()
+  h.config.setConfig({ ...h.config.getConfig(), selectedVin: 'VIN-removed' })
+  h.vehicles = [{ ...h.vehicle.car, nickName: 'Available' }]
+  const opening = h.screens.loadVehicleSelectionScreen()
+  await h.flush()
+  assert.equal(h.initializations.length, 1)
+  assert.equal(h.initializations[0].selectedVin, undefined)
+  await h.tap('Available')
+  assert.equal(h.config.getConfig().selectedVin, 'VIN-1')
+  assert.equal(h.restarts.length, 1)
+  h.top().close()
+  await opening
+})
+
+test('changing accounts clears vehicle selection while changing the password preserves it', async () => {
+  const h = uiHarness()
+  h.config.setConfig({ ...h.config.getConfig(), selectedVin: 'VIN-1',
+    vehiclePreferences: { 'VIN-1': { displayNameOverride: 'Private car', vehicleTypeOverride: 'hev' } } })
+  const opening = h.screens.loadAccountSettingsScreen(h.bl)
+  h.alerts.push({ text: 'new-password' })
+  await h.tap('Password')
+  assert.equal(h.config.getConfig().selectedVin, 'VIN-1')
+  h.alerts.push({ text: 'other-driver@example.test' })
+  await h.tap('Email or username')
+  assert.equal(h.config.getConfig().selectedVin, undefined)
+  assert.deepEqual(plain(h.config.getConfig().vehiclePreferences), {})
+  h.top().close()
+  await opening
 })

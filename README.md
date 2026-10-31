@@ -6,6 +6,7 @@ Bluelocke is a Scriptable app for iOS that lets you monitor and control Hyundai,
 
 - Home screen and lock screen widgets
 - In-app controls for lock, unlock, climate, and status refresh
+- Vehicle picker for multi-car accounts, with the selection remembered for widgets and Shortcuts
 - Siri and Shortcuts support, including text-command workflows
 - Automation support (for example walk-away lock patterns)
 - Auto-update flow from GitHub releases

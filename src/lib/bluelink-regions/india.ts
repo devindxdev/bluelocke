@@ -293,51 +293,37 @@ export class BluelinkIndia extends Bluelink {
     return undefined
   }
 
-  protected async getCar(): Promise<BluelinkCar | undefined> {
-    let vin = this.vin
-    if (!vin && this.cache) {
-      vin = this.cache.car.vin
-    }
+  public async getVehicles(): Promise<BluelinkCar[]> {
     const resp = await this.request({
       url: this.apiDomain + `/api/v1/spa/vehicles`,
       validResponseFunction: this.requestResponseValid,
       headers: {},
     })
 
-    if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      throw Error(error)
-    }
-
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.resMsg.vehicles.length > 0) {
-      let vehicle = resp.json.resMsg.vehicles[0]
-      if (vin) {
-        for (const v of resp.json.resMsg.vehicles) {
-          if (v.vin === vin) {
-            vehicle = v
-            break
-          }
-        }
-      }
-
-      this.europeccs2 = vehicle.ccuCCS2ProtocolSupport
-      return {
-        id: vehicle.vehicleId,
-        vin: vehicle.vin,
-        photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickname,
-        modelName: vehicle.vehicleName,
-        modelYear: vehicle.year,
-        odometer: 0, // not available here
-        modelColour: vehicle.detailInfo.outColor,
-        modelTrim: vehicle.detailInfo.saleCarmdlCd,
-        europeccs2: vehicle.ccuCCS2ProtocolSupport,
-      }
+    const vehicles = resp.json?.resMsg?.vehicles
+    if (this.requestResponseValid(resp.resp, resp.json).valid && Array.isArray(vehicles) && vehicles.length > 0) {
+      return vehicles.map(
+        (vehicle: any): BluelinkCar => ({
+          id: vehicle.vehicleId,
+          vin: vehicle.vin,
+          photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
+          nickName: vehicle.nickname,
+          modelName: vehicle.vehicleName,
+          modelYear: vehicle.year,
+          odometer: 0, // not available here
+          modelColour: vehicle.detailInfo?.outColor,
+          modelTrim: vehicle.detailInfo?.saleCarmdlCd,
+          europeccs2: vehicle.ccuCCS2ProtocolSupport,
+        }),
+      )
     }
     const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     throw Error(error)
+  }
+
+  protected async onCarSelected(car: BluelinkCar): Promise<void> {
+    this.europeccs2 = car.europeccs2
   }
 
   protected returnCarStatus(maint: any, loc: any, status: any, updateTime: number): BluelinkStatus {

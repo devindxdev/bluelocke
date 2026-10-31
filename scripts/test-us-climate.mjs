@@ -211,7 +211,7 @@ test('Hyundai refuses an older cache migration to a different vehicle', async ()
       },
     }),
   )
-  await assert.rejects(h.start(), /Unable to confirm climate vehicle details/)
+  await assert.rejects(h.start(), /selected vehicle is no longer available/)
   assert.equal(h.calls.length, 1)
   assert.equal(h.saves, 0)
 })

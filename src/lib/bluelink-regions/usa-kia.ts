@@ -252,13 +252,8 @@ export class BluelinkUSAKia extends Bluelink {
     return undefined
   }
 
-  protected async getCar(noRetry = false): Promise<BluelinkCar | undefined> {
-    if (MOCK_API) return returnMockedCar()
-    let vin = this.vin
-    if (!vin && this.cache) {
-      vin = this.cache.car.vin
-    }
-
+  public async getVehicles(noRetry = false): Promise<BluelinkCar[]> {
+    if (MOCK_API) return [returnMockedCar()]
     const resp = await this.request({
       url: this.apiDomain + 'ownr/gvl',
       headers: {
@@ -269,38 +264,49 @@ export class BluelinkUSAKia extends Bluelink {
       validResponseFunction: this.requestResponseValid,
     })
 
-    if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      throw Error(error)
-    }
-
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.payload.vehicleSummary.length > 0) {
-      let vehicle = resp.json.payload.vehicleSummary[0]
-      if (vin) {
-        for (const v of resp.json.payload.vehicleSummary) {
-          if (v.vin === vin) {
-            vehicle = v
-            break
-          }
-        }
-      }
-
-      return {
-        id: vehicle.vehicleKey,
-        vin: vehicle.vin,
-        photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickName,
-        modelName: vehicle.modelName,
-        modelYear: vehicle.modelYear,
-        odometer: vehicle.mileage,
-        modelColour: vehicle.colorName,
-        modelTrim: vehicle.trim,
-      }
+    const vehicles = resp.json?.payload?.vehicleSummary
+    if (this.requestResponseValid(resp.resp, resp.json).valid && Array.isArray(vehicles) && vehicles.length > 0) {
+      return vehicles.map(
+        (vehicle: any): BluelinkCar => ({
+          id: vehicle.vehicleKey,
+          vin: vehicle.vin,
+          photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
+          nickName: vehicle.nickName,
+          modelName: vehicle.modelName,
+          modelYear: vehicle.modelYear,
+          odometer: vehicle.mileage,
+          modelColour: vehicle.colorName,
+          modelTrim: vehicle.trim,
+        }),
+      )
     }
     const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     throw Error(error)
+  }
+
+  protected async onCarSelected(car: BluelinkCar): Promise<void> {
+    // Kia binds both the request header and status payload to a vehicle key.
+    const token = this.tokens || this.cache?.token
+    if (token) this.tokens = this.bindTokenToCar(token, car)
+  }
+
+  protected bindTokenToCar(token: BluelinkTokens, car: BluelinkCar): BluelinkTokens {
+    return { ...token, authId: car.id }
+  }
+
+  public async getVehiclesForSelection(): Promise<BluelinkCar[]> {
+    try {
+      return await super.getVehiclesForSelection()
+    } finally {
+      // A recovery login may temporarily use the first available vehicle.
+      // Keep the persisted token bound to the car whose status is cached.
+      if (this.cache) {
+        await this.onCarSelected(this.cache.car)
+        this.cache.token = this.tokens!
+        this.saveCache()
+      }
+    }
   }
 
   protected returnCarStatus(status: any, location?: Location): BluelinkStatus {

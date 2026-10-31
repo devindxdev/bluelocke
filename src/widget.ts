@@ -34,6 +34,7 @@ let WIDGET_LOGGER: Logger | undefined = undefined
 const WIDGET_LOG_FILE = `${Script.name().replaceAll(' ', '')}-widget.log`
 
 interface WidgetRefreshCache {
+  vehicleVin?: string
   lastRemoteRefresh: number
   lastCommand: 'API' | 'REMOTE'
 }
@@ -205,6 +206,7 @@ async function refreshDataForWidget(bl: Bluelink, config: Config): Promise<Widge
     cache = DEFAULT_WIDGET_CACHE
   }
   let status = bl.getCachedStatus()
+  if (cache.vehicleVin !== status.car.vin) cache = { ...DEFAULT_WIDGET_CACHE, vehicleVin: status.car.vin }
 
   // Get last remote check from cached API and convert
   // then compare to cache.lastRemoteRefresh and use whatever value is greater

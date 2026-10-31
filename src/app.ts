@@ -187,6 +187,7 @@ const settings = (bl: Bluelink) => {
         const current = getConfig()
         if (
           previous.manufacturer !== current.manufacturer ||
+          previous.selectedVin !== current.selectedVin ||
           JSON.stringify(previous.auth) !== JSON.stringify(current.auth)
         ) {
           Safari.open(URLScheme.forRunningScript())

@@ -11,6 +11,11 @@ export function runtime({ background = false, siri = false, keys = new Map(), na
   const context = vm.createContext({
     Error,
     Date,
+    DateFormatter: class {
+      date(value) {
+        return new Date(value.replace(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6Z'))
+      }
+    },
     Buffer,
     console,
     Device: { systemVersion: () => '18.0' },
@@ -81,6 +86,7 @@ export function runtime({ background = false, siri = false, keys = new Map(), na
         : 'src/' + dep + '.ts'
       if (
         resolved === 'src/config.ts' ||
+        resolved === 'src/lib/bluelink.ts' ||
         /src\/lib\/bluelink-regions\/(base|canada|usa|usa-kia|europe|india|australia)\.ts$/.test(resolved) ||
         resolved === 'src/lib/log-sanitizer.ts' ||
         resolved === 'src/lib/user-error.ts'

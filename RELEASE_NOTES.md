@@ -1,5 +1,9 @@
-# Bluelocke v1.27.0
+# Bluelocke v1.27.1-beta.1 — Multi-car testing
 
-Fixes authentication errors and Hyundai Europe sign-in, hybrid and door-lock status, fuel range, 12V readings, and US petrol and older EV climate controls. Restores modern Settings, adds custom vehicle photos with live cropping and Save, improves image selection, and brings back readable debug logs with sensitive details redacted.
+Adds Settings → Vehicle → Selected vehicle for accounts with multiple cars. Each script remembers its chosen car for the app, widgets, and Shortcuts. Switching fetches fresh status and keeps vehicle names and photos separate.
 
-EU fixes contributed by [mariancapota](https://github.com/devindxdev/bluelocke/pull/3).
+Install the attached bluelocke.js in Scriptable. Use a separate script copy for beta testing, then sign in and choose a vehicle. For widgets or Shortcuts for different cars at the same time, use a script copy per car.
+
+Please verify the displayed car, readings, and selected vehicle before testing remote controls. Report the region, manufacturer, and any issues switching cars; use Share Debug Logs if needed.
+
+Beta for live account testing. All 363 automated tests, TypeScript, lint, and build checks pass; live multi-car testing is still pending. The stable release remains v1.27.0.

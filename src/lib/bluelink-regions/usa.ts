@@ -128,63 +128,49 @@ export class BluelinkUSA extends Bluelink {
     return undefined
   }
 
-  protected async getCar(): Promise<BluelinkCar | undefined> {
-    let vin = this.vin
-    if (!vin && this.cache) {
-      vin = this.cache.car.vin
-    }
-
+  public async getVehicles(): Promise<BluelinkCar[]> {
     const resp = await this.request({
       url: this.apiDomain + `ac/v2/enrollment/details/${this.config.auth.username}`,
       validResponseFunction: this.requestResponseValid,
     })
 
-    if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      throw Error(error)
-    }
-
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.enrolledVehicleDetails.length > 0) {
-      let vehicle = resp.json.enrolledVehicleDetails[0].vehicleDetails
-      if (vin) {
-        for (const v of resp.json.enrolledVehicleDetails) {
-          if (v.vehicleDetails.vin === vin) {
-            vehicle = v.vehicleDetails
-            break
-          }
-        }
-      }
-
-      this.carVin = vehicle.vin
-      this.carId = vehicle.regid
-      const generation = Number(vehicle.vehicleGeneration)
-      this.carGeneration = generation === 2 || generation === 3 ? generation : undefined
-      return {
-        id: vehicle.regid,
-        vin: vehicle.vin,
-        photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickName,
-        modelName: vehicle.modelCode,
-        modelYear: vehicle.modelYear,
-        powertrain:
-          vehicle.evStatus === 'E'
-            ? 'ev'
-            : vehicle.evStatus === 'P'
-              ? 'phev'
-              : vehicle.evStatus === 'N'
-                ? 'ice'
-                : undefined,
-        generation: this.carGeneration,
-        odometer: vehicle.odometer ? vehicle.odometer : 0,
-        // colour and trim dont exist in US implementation
-        // modelColour: vehicle.exteriorColor,
-        // modelTrim: vehicle.trim,
-      }
+    const vehicles = resp.json?.enrolledVehicleDetails?.map((entry: any) => entry.vehicleDetails)
+    if (this.requestResponseValid(resp.resp, resp.json).valid && Array.isArray(vehicles) && vehicles.length > 0) {
+      return vehicles.map(
+        (vehicle: any): BluelinkCar => ({
+          id: vehicle.regid,
+          vin: vehicle.vin,
+          photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
+          nickName: vehicle.nickName,
+          modelName: vehicle.modelCode,
+          modelYear: vehicle.modelYear,
+          powertrain:
+            vehicle.evStatus === 'E'
+              ? 'ev'
+              : vehicle.evStatus === 'P'
+                ? 'phev'
+                : vehicle.evStatus === 'N'
+                  ? 'ice'
+                  : undefined,
+          generation: [2, 3].includes(Number(vehicle.vehicleGeneration))
+            ? Number(vehicle.vehicleGeneration)
+            : undefined,
+          odometer: vehicle.odometer ? vehicle.odometer : 0,
+          // colour and trim dont exist in US implementation
+          // modelColour: vehicle.exteriorColor,
+          // modelTrim: vehicle.trim,
+        }),
+      )
     }
     const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     throw Error(error)
+  }
+
+  protected async onCarSelected(car: BluelinkCar): Promise<void> {
+    this.carVin = car.vin
+    this.carId = car.id
+    this.carGeneration = car.generation
   }
 
   protected returnCarStatus(status: any, forceUpdate: boolean, location?: Location): BluelinkStatus {

@@ -9,7 +9,9 @@ import {
   deleteConfig,
   getStandardClimateConfig,
 } from './config'
-import { Bluelink } from './lib/bluelink-regions/base'
+import { Bluelink, formatVehicleDisplayName } from './lib/bluelink-regions/base'
+import { initRegionalBluelink } from './lib/bluelink'
+import { getUserErrorMessage, UserFacingError } from './lib/user-error'
 import { confirm, destructiveConfirm } from './lib/scriptable-utils'
 import { settingsForm } from './lib/native-settings'
 import { presentSettingsPage } from './lib/settings-navigation'
@@ -71,7 +73,7 @@ export async function loadConfigScreen(bl?: Bluelink) {
       detail: 'Sign-in and connected service',
       open: () => loadAccountSettingsScreen(bl),
     },
-    { title: 'Vehicle', detail: 'Display name and vehicle photo', open: () => loadCarSettingsScreen(bl) },
+    { title: 'Vehicle', detail: 'Selection, display name, and photo', open: () => loadCarSettingsScreen(bl) },
     { title: 'Climate', detail: 'Warm and Cool', open: () => loadClimateSettingsScreen() },
     {
       title: 'Appearance & Units',
@@ -130,15 +132,24 @@ export async function loadAccountSettingsScreen(bl?: Bluelink, firstRun = false)
         },
         mfaPreference: values.mfaPreference ?? current.mfaPreference,
       }
-      setConfig(next)
-      // Keep the original v1.24.4 cache and token flow. The modern page
-      // retires the same completed cache that the original Save action did.
-      if (
+      const accountChanged =
         current.manufacturer !== next.manufacturer ||
         current.auth?.region !== next.auth.region ||
-        current.auth?.username !== next.auth.username ||
-        current.auth?.password !== next.auth.password
-      ) {
+        current.auth?.username !== next.auth.username
+      setConfig(
+        accountChanged
+          ? {
+              ...next,
+              selectedVin: undefined,
+              vehiclePreferences: {},
+              displayNameOverride: '',
+              vehicleTypeOverride: 'auto',
+            }
+          : next,
+      )
+      // Keep the original v1.24.4 cache and token flow. The modern page
+      // retires the same completed cache that the original Save action did.
+      if (accountChanged || current.auth?.password !== next.auth.password) {
         const cacheKey = `egmp-scriptable-bl-cache-${Script.name().replaceAll(' ', '')}`
         if (Keychain.contains(cacheKey)) (bl ?? new Bluelink(current)).deleteCache()
       }
@@ -170,6 +181,11 @@ export async function loadAccountSettingsScreen(bl?: Bluelink, firstRun = false)
 export async function loadCarSettingsScreen(bl?: Bluelink) {
   return settingsMenu('Vehicle', () => [
     {
+      title: 'Selected vehicle',
+      detail: bl ? formatVehicleDisplayName(bl.getCachedStatus().car) : 'Choose from your account',
+      open: () => loadVehicleSelectionScreen(bl),
+    },
+    {
       title: 'Display name',
       detail: getConfig().displayNameOverride || 'Use vehicle name',
       open: async () => {
@@ -200,6 +216,63 @@ export async function loadCarSettingsScreen(bl?: Bluelink) {
       },
     },
   ])
+}
+
+export async function loadVehicleSelectionScreen(bl?: Bluelink) {
+  let client = bl
+  let cars
+  try {
+    const current = getConfig()
+    // Also works from the initialization error's Settings action when the
+    // previously selected car has been removed from the account.
+    if (
+      !client ||
+      client.getConfig().manufacturer !== current.manufacturer ||
+      JSON.stringify(client.getConfig().auth) !== JSON.stringify(current.auth)
+    ) {
+      client = await initRegionalBluelink({ ...current, selectedVin: undefined }, false)
+    }
+    if (!client || client.loginFailed()) throw new UserFacingError('Sign in to your vehicle account first.')
+    if (client === bl) {
+      await client.refreshAuth()
+      cars = await client.getVehicles()
+    } else {
+      cars = await client.getVehiclesForSelection()
+    }
+  } catch (error) {
+    await confirm('Could not load vehicles', { message: getUserErrorMessage(error), includeCancel: false })
+    return
+  }
+  const activeVin = bl?.getCachedStatus().car.vin || getConfig().selectedVin || client.getCachedStatus().car.vin
+  return settingsMenu('Select Vehicle', () =>
+    cars.map((car) => ({
+      title: `${car.vin === activeVin ? '✓ ' : ''}${car.nickName || formatVehicleDisplayName(car)}`,
+      detail: `${formatVehicleDisplayName(car)} · VIN ending ${car.vin.slice(-6)}`,
+      open: async () => {
+        const current = getConfig()
+        if (current.selectedVin === car.vin && activeVin === car.vin) return
+        const previousVin = current.selectedVin || activeVin
+        const vehiclePreferences = {
+          ...current.vehiclePreferences,
+          [previousVin]: {
+            displayNameOverride: current.displayNameOverride,
+            vehicleTypeOverride: current.vehicleTypeOverride,
+          },
+        }
+        const preferences = vehiclePreferences[car.vin] || {
+          displayNameOverride: '',
+          vehicleTypeOverride: 'auto' as const,
+        }
+        try {
+          setConfig({ ...current, ...preferences, vehiclePreferences, selectedVin: car.vin, multiCar: true })
+        } catch {
+          await confirm('Could not save the selected vehicle', { message: 'Please try again.', includeCancel: false })
+          return
+        }
+        Safari.open(URLScheme.forRunningScript())
+      },
+    })),
+  )
 }
 
 type AppearanceSettings = Pick<Config, 'tempType' | 'distanceUnit' | 'widgetAppearance'>

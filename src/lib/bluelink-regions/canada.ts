@@ -401,50 +401,35 @@ export class BluelinkCanada extends Bluelink {
     }
   }
 
-  protected async getCar(): Promise<BluelinkCar | undefined> {
-    let vin = this.vin
-    if (!vin && this.cache) {
-      vin = this.cache.car.vin
-    }
-
+  public async getVehicles(): Promise<BluelinkCar[]> {
     const resp = await this.request({
       url: this.apiDomain + 'vhcllst',
       method: 'POST',
       validResponseFunction: this.requestResponseValid,
     })
 
-    if (!this.requestResponseValid(resp.resp, resp.json).valid) {
-      const error = `Failed to retrieve vehicles: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
-      if (this.config.debugLogging) this.logger.log(error)
-      throw Error(error)
-    }
-
-    if (this.requestResponseValid(resp.resp, resp.json).valid && resp.json.result.vehicles.length > 0) {
-      let vehicle = resp.json.result.vehicles[0]
-      if (vin) {
-        for (const v of resp.json.result.vehicles) {
-          if (v.vin === vin) {
-            vehicle = v
-            break
-          }
-        }
-      }
-      // should set car just in case its not already set
-      await this.setCar(vehicle.vehicleId)
-      return {
-        id: vehicle.vehicleId,
-        vin: vehicle.vin,
-        photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
-        nickName: vehicle.nickName,
-        modelName: vehicle.modelName,
-        modelYear: vehicle.modelYear,
-        modelColour: vehicle.exteriorColor,
-        modelTrim: vehicle.trim,
-      }
+    const vehicles = resp.json?.result?.vehicles
+    if (this.requestResponseValid(resp.resp, resp.json).valid && Array.isArray(vehicles) && vehicles.length > 0) {
+      return vehicles.map(
+        (vehicle: any): BluelinkCar => ({
+          id: vehicle.vehicleId,
+          vin: vehicle.vin,
+          photoUrl: getVehiclePhotoUrl(vehicle, this.apiDomain) ?? null,
+          nickName: vehicle.nickName,
+          modelName: vehicle.modelName,
+          modelYear: vehicle.modelYear,
+          modelColour: vehicle.exteriorColor,
+          modelTrim: vehicle.trim,
+        }),
+      )
     }
     const error = `Failed to retrieve vehicle list: ${JSON.stringify(resp.json)} request ${JSON.stringify(this.debugLastRequest)}`
     if (this.config.debugLogging) this.logger.log(error)
     throw Error(error)
+  }
+
+  protected async onCarSelected(car: BluelinkCar): Promise<void> {
+    await this.setCar(car.id)
   }
 
   protected returnCarStatus(
@@ -535,6 +520,11 @@ export class BluelinkCanada extends Bluelink {
       const error = `Failed to retrieve vehicle status: ${JSON.stringify(status.json)} request ${JSON.stringify(this.debugLastRequest)}`
       if (this.config.debugLogging) this.logger.log(error)
       throw Error(error)
+    }
+
+    const returnedVehicle = status.json.result.vehicle
+    if (returnedVehicle?.vehicleId && String(returnedVehicle.vehicleId) !== String(id)) {
+      throw new Error('The vehicle service returned status for a different vehicle. Please try again.')
     }
 
     let chargeLimitStatus = undefined

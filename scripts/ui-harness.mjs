@@ -24,6 +24,8 @@ export function uiHarness({ dark = false, electric = false, account = true, sett
     invalidations: 0,
     photoEdits: 0,
     openedMaps: [],
+    restarts: [],
+    initializations: [],
     symbolBridges: [],
   }
   class Color {
@@ -242,6 +244,8 @@ export function uiHarness({ dark = false, electric = false, account = true, sett
         h.closed = true
       },
     },
+    Safari: { open: (url) => h.restarts.push(url) },
+    URLScheme: { forRunningScript: () => 'scriptable:///run?scriptName=Bluelocke' },
     console,
   })
   const modules = new Map()
@@ -273,6 +277,12 @@ export function uiHarness({ dark = false, electric = false, account = true, sett
       },
     ).outputText
     const require = (dependency) => {
+      if (dependency.endsWith('/bluelink')) return {
+        initRegionalBluelink: async (config) => {
+          h.initializations.push(config)
+          return h.recoveryClient || h.bl
+        },
+      }
       if (dependency === 'url') return { default: Url }
       if (dependency.endsWith('scriptable-utils')) return library
       if (dependency.endsWith('/util'))
@@ -369,6 +379,9 @@ export function uiHarness({ dark = false, electric = false, account = true, sett
   }
   h.clientConfig = h.config.getConfig()
   h.bl = {
+    loginFailed: () => false,
+    getVehicles: async () => h.vehicles || [h.vehicle.car],
+    getVehiclesForSelection: async () => h.vehicles || [h.vehicle.car],
     getCachedStatus: () => h.vehicle,
     getConfig: () => h.clientConfig,
     getCarImage: async () => ({ size: { width: 1200, height: 600 } }),

@@ -317,6 +317,7 @@ export class Bluelink {
   protected carOptions: CarOption[]
   protected distanceUnit: string
   protected lastCommandSent: number | undefined
+  private selectingVehicle = false
 
   constructor(config: Config, vin?: string) {
     registerLogSecrets([config.auth.username, config.auth.password, config.auth.pin, config.displayNameOverride])
@@ -616,6 +617,61 @@ export class Bluelink {
 
   public async refreshAuth(force = false): Promise<void> {
     return await this.refreshLogin(force)
+  }
+
+  // Use a separate recovery client: Kia's login itself asks for a vehicle key.
+  // A removed cached car must not prevent showing the remaining account cars.
+  public async getVehiclesForSelection(): Promise<BluelinkCar[]> {
+    this.selectingVehicle = true
+    try {
+      await this.refreshAuth()
+      return await this.getVehicles()
+    } finally {
+      this.selectingVehicle = false
+    }
+  }
+
+  // Selection changes restart the script. Resolve the new car before exposing
+  // the client to the app, widgets, or commands, reusing the account login.
+  public async ensureSelectedVehicle(): Promise<void> {
+    if (!this.cache || !this.config.selectedVin || this.cache.car.vin === this.config.selectedVin) return
+    const previous = this.cache
+    try {
+      await this.refreshAuth()
+      if (this.loginFailed()) return
+      const car = await this.getCar()
+      if (!car) throw new UserFacingError('Unable to load the selected vehicle. Choose a vehicle in Settings.')
+      this.cache = {
+        token: this.tokens || previous.token,
+        car,
+        // Regional status parsers fall back to cached fields. Start with empty
+        // state so location, charge limits, fuel, and battery cannot cross cars.
+        status: {
+          lastStatusCheck: 0,
+          lastRemoteStatusCheck: 0,
+          isCharging: false,
+          isPluggedIn: false,
+          chargingPower: 0,
+          remainingChargeTimeMins: 0,
+          range: 0,
+          locked: false,
+          climate: false,
+          soc: 0,
+          twelveSoc: 0,
+          odometer: 0,
+        },
+      }
+      this.cache.status = await this.getCarStatus(car.id, false)
+      this.saveCache()
+    } catch (error) {
+      // A refresh may have saved the temporary cache. Retain the last complete
+      // snapshot, but fail initialization so no command can use the old car.
+      previous.token = this.bindTokenToCar(this.tokens || this.cache.token, previous.car)
+      this.cache = previous
+      this.tokens = previous.token
+      this.saveCache()
+      throw error
+    }
   }
 
   public async getStatus(forceUpdate: boolean, noCache: boolean, location: boolean = false): Promise<Status> {
@@ -1108,9 +1164,34 @@ export class Bluelink {
     throw Error('Not Implemented')
   }
 
-  protected async getCar(): Promise<BluelinkCar | undefined> {
-    // implemented in country specific sub-class
+  public async getVehicles(_noRetry = false): Promise<BluelinkCar[]> {
     throw Error('Not Implemented')
+  }
+
+  protected async getCar(noRetry = false): Promise<BluelinkCar | undefined> {
+    const cars = await this.getVehicles(noRetry)
+    this.carOptions = cars
+    for (const car of cars) {
+      registerLogSecrets([car.id, car.vin, car.nickName !== car.modelName ? car.nickName : ''])
+    }
+    const vin = this.vin || this.config.selectedVin || this.cache?.car.vin
+    const car =
+      (vin ? cars.find((candidate) => candidate.vin === vin) : cars[0]) || (this.selectingVehicle ? cars[0] : undefined)
+    if (!car) {
+      throw new UserFacingError(
+        vin
+          ? 'The selected vehicle is no longer available on this account. Choose a vehicle in Settings.'
+          : 'No vehicles were found on this account.',
+      )
+    }
+    await this.onCarSelected(car)
+    return car
+  }
+
+  protected async onCarSelected(_car: BluelinkCar): Promise<void> {}
+
+  protected bindTokenToCar(token: BluelinkTokens, _car: BluelinkCar): BluelinkTokens {
+    return token
   }
 
   protected async lock(_id: string): Promise<{ isSuccess: boolean; data: BluelinkStatus }> {
