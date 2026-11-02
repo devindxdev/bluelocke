@@ -64,19 +64,29 @@ function maskKnownValues(text: string): string {
   return text
 }
 
-function sanitizeValue(value: unknown, depth: number): unknown {
+function isVehicleState(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const vehicle = (value as Record<string, unknown>).Vehicle
+  return Boolean(vehicle && typeof vehicle === 'object' && !Array.isArray(vehicle))
+}
+
+function sanitizeValue(value: unknown, depth: number, vehicleTelemetry = false): unknown {
   if (depth > 12) return '[Nested data omitted]'
-  if (Array.isArray(value)) return value.map((item) => sanitizeValue(item, depth + 1))
+  if (Array.isArray(value)) return value.map((item) => sanitizeValue(item, depth + 1, vehicleTelemetry))
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => {
+        // CCS2 uses state.Vehicle for telemetry and State for individual sensor
+        // values. OAuth state elsewhere remains private, including in text logs.
+        const vehicleState = key === 'state' && isVehicleState(item)
+        const sensorState = vehicleTelemetry && key === 'State'
         const namedValue =
           key === 'value' &&
           ['name', 'key'].some((label) => {
             const name = (value as Record<string, unknown>)[label]
             return typeof name === 'string' && privateKey(name)
           })
-        if (privateKey(key) || namedValue) {
+        if ((privateKey(key) && !vehicleState && !sensorState) || namedValue) {
           if (
             typeof item === 'string' ||
             (typeof item === 'number' && (String(item).length >= 4 || /pin/i.test(key)))
@@ -85,7 +95,12 @@ function sanitizeValue(value: unknown, depth: number): unknown {
           }
           return [key, REDACTED]
         }
-        return [key, typeof item === 'string' ? sanitizeText(item, depth + 1) : sanitizeValue(item, depth + 1)]
+        return [
+          key,
+          typeof item === 'string'
+            ? sanitizeText(item, depth + 1)
+            : sanitizeValue(item, depth + 1, vehicleTelemetry || vehicleState),
+        ]
       }),
     )
   }

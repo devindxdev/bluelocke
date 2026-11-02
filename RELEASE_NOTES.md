@@ -1,11 +1,11 @@
-# Bluelocke v1.27.1-beta.2 — Hyundai Europe device recovery
+# Bluelocke v1.27.1-beta.3 — Australian timestamps and API diagnostics
 
-Fixes Hyundai Europe sessions that stop working with “Invalid deviceId,” including unlock succeeding before an immediate lock fails. Bluelocke now registers and saves a replacement device ID and retries the rejected request once. Control tokens are renewed when the device, session, or selected vehicle changes.
+Fixes API response sharing hiding the entire state.Vehicle payload. Vehicle readings and sensor states now remain visible while credentials, identifiers, and location stay redacted.
 
-Replace the code in your existing Scriptable script with the attached bluelocke.js. You can keep the name bluelocke and your existing settings; renaming or resetting should not be necessary.
+Fixes Australian last-update timestamps such as 20261102074326 being treated as milliseconds. Bluelocke now parses compact dates, prefers the vehicle’s UTC Date field, and waits for genuinely newer data during a forced refresh.
 
-Also includes the previous beta’s Settings → Vehicle → Selected vehicle picker for multi-car accounts. Each script remembers its chosen car for the app, widgets, and Shortcuts.
+Replace the code in your existing Scriptable script with the attached bluelocke.js. Keep your existing script name and settings. Fetch a fresh API response after updating and share that new capture; previously redacted payloads cannot be recovered.
 
-Please test loading the app, unlocking then locking, and running the script again under its usual name. If it fails, use Share Debug Logs and report which action failed.
+Also includes the earlier betas’ Hyundai Europe device recovery and multi-car vehicle picker.
 
-All 386 automated tests, TypeScript, lint, and build checks pass. Live EU and multi-car testing remain pending. The stable release remains v1.27.0.
+All 403 automated tests, TypeScript, lint, and build checks pass. Live Australian, EU, and multi-car testing remain pending. The stable release remains v1.27.0.
