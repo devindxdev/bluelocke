@@ -1,9 +1,11 @@
-# Bluelocke v1.27.1-beta.1 — Multi-car testing
+# Bluelocke v1.27.1-beta.2 — Hyundai Europe device recovery
 
-Adds Settings → Vehicle → Selected vehicle for accounts with multiple cars. Each script remembers its chosen car for the app, widgets, and Shortcuts. Switching fetches fresh status and keeps vehicle names and photos separate.
+Fixes Hyundai Europe sessions that stop working with “Invalid deviceId,” including unlock succeeding before an immediate lock fails. Bluelocke now registers and saves a replacement device ID and retries the rejected request once. Control tokens are renewed when the device, session, or selected vehicle changes.
 
-Install the attached bluelocke.js in Scriptable. Use a separate script copy for beta testing, then sign in and choose a vehicle. For widgets or Shortcuts for different cars at the same time, use a script copy per car.
+Replace the code in your existing Scriptable script with the attached bluelocke.js. You can keep the name bluelocke and your existing settings; renaming or resetting should not be necessary.
 
-Please verify the displayed car, readings, and selected vehicle before testing remote controls. Report the region, manufacturer, and any issues switching cars; use Share Debug Logs if needed.
+Also includes the previous beta’s Settings → Vehicle → Selected vehicle picker for multi-car accounts. Each script remembers its chosen car for the app, widgets, and Shortcuts.
 
-Beta for live account testing. All 363 automated tests, TypeScript, lint, and build checks pass; live multi-car testing is still pending. The stable release remains v1.27.0.
+Please test loading the app, unlocking then locking, and running the script again under its usual name. If it fails, use Share Debug Logs and report which action failed.
+
+All 386 automated tests, TypeScript, lint, and build checks pass. Live EU and multi-car testing remain pending. The stable release remains v1.27.0.
