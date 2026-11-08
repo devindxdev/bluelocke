@@ -1,6 +1,6 @@
 ---
 title: Siri & Shortcuts
-nav_order: 6
+nav_order: 7
 ---
 
 # Siri & Shortcuts
@@ -67,6 +67,8 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
 
 ## Auto-Lock Shortcuts
 
+For walk-away auto-lock, follow the [Automations setup guide](./automations). Adding a shortcut alone does not create the automation that runs it when you leave the car.
+
 <blockquote class="warning-title">
   <p><strong>Use care with auto-lock shortcuts.</strong></p>
   <p>If your phone is left inside the car and the shortcut runs, you can lock yourself out.</p>
@@ -76,19 +78,19 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
   <div class="shortcut-card">
     <div class="shortcut-icon">🛡️</div>
     <div class="shortcut-body">
-      <p class="shortcut-title">Auto Lock - Safe</p>
+      <p class="shortcut-title">Auto-Lock (Safe)</p>
       <p class="shortcut-desc">Checks whether the vehicle is unlocked and prompts you before sending the lock command.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/280c50ea17d249b0bc2f253e88026c44" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/dc6e0f8d1b5f4fff920f9de90d31bf45" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 
   <div class="shortcut-card">
     <div class="shortcut-icon">⚠️</div>
     <div class="shortcut-body">
-      <p class="shortcut-title">Auto Lock</p>
+      <p class="shortcut-title">Auto-lock</p>
       <p class="shortcut-desc">Immediately locks when its automation runs. Only use this if you understand the lockout risk.</p>
     </div>
-    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/60993d114c28487a88851e7bf871fbf0" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
+    <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/11e31f0ae30d4edcb001db6ae2ab082b" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 </div>
 

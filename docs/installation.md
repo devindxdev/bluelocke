@@ -44,9 +44,13 @@ Bluelocke runs inside the Scriptable iOS app.
 
 ## Open Bluelocke
 
-Open Scriptable and tap `bluelocke` to run setup.
+Open Scriptable and tap `bluelocke` to run setup. Complete your account settings and sign in, then check that your vehicle and its status appear.
 
-After setup, the first shortcut worth adding is [Auto Lock - Safe](./shortcuts). It gives you a safer walk-away auto-lock option before you start building other shortcuts or automations.
+## Next: Set Up Automations
+
+Once Bluelocke is working, continue to [Automations](./automations) to set up walk-away auto-lock. Start with **Auto-Lock (Safe)**: the guide walks you through installing the shortcut, choosing your car’s disconnect trigger, and testing it before daily use.
+
+<a class="btn btn-primary" href="./automations">Set Up Automations →</a>
 
 <div class="support-callout">
   <h3>Need personal help?</h3>
@@ -54,8 +58,7 @@ After setup, the first shortcut worth adding is [Auto Lock - Safe](./shortcuts).
   <a class="support-callout-btn" href="https://cal.com/bydev.devind/30min" target="_blank" rel="noopener noreferrer">Book Setup Help</a>
 </div>
 
-## Optional Next
+## Explore More
 
 - [Widgets](./widgets)
 - [Shortcuts](./shortcuts)
-- [Automations](./automations)
