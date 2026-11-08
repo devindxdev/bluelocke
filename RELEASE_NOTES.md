@@ -1,5 +1,9 @@
-# Bluelocke v1.27.0
+# Bluelocke v1.27.1
 
-Fixes authentication errors and Hyundai Europe sign-in, hybrid and door-lock status, fuel range, 12V readings, and US petrol and older EV climate controls. Restores modern Settings, adds custom vehicle photos with live cropping and Save, improves image selection, and brings back readable debug logs with sensitive details redacted.
+Fixes Hyundai Europe “Invalid deviceId” errors, including unlock working before an immediate lock fails. Bluelocke now renews rejected device registrations and control tokens automatically.
 
-EU fixes contributed by [mariancapota](https://github.com/devindxdev/bluelocke/pull/3).
+Fixes Australian last-update times and forced-refresh timestamp checks. Shared API responses now retain vehicle readings while credentials, identifiers, and location stay redacted.
+
+The EU and Australian fixes have been confirmed by users on live accounts. Keep your existing Scriptable script name and settings when updating. Fetch a fresh API response after updating if sharing diagnostics.
+
+The multi-car vehicle picker remains in beta and is not included in this release.

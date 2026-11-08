@@ -55,6 +55,38 @@ const API_CONFIG: Record<string, APIConfig> = {
   },
 }
 
+function parseStatusTimestamp(value: unknown): number | undefined {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  const text = String(value).trim()
+  const compact = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\.(\d{1,3}))?Z?$/.exec(text)
+  if (compact) {
+    const [year, month, day, hour, minute, second] = compact.slice(1, 7).map(Number) as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ]
+    // CCS2 vehicle Date is UTC; the offset is for display and may omit DST.
+    const timestamp = Date.UTC(year, month - 1, day, hour, minute, second, Number((compact[7] || '').padEnd(3, '0')))
+    const date = new Date(timestamp)
+    if (
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day ||
+      date.getUTCHours() !== hour ||
+      date.getUTCMinutes() !== minute ||
+      date.getUTCSeconds() !== second
+    )
+      return undefined
+    return timestamp
+  }
+  if (/^\d{10}$/.test(text)) return Number(text) * 1000
+  if (/^\d{13}$/.test(text)) return Number(text)
+  return undefined
+}
+
 export class BluelinkAustralia extends Bluelink {
   private lang = 'en' // hard-code to en as the language doesnt appear to matter from an API perspective.
   private apiConfig: APIConfig
@@ -326,7 +358,7 @@ export class BluelinkAustralia extends Bluelink {
     throw Error(error)
   }
 
-  protected returnCarStatus(status: any, updateTime: number): BluelinkStatus {
+  protected returnCarStatus(status: any, updateTime: unknown): BluelinkStatus {
     // cached status contains a wrapped status object along with odometer info - force status does not
     // force status also does not include a time field
     const chargingInfo = status?.Green?.ChargingInformation
@@ -374,7 +406,10 @@ export class BluelinkAustralia extends Bluelink {
     const soc = this.normalizePercent(this.parseNumber(status?.Green?.BatteryManagement?.BatteryRemain?.Ratio))
     const twelveSoc = this.normalizePercent(this.parseNumber(status?.Electronics?.Battery?.Level))
     const lastRemoteStatusCheck =
-      this.parseNumber(updateTime) ?? (this.cache ? this.cache.status.lastRemoteStatusCheck : Date.now())
+      parseStatusTimestamp(status?.Date) ??
+      parseStatusTimestamp(updateTime) ??
+      parseStatusTimestamp(this.cache?.status.lastRemoteStatusCheck) ??
+      Date.now()
     const fuelLevel =
       this.getFuelLevelFromStatus(status?.Drivetrain?.FuelSystem ?? status) ??
       (this.cache ? this.cache.status.fuelLevel : undefined)

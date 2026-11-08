@@ -200,6 +200,68 @@ test('valid status values, units, errors, endpoints, timestamps, model, and rang
   )
 })
 
+test('Australian CCS2 snapshots retain vehicle telemetry while redacting private fields and OAuth state', () => {
+  const h = runtime()
+  const payload = {
+    retCode: 'S', resCode: '0000',
+    resMsg: {
+      ServiceNo: 'RVS-K', lastUpdateTime: '20261102074326',
+      state: { Vehicle: {
+        Date: '20261102074323.000',
+        Drivetrain: { Odometer: 12345, FuelSystem: { FuelLevel: 72, DTE: { Total: 415 } } },
+        Electronics: { Battery: { Level: 84 } },
+        Green: { ChargingInformation: { ConnectorFastening: { State: 1 }, Charging: { RemainTime: 30 } } },
+        Cabin: { Door: { Row1: { Driver: { Lock: 0, Open: 0 } } }, Seat: { Climate: { State: 2 } } },
+        Chassis: { DrivingMode: { State: 'Eco' } },
+        Location: { GeoCoord: { Latitude: -37.123456, Longitude: 145.123456 } },
+        vin: VIN, vehicleId: 'private-vehicle', accessToken: SECRET,
+      } },
+    },
+    msgId: 'private-message',
+    auth: { state: 'oauth-private-state', nonce: 'private-nonce' },
+  }
+  for (const input of [payload, JSON.stringify(payload), `Payload:\n${JSON.stringify(payload, null, 2)}`,
+    JSON.stringify({ data: JSON.stringify(payload) })]) {
+    const output = h.sanitizeLog(input)
+    absent(output, [VIN, 'private-vehicle', SECRET, '-37.123456', '145.123456', 'private-message',
+      'oauth-private-state', 'private-nonce'])
+    const decoded = JSON.parse(output.replace(/^Payload:\s*/, ''))
+    const report = decoded.data ? JSON.parse(decoded.data) : decoded
+    const vehicle = report.resMsg.state.Vehicle
+    assert.equal(report.resMsg.lastUpdateTime, '20261102074326')
+    assert.equal(vehicle.Date, '20261102074323.000')
+    assert.equal(vehicle.Drivetrain.FuelSystem.FuelLevel, 72)
+    assert.equal(vehicle.Electronics.Battery.Level, 84)
+    assert.equal(vehicle.Green.ChargingInformation.ConnectorFastening.State, 1)
+    assert.equal(vehicle.Cabin.Seat.Climate.State, 2)
+    assert.equal(vehicle.Chassis.DrivingMode.State, 'Eco')
+    assert.equal(h.sanitizeLog(output), output)
+  }
+  assert.equal(payload.resMsg.state.Vehicle.Location.GeoCoord.Latitude, -37.123456)
+  const displayed = h.formatLogForDisplay(`Payload:\n${JSON.stringify(payload)}`)
+  assert.match(displayed, /"state": \{\n\s+"Vehicle": \{/)
+})
+
+test('unrecognized, encoded, and truncated auth state remains private', () => {
+  for (const value of ['oauth-private-state', 123456, { nonce: 'private-nonce', nested: SECRET },
+    { Vehicle: 'not-a-vehicle-payload', nested: SECRET }]) {
+    const h = runtime()
+    const output = h.sanitizeLog({ state: value, State: value })
+    assert.deepEqual(JSON.parse(output), { state: '[REDACTED]', State: '[REDACTED]' })
+  }
+  const h = runtime()
+  absent(h.sanitizeLog('state=oauth-private-state'), ['oauth-private-state'])
+  absent(h.sanitizeLog('payload=' + encodeURIComponent(JSON.stringify({ state: 'oauth-private-state' }))),
+    ['oauth-private-state', encodeURIComponent('oauth-private-state')])
+  absent(h.sanitizeLog('Payload: {"state":{"Vehicle":{"accessToken":"' + SECRET + '"'), [SECRET])
+})
+
+test('an existing redacted vehicle snapshot requires a fresh capture', () => {
+  const h = runtime()
+  const output = h.sanitizeLog({ resMsg: { state: '[REDACTED]', lastUpdateTime: '20261102074326' } })
+  assert.deepEqual(JSON.parse(output), { resMsg: { state: '[REDACTED]', lastUpdateTime: '20261102074326' } })
+})
+
 test('URL parameters, callback codes, credentials, account paths, and fragments are removed', () => {
   const h = runtime()
   const output = h.sanitizeLog(

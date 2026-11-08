@@ -8,18 +8,32 @@ import {
   ChargeLimit,
   DEFAULT_STATUS_CHECK_INTERVAL,
   MAX_COMPLETION_POLLS,
+  RequestProps,
 } from './base'
 import { Config } from '../../config'
 import Url from 'url'
 import { isNotEmptyObject } from '../util'
 import { HyundaiEuropeAuth } from './hyundai-europe-auth'
 import { europeCarStatus } from './europe-status'
+import { UserFacingError } from '../user-error'
 
 import { returnMockedCarStatus, returnMockedCar } from './mock'
 
 interface ControlToken {
   expiry: number
   token: string
+  deviceId: string | undefined
+  accessToken: string
+  vehicleId: string
+}
+
+function invalidDeviceResponse(data: any): boolean {
+  return (
+    data?.retCode === 'F' &&
+    String(data.resCode) === '4002' &&
+    typeof data.resMsg === 'string' &&
+    /invalid\s+deviceid\b/i.test(data.resMsg)
+  )
 }
 
 interface APIConfig {
@@ -67,6 +81,7 @@ export class BluelinkEurope extends Bluelink {
   private controlToken: ControlToken | undefined
   private europeccs2: number | undefined
   private additionalAuthHeaders: Record<string, string>
+  private deviceRegistrationPromise: Promise<void> | undefined
 
   constructor(config: Config, statusCheckInterval?: number) {
     super(config)
@@ -119,15 +134,76 @@ export class BluelinkEurope extends Bluelink {
 
   private requestResponseValid(
     resp: Record<string, any>,
-    _data: Record<string, any>,
+    data: Record<string, any>,
   ): { valid: boolean; retry: boolean } {
     if (
       Object.hasOwn(resp, 'statusCode') &&
-      (resp.statusCode === 200 || resp.statusCode === 204 || resp.statusCode === 302)
+      (resp.statusCode === 200 || resp.statusCode === 204 || resp.statusCode === 302) &&
+      data?.retCode !== 'F'
     ) {
       return { valid: true, retry: false }
     }
     return { valid: false, retry: true }
+  }
+
+  protected async request(props: RequestProps) {
+    if (this.config.manufacturer !== 'hyundai' || props.noAuth || !props.url.startsWith(`${this.apiDomain}/api/`)) {
+      return await super.request(props)
+    }
+
+    // Handle the device error before the usual token refresh, which retains
+    // the rejected ID. Keep authentication retries bounded independently.
+    let deviceId = (this.tokens || this.cache?.token)?.authId
+    let response = await super.request({ ...props, noRetry: true })
+    if (
+      !props.noRetry &&
+      !invalidDeviceResponse(response.json) &&
+      props.validResponseFunction(response.resp, response.json).retry
+    ) {
+      if (this.cache) await this.refreshLogin(true)
+      if (this.loginFailure) return response
+      deviceId = (this.tokens || this.cache?.token)?.authId
+      response = await super.request({ ...props, noRetry: true })
+    }
+    if (!invalidDeviceResponse(response.json)) return response
+
+    await this.recoverDeviceRegistration(deviceId)
+    const retry = { ...props, noRetry: true }
+    if (props.url === `${this.apiDomain}/api/v1/user/pin` && props.data) {
+      retry.data = JSON.stringify({ ...JSON.parse(props.data), deviceId: (this.tokens || this.cache.token).authId })
+    }
+    if (props.authTokenOverride) {
+      const vehicleId = props.url.slice(this.apiDomain.length).match(/^\/api\/v\d+\/spa\/vehicles\/([^/]+)\//)?.[1]
+      if (!vehicleId) return response
+      retry.authTokenOverride = await this.getAuthCode(vehicleId)
+    }
+    // Only an explicit invalid-device rejection is replayed, including for
+    // commands. Timeouts and other ambiguous command failures are not retried.
+    return await super.request(retry)
+  }
+
+  private async recoverDeviceRegistration(rejectedDeviceId: string | undefined): Promise<void> {
+    if (this.deviceRegistrationPromise) return await this.deviceRegistrationPromise
+    if ((this.tokens || this.cache?.token)?.authId !== rejectedDeviceId) return
+
+    this.deviceRegistrationPromise = (async () => {
+      if (this.config.debugLogging) this.logger.log('Hyundai rejected the device ID; renewing device registration.')
+      const deviceId = await this.getDeviceId()
+      if (!deviceId) throw new UserFacingError('Could not renew the Hyundai device registration. Try again later.')
+      const tokens = this.tokens || this.cache?.token
+      if (!tokens) throw new UserFacingError('The Hyundai session is unavailable. Try signing in again.')
+      this.tokens = { ...tokens, authId: deviceId }
+      this.controlToken = undefined
+      if (this.cache) {
+        this.cache.token = this.tokens
+        this.saveCache()
+      }
+    })()
+    try {
+      await this.deviceRegistrationPromise
+    } finally {
+      this.deviceRegistrationPromise = undefined
+    }
   }
 
   protected async login(): Promise<BluelinkTokens | undefined> {
@@ -673,7 +749,14 @@ export class BluelinkEurope extends Bluelink {
   // named for consistency - but this is a special Authetication token - used instead of the normal Authentication token?
   // seemingly has its own expiry which we cache within the current app session only - not across app usages (i.e. saved to cache)
   protected async getAuthCode(id: string): Promise<string> {
-    if (this.controlToken && this.controlToken.expiry > Date.now()) {
+    const session = this.tokens || this.cache.token
+    if (
+      this.controlToken &&
+      this.controlToken.expiry > Date.now() &&
+      this.controlToken.deviceId === session.authId &&
+      this.controlToken.accessToken === session.accessToken &&
+      this.controlToken.vehicleId === id
+    ) {
       return this.controlToken.token
     }
     const resp = await this.request({
@@ -681,7 +764,7 @@ export class BluelinkEurope extends Bluelink {
       method: 'PUT',
       data: JSON.stringify({
         pin: this.config.auth.pin,
-        deviceId: this.cache.token.authId,
+        deviceId: session.authId,
       }),
       headers: {
         vehicleId: id,
@@ -692,9 +775,13 @@ export class BluelinkEurope extends Bluelink {
     })
 
     if (this.requestResponseValid(resp.resp, resp.json).valid) {
+      const currentSession = this.tokens || this.cache.token
       this.controlToken = {
         expiry: Date.now() + Number(resp.json.expiresTime) * 1000,
         token: `Bearer ${resp.json.controlToken}`,
+        deviceId: currentSession.authId,
+        accessToken: currentSession.accessToken,
+        vehicleId: id,
       }
       return this.controlToken.token
     }

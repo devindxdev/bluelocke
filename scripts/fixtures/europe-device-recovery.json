@@ -1,0 +1,6 @@
+{
+  "reason": "EU API failure payloads must be rejected even when the HTTP status is 200. Other fingerprinted authentication methods remain pinned to v1.24.4 or reviewed PR #3.",
+  "authMethods": {
+    "requestResponseValid": "13d7bd0814e47c60aef1a5f8bdbac909e62b33fd7ef79b02b8555b88d95ce5af"
+  }
+}
