@@ -37,6 +37,8 @@ If you want personal help getting Bluelocke working, book a [Bluelocke Setup & S
 Use GitHub issues for public bugs and feature requests:
 - [github.com/devindxdev/bluelocke/issues](https://github.com/devindxdev/bluelocke/issues)
 
+Enjoying Bluelocke? [Buy me a coffee](https://buymeacoffee.com/devindxdevr).
+
 ## Development
 
 ### Repo Structure

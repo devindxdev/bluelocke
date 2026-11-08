@@ -49,6 +49,58 @@ a:hover,
   color: #0d2b52;
 }
 
+/* A quiet support button alongside the repository link. */
+.aux-nav .site-button[href="https://buymeacoffee.com/devindxdevr"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  height: auto;
+  margin: 0.6rem 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c7d5e5;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.aux-nav .site-button[href="https://buymeacoffee.com/devindxdevr"]:focus-visible {
+  outline: 2px solid #123b73;
+  outline-offset: 3px;
+}
+
+.aux-nav .site-button[href="https://buymeacoffee.com/devindxdevr"]::before {
+  content: '☕';
+}
+
+.coffee-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 1rem 0 1.4rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #d9e2ee;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #375372;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.coffee-hint p {
+  margin: 0;
+}
+
+.coffee-hint a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .main-content img {
   display: block;
   width: auto;

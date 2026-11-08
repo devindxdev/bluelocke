@@ -62,6 +62,8 @@ After [installing Bluelocke](./installation), use this guide to set up walk-away
   </div>
 </div>
 
+{% include coffee_hint.html %}
+
 ## 1. Install and Test the Safe Shortcut
 
 1. On your iPhone, open [Auto-Lock (Safe)](https://www.icloud.com/shortcuts/dc6e0f8d1b5f4fff920f9de90d31bf45) and tap **Add Shortcut** in Shortcuts.

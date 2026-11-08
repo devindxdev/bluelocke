@@ -134,6 +134,8 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
   </div>
 </div>
 
+{% include coffee_hint.html %}
+
 ## Shortcut Setup
 
 1. Create a new Shortcut.

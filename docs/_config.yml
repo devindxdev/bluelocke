@@ -11,10 +11,12 @@ search_enabled: true
 heading_anchors: true
 
 aux_links:
+  "Buy Me a Coffee":
+    - "https://buymeacoffee.com/devindxdevr"
   "GitHub Repository":
     - "https://github.com/devindxdev/bluelocke"
 
-footer_content: "Bluelocke documentation."
+footer_content: 'Bluelocke documentation. <a href="https://buymeacoffee.com/devindxdevr" target="_blank" rel="noopener noreferrer">Buy me a coffee</a>.'
 
 plugins:
   - jekyll-remote-theme
