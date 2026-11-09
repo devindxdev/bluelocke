@@ -5,61 +5,51 @@ nav_order: 4
 
 # App Features
 
-The app screen is designed for quick common actions and status visibility.
+Open Bluelocke in Scriptable to check your car or use the controls.
 
-## Main Actions
+## What You Can Do
 
-- Refresh status
-- Lock / unlock
-- Climate on / off
-- Charge start / stop (for supported vehicles)
-- Charge limit selection (for supported vehicles)
-- Open car location in Maps
+- Check the latest information from your car
+- Lock or unlock the doors
+- Turn heating or cooling on or off
+- Start or stop charging, if your car supports it
+- Set a charging limit, if your car supports it
+- Open your car’s location in Maps
+
+Your iPhone needs an internet connection to check your car or use these controls. Available features depend on your car and country.
 
 ## Settings
 
-Open **Settings** from the main screen for the modern native layout:
+Tap **Settings** on the main screen.
 
-- **Account** — manufacturer, region, credentials, PIN, and verification method
-- **Vehicle** — display name and vehicle photo
-- **Climate** — Warm and Cool presets
-- **Appearance & Units** — widget appearance, distance, and temperature units
-- **Help & Support** — updates, diagnostics, and recovery
+- **Account** — your car brand, country, sign-in details, and PIN
+- **Vehicle** — your car’s name and photo
+- **Climate** — your saved Warm and Cool settings
+- **Appearance & Units** — widget style, miles or kilometres, and temperature units
+- **Help & Support** — updates and help with problems
 
-Confirmed edits save automatically. **Cancel** keeps the previous value. Nested pages use **‹ Back**; Scriptable’s **Close** exits Settings. Existing climate profiles, charge limits, and widget intervals remain saved.
+Changes save when you confirm them. **Cancel** keeps the old setting. Use **‹ Back** to return to the previous screen, or **Close** to leave Settings.
 
-First-time setup uses the v1.26.0 **Welcome to Bluelocke** account page, with autosave and **Continue** once required details are complete. Closing and reopening setup preserves partial entries. The old configuration form is no longer included in the generated script. The modern pages use the original v1.24.4 configuration and vehicle-cache keys; login requests, verification, and token refresh are unchanged.
+During first-time setup, enter your account details and tap **Continue**. If you close setup before finishing, the details you have entered are kept.
 
-## Visuals
+## Add a Photo of Your Car
 
-- Vehicle image with GitHub overrides for known models/trims/colors and an API photo fallback
-- Custom vehicle images from Photos or Files, with a framing preview and size/position controls
-- Last update time
-- Odometer and 12V indicators where available
+Open **Settings > Vehicle > Vehicle photo**.
 
-Vehicle images use this order: a saved custom photo, a matching GitHub model/trim/color image, the API-provided vehicle photo, then the existing default image. If a source is missing or fails to load, Bluelocke tries the next one. API photos are cached separately for each vehicle and script so later app and widget loads can use them offline. The photo request does not include your account credentials or API authentication headers.
+1. Choose a picture from **Photos** or **Files**.
+2. Drag it with one finger to move it. Pinch with two fingers to make it bigger or smaller.
+3. Use **Fit whole image** to show the whole picture, or **Fill frame** to fill the space. You can also open **Fine-tune size and position** for more controls.
+4. Tap **Save** when you are happy with it. Closing without saving keeps the last saved picture.
+5. Close Settings. Your widgets will show the picture the next time they update.
 
-## Custom Vehicle Images
+**Light** and **Dark** let you see how the picture looks on different backgrounds. They do not change your saved widget style.
 
-After signing in, open **Settings > Vehicle > Vehicle photo**.
+Your photos stay on your device. They are not uploaded or automatically copied to your other devices.
 
-1. Choose an image from **Photos** or **Files**. A transparent PNG works well for a vehicle cutout; regular photos keep their background.
-2. The widget itself is the live editor, with sample title, fuel/battery, range, and footer data around the photo. Drag the photo with one finger to position it; pinch with two fingers or drag its corner handle to resize it. Every change appears immediately inside the preview widget.
-3. Use **Fit whole image** or **Fill frame** for a quick starting point. Expand **Fine-tune size and position** for sliders, or use a mouse wheel over the photo to zoom. **Light** and **Dark** change only the preview background, not your saved widget appearance.
-4. The editor opens full screen so dragging the photo does not pull down or dismiss a sheet. Scroll outside the photo to reach the controls. Tap **Save** inside the editor to apply the framing immediately. The button shows **Saved**, and further adjustments enable Save again. Closing without saving keeps your last saved image. There is no follow-up “Use Image” prompt.
-5. Close Settings to see the image in the app. Widgets show the same image on their next scheduled refresh.
+To change the picture later, open **Vehicle photo > Preview & Adjust Image**. Choose **Restore Default Image** to remove your custom picture and use the normal car image again.
 
-Scriptable supplies its own Close and Share toolbar; the direct **Save** button is in the editor itself.
+## Car Information
 
-The image is resized for the app and widgets, and a local copy is kept so you can adjust the crop later. Images stay on the device and are not uploaded. Each vehicle and script profile has its own image; it does not automatically sync to other devices.
+Bluelocke can show fuel or battery level, estimated range, mileage, and the small 12V battery’s charge level. What you see depends on the information your car provides.
 
-Reopen **Vehicle photo** and choose **Preview & Adjust Image** to return directly to the live widget editor with your saved photo and crop, or to try framing the original vehicle picture. The editor uses the shared widget layout and image bounds; it does not refresh your vehicle, send commands, or change saved status.
-
-**Restore Default Image** is always available. After confirmation it removes the custom photo and crop and returns to the matching GitHub model/trim/color image, the API photo, or the existing default, in that order. Image changes are saved separately from the vehicle name and type settings.
-
-
-## Vehicle Status and US Climate
-
-Reported fuel range is read even when the API omits an EV status section, including older Tucson models. Range values are converted between kilometres and miles when the API reports a different unit. Alternate 12V state-of-charge fields are supported.
-
-Hyundai US petrol and hybrid vehicles use the remote engine start/stop routes. US climate temperatures are converted to Fahrenheit and petrol duration is limited to 1–10 minutes. Older Hyundai EVs omit unsupported duration and seat options. A confirmed command remains successful when a follow-up status refresh fails.
+If a lock or heating command succeeds but the screen does not update, the action may still have worked. Check the car before trying again.

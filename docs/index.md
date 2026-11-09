@@ -5,14 +5,14 @@ nav_order: 1
 
 # Bluelocke Docs
 
-Bluelocke is a Scriptable app for iOS that lets you monitor and control your Hyundai, Kia, and Genesis vehicles using Bluelink-compatible APIs.
+Bluelocke lets you check and control your Hyundai, Kia, or Genesis car from your iPhone. It runs inside the Scriptable app.
 
 ## Core Features
 
 - Home and lock screen widgets
-- Siri and Shortcuts command support
-- In-app controls for lock, climate, and status refresh
-- GitHub release based auto-updates
+- Use Siri or tap a shortcut to control your car
+- Lock, unlock, heat, or cool your car
+- Install updates from within Bluelocke
 
 ## Documentation
 
@@ -27,4 +27,4 @@ Bluelocke is a Scriptable app for iOS that lets you monitor and control your Hyu
 - [Help / FAQ](./help)
 - [Auto Update](./auto-update)
 
-<sub>Bluelocke was forked from [Andy Fase's upstream work](https://github.com/andyfase/egmp-bluelink-scriptable) and overhauled to support HEV &amp; EV with a huge focus on widgets and walk-away auto lock.</sub>
+<sub>Bluelocke builds on [Andy Fase's original project](https://github.com/andyfase/egmp-bluelink-scriptable), with added support for hybrid and electric cars, widgets, and automatic locking.</sub>

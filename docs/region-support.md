@@ -5,7 +5,7 @@ nav_order: 2
 
 # Region / Brand Support
 
-Bluelocke supports multiple regions and brands through different API implementations.
+Choose your car’s brand and the country or region used for your car account during setup.
 
 ## Regions
 
@@ -21,5 +21,4 @@ Bluelocke supports multiple regions and brands through different API implementat
 - Kia
 - Genesis
 
-Availability depends on region and brand combinations supported by each regional API integration.
-
+Not every brand is available in every region. The features you can use also depend on your car.

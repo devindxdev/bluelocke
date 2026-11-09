@@ -33,29 +33,28 @@ Bluelocke currently supports:
 
 ### Medium Widget
 
-The medium widget gives a fuller snapshot:
+The medium widget shows:
 
 - Vehicle name at the top
 - Vehicle image in the center
-- Main energy/range area:
-  - EV/PHEV: battery level + range
-  - ICE/HEV: fuel level + range
+- Battery or fuel level, depending on your car
+- Estimated distance you can drive
 - Bottom summary row:
   - Odometer (mileage)
   - Last updated time
   - 12V battery level
 
-For ICE/HEV vehicles, the medium widget now shows:
+For petrol and non-plug-in hybrid cars, the widget shows:
 
 - `Fuel x%` in larger text
 - `~ range` in larger text below it
 
 ## Lock Screen Widgets
 
-Bluelocke supports Lock Screen styles for faster glance info:
+Choose one of these Lock Screen styles:
 
 - `Inline`: single-line summary
-- `Circular`: circular progress view
+- `Circular`: a small round display
 - `Rectangular`: compact detail view
 
 ### Lock Screen Example
@@ -71,19 +70,15 @@ These are ideal when you only need a quick status check.
 
 Here is what each value represents in plain language:
 
-- `Fuel % / Battery %`: How much drive energy is currently available.
+- `Fuel % / Battery %`: How much fuel or battery charge is left.
 - `Range`: Estimated distance left based on the latest vehicle data.
 - `Odometer`: Total distance on the vehicle.
-- `Last Updated`: Time of the most recent successful status refresh shown in the widget.
-- `12V`: Health/charge level of the auxiliary 12V battery.
-- `Charging Info` (EV/PHEV): Charging state and estimated completion time.
+- `Last Updated`: When the car information was last updated.
+- `12V`: Charge level of your car’s small 12V battery.
+- `Charging Info` (electric and plug-in hybrid cars): Charging state and estimated completion time.
 
-## Refresh Behavior
+## When Widgets Update
 
-Widgets are designed to stay responsive while keeping battery usage reasonable:
+Widgets show the last information Bluelocke received from your car. They update from time to time, so a change may not appear straight away.
 
-- Uses cached data for quick loading
-- Refreshes automatically based on configured intervals
-- Can trigger deeper remote refreshes if enabled
-
-You can adjust refresh timing in app settings under `Advanced Widget Settings`.
+You can change how often Bluelocke checks for new information under **Advanced Widget Settings**. Your iPhone needs an internet connection to get new information.

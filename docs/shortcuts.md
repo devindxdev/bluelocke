@@ -5,7 +5,9 @@ nav_order: 7
 
 # Siri & Shortcuts
 
-Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
+Use the shortcuts below to lock, unlock, warm, or cool your car. Tap **Add Shortcut** on your iPhone, then tap **Add Shortcut** again in the Shortcuts app.
+
+Bluelocke must be [installed and signed in](./installation) first. Your iPhone needs an internet connection to use these shortcuts.
 
 <style>
   .shortcut-grid {
@@ -67,7 +69,7 @@ Run `bluelocke` from Shortcuts and pass text through `Shortcut Input`.
 
 ## Auto-Lock Shortcuts
 
-For walk-away auto-lock, follow the [Automations setup guide](./automations). Adding a shortcut alone does not create the automation that runs it when you leave the car.
+Want your car to lock when you leave? The [Automations guide](./automations) explains the two options and how to set them up. Adding a shortcut below lets you try it by tapping it; follow that guide to make it run automatically.
 
 <blockquote class="warning-title">
   <p><strong>Use care with auto-lock shortcuts.</strong></p>
@@ -79,7 +81,7 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
     <div class="shortcut-icon">🛡️</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Auto-Lock (Safe)</p>
-      <p class="shortcut-desc">Checks whether the vehicle is unlocked and prompts you before sending the lock command.</p>
+      <p class="shortcut-desc">Checks whether your car is unlocked, then asks you before locking it.</p>
     </div>
     <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/dc6e0f8d1b5f4fff920f9de90d31bf45" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
@@ -88,20 +90,20 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
     <div class="shortcut-icon">⚠️</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Auto-lock</p>
-      <p class="shortcut-desc">Immediately locks when its automation runs. Only use this if you understand the lockout risk.</p>
+      <p class="shortcut-desc">Locks your car without asking first. Always take your phone and key with you.</p>
     </div>
     <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/11e31f0ae30d4edcb001db6ae2ab082b" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
 </div>
 
-## Ready-Made Shortcuts
+## More Shortcuts
 
 <div class="shortcut-grid">
   <div class="shortcut-card">
     <div class="shortcut-icon">🔓</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Unlock</p>
-      <p class="shortcut-desc">Sends an immediate unlock command through Scriptable.</p>
+      <p class="shortcut-desc">Unlocks your car.</p>
     </div>
     <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/7a8a1f23728b4ffb87ef3fdcacb0cd86" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
@@ -110,7 +112,7 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
     <div class="shortcut-icon">🔒</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Lock</p>
-      <p class="shortcut-desc">Sends an immediate lock command through Scriptable.</p>
+      <p class="shortcut-desc">Locks your car.</p>
     </div>
     <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/647e2f473f964c8ea7bdf727219dac7f" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
@@ -119,7 +121,7 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
     <div class="shortcut-icon">❄️</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Cool the Car</p>
-      <p class="shortcut-desc">Starts the default cool climate preset through Scriptable.</p>
+      <p class="shortcut-desc">Cools your car using your saved Cool settings.</p>
     </div>
     <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/305654e50b174843b931d7fdec830147" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
@@ -128,7 +130,7 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
     <div class="shortcut-icon">🔥</div>
     <div class="shortcut-body">
       <p class="shortcut-title">Warm the Car</p>
-      <p class="shortcut-desc">Starts the default warm climate preset through Scriptable.</p>
+      <p class="shortcut-desc">Warms your car using your saved Warm settings.</p>
     </div>
     <a class="shortcut-btn" href="https://www.icloud.com/shortcuts/7f226eb58405428392ae785068dd19a0" target="_blank" rel="noopener noreferrer">Add Shortcut</a>
   </div>
@@ -136,10 +138,18 @@ For walk-away auto-lock, follow the [Automations setup guide](./automations). Ad
 
 {% include coffee_hint.html %}
 
-## Shortcut Setup
+## Try a Shortcut
 
-1. Create a new Shortcut.
-2. Add `Run Script` (Scriptable).
-3. Select `bluelocke`.
-4. Pass a text value as input, for example `lock` or `unlock`.
-5. Run manually or connect to Siri phrase / automation trigger.
+Open the **Shortcuts** app and tap the shortcut you added. Follow any instructions on your phone to allow access or sign in.
+
+You can also ask Siri to run it by saying “Hey Siri” followed by the shortcut’s name, such as “Lock”. Give your shortcuts clear names that are easy to say.
+
+## Make Your Own Shortcut
+
+The buttons above are the easiest way to get started. If you want to make your own:
+
+1. In **Shortcuts**, create a new shortcut.
+2. Add Scriptable’s **Run Script** action.
+3. Select **bluelocke** as the script.
+4. In **Shortcut Input**, enter what you want it to do, such as `lock` or `unlock`.
+5. Give the shortcut a name and tap it to try it.

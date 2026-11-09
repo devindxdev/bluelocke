@@ -7,7 +7,7 @@ nav_order: 5
 
 Bluelocke runs inside the Scriptable iOS app.
 
-## 3-Step Flow
+## Install in 3 Steps
 
 <div class="install-flow">
   <a class="install-flow-btn" href="https://apps.apple.com/us/app/scriptable/id1405459188?uo=4" target="_blank" rel="noopener noreferrer">
@@ -44,17 +44,19 @@ Bluelocke runs inside the Scriptable iOS app.
 
 ## Open Bluelocke
 
-Open Scriptable and tap `bluelocke` to run setup. Complete your account settings and sign in, then check that your vehicle and its status appear.
+Open Scriptable and tap `bluelocke` to run setup. Enter your account details and sign in. Check that your car appears.
+
+Your iPhone needs an internet connection to use Bluelocke.
 
 ## Next: Set Up Automations
 
-Once Bluelocke is working, continue to [Automations](./automations) to set up walk-away auto-lock. Start with **Auto-Lock (Safe)**: the guide walks you through installing the shortcut, choosing your car’s disconnect trigger, and testing it before daily use.
+Once Bluelocke is working, continue to [Automations](./automations) to set up walk-away auto-lock. Choose whether to be asked before locking or to lock without asking. The guide explains both options and how to try them.
 
 <a class="btn btn-primary" href="./automations">Set Up Automations →</a>
 
 <div class="support-callout">
   <h3>Need personal help?</h3>
-  <p>If you want help getting Bluelocke installed, signed in, and fully working, you can book a 1:1 Bluelocke Setup &amp; Support Call.</p>
+  <p>If you want help getting Bluelocke installed, signed in, and fully working, you can book a Bluelocke Setup &amp; Support Call.</p>
   <a class="support-callout-btn" href="https://cal.com/bydev.devind/30min" target="_blank" rel="noopener noreferrer">Book Setup Help</a>
 </div>
 

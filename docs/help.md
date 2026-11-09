@@ -5,49 +5,52 @@ nav_order: 10
 
 # Help / FAQ
 
-## Widgets stopped updating
+## A shortcut or car control is not working
 
-- Open Scriptable and run `bluelocke` once manually.
-- Confirm login/config are valid.
-- Check widget poll settings in advanced widget config.
+- Check that your iPhone has an internet connection.
+- Open **bluelocke** in Scriptable and sign in if asked.
+- Check your car brand, country, account details, and PIN in Settings.
+- Try updating the car’s information from the main screen.
 
-## Script fails after working before
+If it still does not work, use **Share Debug Logs** when asking for help. This shares a report of what went wrong. Bluelocke removes account details, passwords, and location information from that report.
 
-- Re-run setup and confirm credentials, region, and PIN.
-- Force a status refresh from the app UI.
-- If still failing, enable debug logging and inspect logs.
+## My widget has stopped updating
 
-## Siri command not recognized
+- Open Scriptable and tap **bluelocke** once.
+- Check that your car appears and that you are signed in.
+- Check the update timing under **Advanced Widget Settings**.
 
-- Ensure text is passed as Shortcut input to `Run Script`.
-- Use exact command phrases (`auto lock`, `status remote`, `climate off`, etc.).
+Widgets show the last information Bluelocke received. They may not show a change straight away.
 
-## Region or vehicle not behaving as expected
+## Siri does not run my shortcut
 
-- Verify manufacturer + region match your account.
-- Some API capabilities differ by market and model year.
+- Try tapping the shortcut in the **Shortcuts** app first.
+- Ask Siri using the shortcut’s name.
+- If you made the shortcut yourself, check that **Run Script** is set to **bluelocke** and that **Shortcut Input** contains the action, such as `lock` or `unlock`.
 
-## v1.24.4-based rebuild
+See [Siri & Shortcuts](./shortcuts) for shortcuts you can add without making your own.
 
-Version v1.27.0 uses the supplied v1.24.4 source for sign-in, verification, token refresh, device IDs, cache keys, and configuration. Keep the existing Scriptable script name to reuse its v1.24.4 settings and cache. Complete any requested verification in Scriptable.
+## Auto-lock is not working
 
-Hyundai Europe users on **v1.27.0** use the login and hybrid-status changes from [PR #3](https://github.com/devindxdev/bluelocke/pull/3). Other regions keep the v1.24.4 authentication implementation.
+Follow the checks at the end of the [Automations guide](./automations). First, make sure the shortcut works when you tap it yourself.
 
-## Getting support
+## Some features are missing
 
-Logs are indented for viewing and sharing. Credentials, tokens, account details, vehicle identifiers, and location data are redacted, including historical logs read through the app. Use **Share Debug Logs** to share the sanitized output. Public errors show safe guidance rather than raw API requests.
+Available features depend on your car, brand, and country. Check that you chose the correct brand and country in Settings.
 
+## After an update
 
-Choose the path that fits the issue:
+Keep the same script name in Scriptable to keep using your saved settings. If Bluelocke asks you to sign in or enter a verification code, follow the instructions on your phone.
+
+## Get More Help
 
 <div class="support-links">
   <a class="support-link-card" href="https://github.com/devindxdev/bluelocke/issues" target="_blank" rel="noopener noreferrer">
-    <strong>GitHub Issues</strong>
-    <span>Use this for bug reports, feature requests, and public issues that are useful for the project to track openly.</span>
+    <strong>Report a Problem</strong>
+    <span>Tell us what went wrong or suggest a feature on GitHub. These reports are public.</span>
   </a>
-
   <a class="support-link-card" href="https://cal.com/bydev.devind/30min" target="_blank" rel="noopener noreferrer">
-    <strong>Bluelocke Setup &amp; Support Call</strong>
-    <span>Use this if you want personal 1:1 help with setup, login problems, widgets, shortcuts, or troubleshooting.</span>
+    <strong>Book Setup Help</strong>
+    <span>Book a call for personal help with installation, signing in, widgets, or shortcuts.</span>
   </a>
 </div>
