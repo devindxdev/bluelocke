@@ -55,7 +55,7 @@ Set up your iPhone to lock your car when it disconnects from CarPlay or your car
 
 <div class="automation-options">
   <div class="automation-card">
-    <h3>Ask before locking</h3>
+    <h3 id="ask-before-locking">Ask before locking</h3>
     <p><strong>Auto-Lock (Safe)</strong> checks whether your car is unlocked, then asks you before locking it.</p>
     <p>Choose this if you want to confirm each time. It is a good place to start if you are unsure.</p>
     <div class="automation-actions">
@@ -63,7 +63,7 @@ Set up your iPhone to lock your car when it disconnects from CarPlay or your car
     </div>
   </div>
   <div class="automation-card">
-    <h3>Lock without asking</h3>
+    <h3 id="lock-without-asking">Lock without asking</h3>
     <p><strong>Auto-lock</strong> locks your car without asking you first.</p>
     <p>Choose this if you want it to lock automatically. Take your phone and key with you every time you leave the car.</p>
     <div class="automation-actions">
