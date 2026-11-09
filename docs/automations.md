@@ -27,6 +27,7 @@ Set up your iPhone to lock your car when it disconnects from CarPlay or your car
     margin: 0;
   }
   .automation-options h3 { margin-top: 0; }
+  .automation-warning { font-size: 0.9rem; color: #704f13; }
   .automation-options .automation-actions { margin-top: auto; padding-top: 0.6rem; }
   .automation-actions {
     display: flex;
@@ -65,7 +66,7 @@ Set up your iPhone to lock your car when it disconnects from CarPlay or your car
   <div class="automation-card">
     <h3 id="lock-without-asking">Lock without asking</h3>
     <p><strong>Auto-lock</strong> locks your car without asking you first.</p>
-    <p>Choose this if you want it to lock automatically. Take your phone and key with you every time you leave the car.</p>
+    <p class="automation-warning"><strong>Warning:</strong> Take your phone and key with you to avoid locking yourself out.</p>
     <div class="automation-actions">
       <a class="automation-btn" href="https://www.icloud.com/shortcuts/11e31f0ae30d4edcb001db6ae2ab082b" target="_blank" rel="noopener noreferrer">Use Auto-lock</a>
     </div>
@@ -73,10 +74,6 @@ Set up your iPhone to lock your car when it disconnects from CarPlay or your car
 </div>
 
 Tap the button for the option you want, then tap **Add Shortcut** on your iPhone. Follow the steps below for either option.
-
-<blockquote class="warning-title">
-  <p><strong>Keep your key with you.</strong> If you leave your phone inside the car, it could lock with your phone still inside. The option that locks without asking makes this easier to do by mistake.</p>
-</blockquote>
 
 {% include coffee_hint.html %}
 
