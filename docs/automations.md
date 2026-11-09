@@ -84,50 +84,41 @@ Tap the button for the option you want, then tap **Add Shortcut** on your iPhone
 - In Scriptable, the script should be called **bluelocke**.
 - Your iPhone needs an internet connection for Bluelocke and its shortcuts to work.
 
-## 2. Try the Shortcut
-
-Try it once before setting it to run automatically.
-
-1. Park your car and leave it unlocked. Stand outside with your phone and key.
-2. Open the **Shortcuts** app and tap the shortcut you just added.
-3. Follow any instructions to allow access or sign in. If you chose **Auto-Lock (Safe)**, confirm that you want to lock the car.
-4. Wait for the car to lock, then check the door.
-
-If it does not work, open Bluelocke in Scriptable and check that you are signed in and your phone is online. If Shortcuts asks you to choose a script, select **bluelocke**.
-
-## 3. Set It to Run When You Leave
+## 2. Set It to Run When You Leave
 
 In the **Shortcuts** app, open **Automation** and tap **+** or **New Automation**. An automation tells your iPhone when to run your shortcut.
 
 Choose one of these options. You only need one.
 
-### When CarPlay Disconnects
+### Recommended: When Your Phone Leaves the Car’s Wi-Fi
 
-This works with wired or wireless CarPlay.
-
-1. Choose **CarPlay**, then **Disconnects**.
-2. Choose **Run Immediately** if shown. If you see **Ask Before Running** instead, turn it off.
-3. Tap **Next** if shown, then choose the shortcut you added: **Auto-Lock (Safe)** or **Auto-lock**. If you see a screen for adding actions, add **Run Shortcut** and choose it there.
-4. Tap **Done** to save.
-
-CarPlay may disconnect as soon as you turn the car off or unplug your phone, even while you are still inside. Try it while parked so you know when it runs.
-
-### When Your Phone Leaves the Car’s Wi-Fi
-
-Use this if you have wireless CarPlay and can find your car’s Wi-Fi in Shortcuts.
+This is the recommended option for walk-away auto-lock. Your phone starts the shortcut when it disconnects from your car’s Wi-Fi. You need wireless CarPlay and your car’s Wi-Fi must appear in Shortcuts.
 
 1. While connected to your car’s wireless CarPlay, choose **Wi-Fi** in the new automation.
 2. Tap **Choose** and select your car’s Wi-Fi name. Do not choose **Any Network**, or it may run when you leave other Wi-Fi networks too.
-3. Choose **When I Disconnect**. If this option or your car’s Wi-Fi is missing, use **CarPlay** above instead.
+3. Choose **When I Disconnect**. If this option or your car’s Wi-Fi is missing, use the **CarPlay** option below instead.
 4. Choose **Run Immediately** if shown. If you see **Ask Before Running** instead, turn it off.
 5. Tap **Next** if shown, then choose **Auto-Lock (Safe)** or **Auto-lock**. If you see a screen for adding actions, add **Run Shortcut** and choose it there.
 6. Tap **Done** to save.
+
+### When CarPlay Disconnects
+
+This also works with wired or wireless CarPlay. CarPlay can disconnect as soon as you turn the car off or unplug your phone, so add a **Wait** step to give yourself time to get out.
+
+1. Choose **CarPlay**, then **Disconnects**.
+2. Choose **Run Immediately** if shown. If you see **Ask Before Running** instead, turn it off.
+3. Tap **Next** if shown, then choose **New Blank Automation** or the option to add your own actions.
+4. Search for **Wait** and add it. Set the number of seconds you want to wait before locking.
+5. Add **Run Shortcut** below **Wait**, then choose **Auto-Lock (Safe)** or **Auto-lock**.
+6. Tap **Done** to save.
+
+The steps must be in this order: **Wait → Run Shortcut**. If it still locks too quickly, increase the number of seconds in **Wait**.
 
 The screens may look a little different depending on your iPhone’s software version. For Apple’s instructions, see [adding an automation](https://support.apple.com/guide/shortcuts/apdfbdbd7123/ios).
 
 **If you chose Auto-Lock (Safe):** Your phone will still ask before locking the car. **Run Immediately** starts the shortcut; it does not skip that question.
 
-## 4. Check That It Works
+## 3. Check That It Works
 
 1. Park, leave the car unlocked, and take your phone and key with you.
 2. End CarPlay or leave the car’s Wi-Fi, depending on the option you chose.
@@ -142,7 +133,7 @@ Try this a few times before relying on it. Your phone starts the shortcut when i
 - **It does not work when you tap it:** Open Bluelocke, sign in if asked, and check your internet connection. Get this working before trying the automatic setup.
 - **It works when tapped, but not when leaving:** Check that your automation is turned on and uses the right shortcut. If you chose Wi-Fi, check the network name or try CarPlay instead.
 - **It is waiting for an answer:** **Auto-Lock (Safe)** needs you to confirm before it locks. Check your phone.
-- **It runs too early:** Try the other disconnect option, or use **Auto-Lock (Safe)** so you can decide when to lock.
+- **It runs too early with CarPlay:** Increase the **Wait** time before **Run Shortcut**, or use the recommended Wi-Fi option.
 - **It runs more than once:** Check the Automation list for extra copies. Keep only one enabled while testing.
 
 You can change your mind later: edit the automation and choose the other shortcut. You do not need to set up a second automation.
