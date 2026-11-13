@@ -44,7 +44,7 @@ Bluelocke runs inside the Scriptable iOS app.
 
 This 27-second video shows how to download Bluelocke and move it into Scriptable on your iPhone. The video has no sound.
 
-<video class="install-video" controls playsinline preload="none" width="588" height="1280" poster="{{ '/assets/videos/install-bluelocke-poster.jpg' | relative_url }}" aria-label="How to install Bluelocke on iPhone">
+<video class="guide-video" controls playsinline preload="none" width="588" height="1280" poster="{{ '/assets/videos/install-bluelocke-poster.jpg' | relative_url }}" aria-label="How to install Bluelocke on iPhone">
   <source src="{{ '/assets/videos/install-bluelocke-guide.mp4' | relative_url }}" type="video/mp4">
 </video>
 

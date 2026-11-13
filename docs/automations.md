@@ -86,13 +86,25 @@ Tap the button for the option you want, then tap **Add Shortcut** on your iPhone
 
 ## 2. Set It to Run When You Leave
 
-In the **Shortcuts** app, open **Automation** and tap **+** or **New Automation**. An automation tells your iPhone when to run your shortcut.
-
-Choose one of these options. You only need one.
+Choose one option below. If you need to create a new automation, open **Shortcuts**, tap **Automation**, then tap **+** or **New Automation**.
 
 ### Recommended: When Your Phone Leaves the Car’s Wi-Fi
 
 This is the recommended option for walk-away auto-lock. Your phone starts the shortcut when it disconnects from your car’s Wi-Fi. You need wireless CarPlay and your car’s Wi-Fi must appear in Shortcuts.
+
+#### Watch the Wi-Fi Setup
+
+This 23-second video shows how to set up Wi-Fi disconnect for **Auto-lock**. Follow the same steps for **Auto-Lock (Safe)**. The video has no sound.
+
+<video class="guide-video" controls playsinline preload="none" width="588" height="1280" poster="{{ '/assets/videos/auto-lock-setup-poster.jpg' | relative_url }}" aria-label="How to set up Auto-lock with your car’s Wi-Fi">
+  <source src="{{ '/assets/videos/auto-lock-setup.mp4' | relative_url }}" type="video/mp4">
+</video>
+
+[Open the full-size video]({{ '/assets/videos/auto-lock-setup.mp4' | relative_url }})
+
+If your shortcut already has a Wi-Fi automation, open the shortcut, tap the Wi-Fi name, and choose your car’s network. Then turn the automation on in the **Automation** tab. Keep only the one you want to use turned on.
+
+If your shortcut doesn’t have a Wi-Fi automation, add one using these steps:
 
 1. While connected to your car’s wireless CarPlay, choose **Wi-Fi** in the new automation.
 2. Tap **Choose** and select your car’s Wi-Fi name. Do not choose **Any Network**, or it may run when you leave other Wi-Fi networks too.
