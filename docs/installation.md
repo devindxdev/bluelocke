@@ -40,7 +40,21 @@ Bluelocke runs inside the Scriptable iOS app.
   </div>
 </div>
 
-![GitHub release page showing the bluelocke.js file in release assets](./images/install-release-download.png)
+## Watch the Installation Video
+
+This 27-second video shows how to download Bluelocke and move it into Scriptable on your iPhone. The video has no sound.
+
+<video class="install-video" controls playsinline preload="none" width="588" height="1280" poster="{{ '/assets/videos/install-bluelocke-poster.jpg' | relative_url }}" aria-label="How to install Bluelocke on iPhone">
+  <source src="{{ '/assets/videos/install-bluelocke-guide.mp4' | relative_url }}" type="video/mp4">
+</video>
+
+[Open the video]({{ '/assets/videos/install-bluelocke-guide.mp4' | relative_url }})
+
+### Move the Downloaded File
+
+1. Open **Files** on your iPhone and go to **Downloads**.
+2. Touch and hold `bluelocke.js`, then tap **Move**.
+3. Open **iCloud Drive**, choose **Scriptable**, then tap **Move** again.
 
 ## Open Bluelocke
 
