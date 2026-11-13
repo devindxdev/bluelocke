@@ -48,7 +48,7 @@ This 27-second video shows how to download Bluelocke and move it into Scriptable
   <source src="{{ '/assets/videos/install-bluelocke-guide.mp4' | relative_url }}" type="video/mp4">
 </video>
 
-[Open the video]({{ '/assets/videos/install-bluelocke-guide.mp4' | relative_url }})
+[Open the full-size video]({{ '/assets/videos/install-bluelocke-guide.mp4' | relative_url }})
 
 ### Move the Downloaded File
 
